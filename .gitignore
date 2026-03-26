@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.env
+
+# Poetry
+poetry.lock
+
+# OS
+.DS_Store
+
+# Secrets
+.env
+*.env
