@@ -1,0 +1,28 @@
+## Madrid Flip Hunter - Context para AI
+
+Sistema multi-agente en Python para flipping inmobiliario en Madrid.
+Portfolio para entrevistas AI Engineer en ~2 semanas.
+
+### Stack completo
+Python 3.11, PostgreSQL, Playwright, BeautifulSoup, FastAPI, React, 
+Leaflet.js, Claude API, APScheduler, Docker, GitHub Actions, Railway,
+Twilio (WhatsApp), SendGrid (Email)
+
+### Módulos
+- backend/scrapers/ → Idealista, Fotocasa, Habitaclia, Milanuncios, Wallapop
+- backend/agents/  → Scoring con Claude API (0-10)
+- backend/models/  → Listing, Opportunity, PriceHistory (SQLAlchemy)
+- backend/api/     → FastAPI
+- backend/notifications/ → Twilio + SendGrid
+- frontend/        → React + Leaflet.js
+
+### Repo
+https://github.com/fcrespo8/madrid-flip-hunter
+
+### Sesiones completadas
+**Sesión 1:**
+- Git + Poetry 2.3.2 configurados
+- Estructura de carpetas creada
+- Dependencias instaladas: playwright, beautifulsoup4, httpx
+- Chromium descargado para Playwright
+- Primer commit en GitHub
