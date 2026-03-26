@@ -26,3 +26,13 @@ https://github.com/fcrespo8/madrid-flip-hunter
 - Dependencias instaladas: playwright, beautifulsoup4, httpx
 - Chromium descargado para Playwright
 - Primer commit en GitHub
+
+### Arquitectura multi-agente
+4 agentes en pipeline secuencial:
+1. Scraper agent → Playwright + BeautifulSoup + APScheduler
+2. QA agent → dedup, validación, anomalías
+3. Enrichment agent → precio/m², zona, transporte, historial
+4. Scoring agent → Claude API, score 0-10 con reasoning
+
+Outputs: Notification agent (Twilio + SendGrid) + Dashboard (FastAPI + React + Leaflet)
+Storage: PostgreSQL con SQLAlchemy (Listing, Opportunity, PriceHistory)
