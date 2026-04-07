@@ -36,3 +36,11 @@ https://github.com/fcrespo8/madrid-flip-hunter
 
 Outputs: Notification agent (Twilio + SendGrid) + Dashboard (FastAPI + React + Leaflet)
 Storage: PostgreSQL con SQLAlchemy (Listing, Opportunity, PriceHistory)
+
+**Sesión 2:**
+- BaseScraper + IdealistaScraper creados (backend/scrapers/)
+- database.py con SQLAlchemy 2.0 + SessionLocal
+- Listing model con UniqueConstraint (source, external_id)
+- Alembic inicializado, migración aplicada
+- Tabla listings creada en PostgreSQL local
+- Próximo: repository layer + conectar scraper con DB
