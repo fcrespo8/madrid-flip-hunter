@@ -44,3 +44,11 @@ Storage: PostgreSQL con SQLAlchemy (Listing, Opportunity, PriceHistory)
 - Alembic inicializado, migración aplicada
 - Tabla listings creada en PostgreSQL local
 - Próximo: repository layer + conectar scraper con DB
+
+**Sesión 3:**
+- Repository layer creado (save_listing con dedup)
+- WallapopScraper funcionando — 40 listings reales en DB
+- playwright-stealth integrado (API v2: Stealth().apply_stealth_async)
+- Idealista bloqueado por CAPTCHA — pendiente con proxies
+- run_scrapers.py orquesta todos los scrapers
+- Próximo: QA agent (dedup, validación, detección anomalías)
