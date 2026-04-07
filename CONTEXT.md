@@ -52,3 +52,9 @@ Storage: PostgreSQL con SQLAlchemy (Listing, Opportunity, PriceHistory)
 - Idealista bloqueado por CAPTCHA — pendiente con proxies
 - run_scrapers.py orquesta todos los scrapers
 - Próximo: QA agent (dedup, validación, detección anomalías)
+
+**Sesión 4:**
+- QA agent funcionando (elimina alquileres, precios anómalos)
+- Wallapop URL corregida a venta
+- 4 pisos reales de venta en DB (257k-740k€, barrio Palacio y Chueca)
+- Próximo: Scoring agent con Claude API (score 0-10 + reasoning)
