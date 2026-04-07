@@ -1,7 +1,9 @@
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
+from playwright_stealth import Stealth
 from .base_scraper import BaseScraper, RawListing
 import re
+import asyncio
 
 
 class IdealistaScraper(BaseScraper):
@@ -16,14 +18,15 @@ class IdealistaScraper(BaseScraper):
 
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
-
-            await page.set_extra_http_headers({
-                "Accept-Language": "es-ES,es;q=0.9",
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
-            })
+            context = await browser.new_context(
+                locale="es-ES",
+                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            )
+            page = await context.new_page()
+            await Stealth().apply_stealth_async(page)
 
             await page.goto(self.BASE_URL, wait_until="networkidle")
+            await asyncio.sleep(2)
             html = await page.content()
             await browser.close()
 
