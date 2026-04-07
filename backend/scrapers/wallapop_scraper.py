@@ -8,7 +8,7 @@ import asyncio
 
 class WallapopScraper(BaseScraper):
 
-    BASE_URL = "https://es.wallapop.com/app/search?keywords=piso+madrid&category_ids=200&longitude=-3.7037902&latitude=40.4167754&distance=15000"
+    BASE_URL = "https://es.wallapop.com/app/search?keywords=piso+en+venta+madrid&category_ids=200&longitude=-3.7037902&latitude=40.4167754&distance=15000"
 
     def __init__(self):
         super().__init__(source_name="wallapop")
