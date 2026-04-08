@@ -58,3 +58,6 @@ Storage: PostgreSQL con SQLAlchemy (Listing, Opportunity, PriceHistory)
 - Wallapop URL corregida a venta
 - 4 pisos reales de venta en DB (257k-740k€, barrio Palacio y Chueca)
 - Próximo: Scoring agent con Claude API (score 0-10 + reasoning)
+
+**Para retomar:** Próximo paso es Scoring agent.
+Necesita ANTHROPIC_API_KEY en .env antes de arrancar.
