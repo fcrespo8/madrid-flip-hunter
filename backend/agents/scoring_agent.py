@@ -1,108 +1,120 @@
-import asyncio
-import re
-from playwright.async_api import async_playwright
-from playwright_stealth import Stealth
-from .base_scraper import BaseScraper, RawListing
+from anthropic import AsyncAnthropic
+from sqlalchemy.orm import Session
+from backend.models.listing import Listing
+from backend.models.database import SessionLocal
+
+SCORE_TOOL = {
+    "name": "score_listing",
+    "description": "Evalúa una oportunidad de flipping inmobiliario en Madrid",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "score": {
+                "type": "number",
+                "description": "Score de 0 a 10. 0=horrible, 10=oportunidad excepcional",
+            },
+            "reasoning": {
+                "type": "string",
+                "description": "2-3 frases explicando el score. Sé concreto: precio/m², barrio, estado.",
+            },
+            "red_flags": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Señales negativas detectadas",
+            },
+            "green_flags": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Señales positivas detectadas",
+            },
+        },
+        "required": ["score", "reasoning", "red_flags", "green_flags"],
+    },
+}
+
+SYSTEM_PROMPT = """Eres un experto en inversión inmobiliaria en Madrid especializado en flipping.
+Tu objetivo es identificar pisos con potencial de revalorización rápida (comprar, reformar, vender).
+
+Criterios de scoring:
+- PRECIO/M²: En Madrid centro el precio medio es ~5.000€/m². Por debajo de 3.500€/m² es muy interesante.
+- BARRIO: Malasaña, Chueca, Lavapiés, Chamberí > Vallecas, Carabanchel (mayor margen pero más riesgo)
+- DESCRIPCIÓN: "a reformar", "reforma", "herencia", "urgente", "necesita actualización" son señales muy positivas
+- TAMAÑO: 40-95m² es el sweet spot para flipping en Madrid (liquidez alta)
+- PRECIO ABSOLUTO: Tickets entre 150k-350k son los más accesibles para inversores típicos
+
+Sé crítico y preciso. Un score alto (8+) debe ser genuinamente excepcional."""
 
 
-class WallapopScraper(BaseScraper):
+async def score_listing(listing: Listing) -> dict:
+    client = AsyncAnthropic()
 
-    SEARCH_URL = (
-        "https://es.wallapop.com/app/search"
-        "?keywords=piso+en+venta+madrid"
-        "&category_ids=200"
-        "&longitude=-3.7037902"
-        "&latitude=40.4167754"
-        "&distance=15000"
+    price_per_m2 = (
+        f"{listing.price / listing.size_m2:.0f}€/m²"
+        if listing.size_m2 and listing.size_m2 > 0
+        else "desconocido"
     )
 
-    def __init__(self):
-        super().__init__(source_name="wallapop")
+    listing_context = f"""
+PISO A EVALUAR:
+- Título: {listing.title}
+- Precio: {listing.price:,.0f}€
+- Tamaño: {listing.size_m2 or 'desconocido'}m²
+- Precio/m²: {price_per_m2}
+- Habitaciones: {listing.rooms or 'desconocido'}
+- Barrio: {listing.neighborhood or 'desconocido'}
+- Distrito: {listing.district or 'desconocido'}
+- Fuente: {listing.source}
+- Descripción: {listing.description or 'Sin descripción'}
+""".strip()
 
-    async def fetch_listings(self) -> list[RawListing]:
-        api_data = None
+    response = await client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=1024,
+        system=SYSTEM_PROMPT,
+        tools=[SCORE_TOOL],
+        tool_choice={"type": "auto"},
+        messages=[
+            {
+                "role": "user",
+                "content": f"Evalúa esta oportunidad de flipping:\n\n{listing_context}",
+            }
+        ],
+    )
 
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            context = await browser.new_context(locale="es-ES")
-            page = await context.new_page()
-            await Stealth().apply_stealth_async(page)
+    for block in response.content:
+        if block.type == "tool_use" and block.name == "score_listing":
+            return block.input
 
-            async def intercept(response):
-                nonlocal api_data
-                if "search/section" in response.url:
-                    try:
-                        api_data = await response.json()
-                    except Exception:
-                        pass
+    raise ValueError(f"Claude no devolvió tool_use para listing {listing.id}")
 
-            page.on("response", intercept)
-            await page.goto(self.SEARCH_URL, wait_until="networkidle")
-            await asyncio.sleep(3)
-            await browser.close()
 
-        if not api_data:
-            print("[wallapop] No se interceptó la API")
-            return []
+async def run_scoring_agent():
+    db: Session = SessionLocal()
+    try:
+        pending = db.query(Listing).filter(Listing.score == None).all()
+        print(f"🔍 {len(pending)} listings pendientes de scoring")
 
-        items = api_data.get("data", {}).get("section", {}).get("items", [])
-        print(f"[wallapop] {len(items)} items encontrados en la API")
-
-        listings = []
-        seen = set()
-
-        for item in items:
+        for listing in pending:
+            print(f"\n📊 Scoring: {listing.title[:60]}...")
             try:
-                listing = self._parse_item(item)
-                if listing and listing.external_id not in seen:
-                    seen.add(listing.external_id)
-                    listings.append(listing)
+                result = await score_listing(listing)
+                listing.score = result["score"]
+                db.commit()
+
+                print(f"   ✅ Score: {result['score']}/10")
+                print(f"   💬 {result['reasoning']}")
+                if result["green_flags"]:
+                    print(f"   ✅ Green: {', '.join(result['green_flags'])}")
+                if result["red_flags"]:
+                    print(f"   ⚠️  Red:   {', '.join(result['red_flags'])}")
+
             except Exception as e:
-                print(f"[wallapop] Error parseando item {item.get('id')}: {e}")
+                print(f"   ❌ Error scoring listing {listing.id}: {e}")
+                db.rollback()
+    finally:
+        db.close()
 
-        return listings
 
-    def _parse_item(self, item: dict) -> RawListing | None:
-        item_id = item.get("id")
-        if not item_id:
-            return None
-
-        web_slug = item.get("web_slug", "")
-        url = f"https://es.wallapop.com/item/{web_slug}" if web_slug else f"https://es.wallapop.com/item/{item_id}"
-
-        title = item.get("title", "Sin título")
-        description = item.get("description", "")
-
-        price_data = item.get("price", {})
-        price = price_data.get("amount")
-
-        location = item.get("location", {})
-        lat = location.get("latitude")
-        lon = location.get("longitude")
-        city = location.get("city", "")
-
-        type_attrs = item.get("type_attributes", {})
-        operation = type_attrs.get("operation", "")
-        rooms = type_attrs.get("rooms")
-
-        # Extraemos barrio del título: "Piso en venta en Chueca en Madrid"
-        neighborhood = None
-        district = None
-        match = re.search(r"en (.+?) en Madrid", title, re.IGNORECASE)
-        if match:
-            neighborhood = match.group(1).strip()
-
-        return RawListing(
-            source="wallapop",
-            external_id=item_id,
-            url=url,
-            title=title,
-            price=price,
-            size_m2=None,          # No disponible en search API, pendiente
-            rooms=rooms,
-            neighborhood=neighborhood,
-            district=district,
-            lat=lat,
-            lon=lon,
-            description=description,
-        )
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(run_scoring_agent())
