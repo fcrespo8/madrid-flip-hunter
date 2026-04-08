@@ -1,63 +1,160 @@
-## Madrid Flip Hunter - Context para AI
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MADRID FLIP HUNTER — AI ENGINEERING PORTFOLIO PROJECT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Sistema multi-agente en Python para flipping inmobiliario en Madrid.
-Portfolio para entrevistas AI Engineer en ~2 semanas.
+PERFIL: Software engineer aprendiendo AI Engineering.
+Objetivo paralelo: portfolio para entrevistas AI Engineer en ~2 semanas.
 
-### Stack completo
-Python 3.11, PostgreSQL, Playwright, BeautifulSoup, FastAPI, React, 
-Leaflet.js, Claude API, APScheduler, Docker, GitHub Actions, Railway,
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+QUÉ ES EL SISTEMA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Sistema multi-agente en Python que detecta oportunidades de
+flipping inmobiliario en Madrid de forma automatizada.
+
+Pipeline de agentes:
+  1. Scraper agent    → ✅ extrae pisos de Wallapop vía API interna interceptada
+  2. QA agent         → ✅ elimina duplicados, alquileres, anomalías
+  3. Enrichment agent → precio/m² zona, transporte (PENDIENTE)
+  4. Scoring agent    → ✅ Claude API, score 0-10 con tool use (reasoning se pierde, ver PRÓXIMA SESIÓN)
+
+Outputs:
+  - Notification agent → WhatsApp (Twilio) + Email (SendGrid) (PENDIENTE)
+  - Dashboard          → FastAPI + React + Leaflet.js (PENDIENTE)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STACK
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Python 3.11, PostgreSQL 14, SQLAlchemy 2.0, Alembic
+Playwright, BeautifulSoup, playwright-stealth 2.x
+FastAPI, React, Leaflet.js
+Claude API (claude-sonnet-4-20250514) via anthropic SDK
+APScheduler, Docker, GitHub Actions, Railway
 Twilio (WhatsApp), SendGrid (Email)
 
-### Módulos
-- backend/scrapers/ → Idealista, Fotocasa, Habitaclia, Milanuncios, Wallapop
-- backend/agents/  → Scoring con Claude API (0-10)
-- backend/models/  → Listing, Opportunity, PriceHistory (SQLAlchemy)
-- backend/api/     → FastAPI
-- backend/notifications/ → Twilio + SendGrid
-- frontend/        → React + Leaflet.js
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ENTORNO LOCAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Mac, Python 3.11, Poetry 2.3.2, Git
+PostgreSQL 14 corriendo en localhost:5432
+DB: madrid_flip_hunter
+Usuario DB: franciscocrespo
+Repo: https://github.com/fcrespo8/madrid-flip-hunter
+Ruta local: /Users/franciscocrespo/dev/github/madrid-flip-hunter
 
-### Repo
-https://github.com/fcrespo8/madrid-flip-hunter
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ESTRUCTURA DE ARCHIVOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+madrid-flip-hunter/
+├── .env                          # DATABASE_URL + ANTHROPIC_API_KEY (no en git)
+├── .gitignore
+├── pyproject.toml                # Poetry deps
+├── alembic.ini
+├── CONTEXT.md
+├── README.md
+│
+├── alembic/
+│   ├── env.py                    # conectado a Base + Listing
+│   └── versions/
+│       └── afb84d6a4a3d_create_listings_table.py
+│
+├── backend/
+│   ├── agents/
+│   │   ├── __init__.py
+│   │   ├── qa_agent.py           # ✅ valida, elimina alquileres y anomalías
+│   │   └── scoring_agent.py      # ✅ Claude API tool use, score 0-10 con reasoning
+│   │
+│   ├── models/
+│   │   ├── __init__.py
+│   │   ├── database.py           # engine, SessionLocal, Base, get_db()
+│   │   ├── listing.py            # modelo Listing con UniqueConstraint
+│   │   └── repository.py        # save_listing() con dedup + IntegrityError
+│   │
+│   ├── scrapers/
+│   │   ├── __init__.py
+│   │   ├── base_scraper.py       # ABC BaseScraper + RawListing dataclass
+│   │   ├── idealista_scraper.py  # ⚠️ bloqueado por CAPTCHA, pendiente proxies
+│   │   ├── wallapop_scraper.py   # ✅ API interna interceptada con Playwright
+│   │   └── run_scrapers.py       # orquestador: scrapers + QA agent
+│   │
+│   ├── api/                      # vacío, para FastAPI (semana 2)
+│   └── notifications/            # vacío, para Twilio + SendGrid (semana 2)
+│
+├── frontend/                     # vacío, para React (semana 2)
+└── .github/
+    └── workflows/                # vacío, para CI/CD (semana 2)
 
-### Sesiones completadas
-**Sesión 1:**
-- Git + Poetry 2.3.2 configurados
-- Estructura de carpetas creada
-- Dependencias instaladas: playwright, beautifulsoup4, httpx
-- Chromium descargado para Playwright
-- Primer commit en GitHub
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ESTADO DE LA DB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Tabla: listings (migración aplicada)
+Columnas: id, source, external_id, url, title, price, size_m2, rooms,
+          neighborhood, district, lat, lon, description, score,
+          scraped_at, created_at
+Constraint: UNIQUE (source, external_id)
+Datos actuales: ~33 pisos en venta reales (Lavapiés, Malasaña, Chueca, Palacio)
+  - Con: precio, habitaciones, descripción completa, lat/lon, barrio
+  - Sin: size_m2 (no disponible en search API de Wallapop), score_reasoning
 
-### Arquitectura multi-agente
-4 agentes en pipeline secuencial:
-1. Scraper agent → Playwright + BeautifulSoup + APScheduler
-2. QA agent → dedup, validación, anomalías
-3. Enrichment agent → precio/m², zona, transporte, historial
-4. Scoring agent → Claude API, score 0-10 con reasoning
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DEPENDENCIAS INSTALADAS (pyproject.toml)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+playwright, beautifulsoup4, httpx
+sqlalchemy, psycopg2-binary, alembic, python-dotenv
+playwright-stealth
+anthropic
 
-Outputs: Notification agent (Twilio + SendGrid) + Dashboard (FastAPI + React + Leaflet)
-Storage: PostgreSQL con SQLAlchemy (Listing, Opportunity, PriceHistory)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+NOTAS TÉCNICAS IMPORTANTES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- playwright-stealth v2.x usa: Stealth().apply_stealth_async(page)
+  (NO stealth_async — eso es v1)
+- Wallapop scraper usa intercepción de red (page.on("response", ...))
+  para capturar la API interna /api/v3/search/section que devuelve JSON
+  completo con precio, descripción, habitaciones, coordenadas
+- El scraper NO captura size_m2 (solo está en la página individual de cada piso)
+- Idealista tiene CAPTCHA agresivo, pendiente resolver con proxies
+- QA agent filtra: alquileres, precio < 50k, precio > 2M, m² anómalos
+- Scoring agent usa Claude tool use (function calling) para structured output
+  garantizado — patrón clave para entrevistas AI Engineer
+- Todos los métodos son async (Playwright + httpx)
+- DB connection string en .env:
+  DATABASE_URL=postgresql://franciscocrespo@localhost:5432/madrid_flip_hunter
+- IMPORTANTE: ejecutar siempre con `poetry run python`, no `python` directamente
+  (el sistema tiene Python 3.9, Poetry usa 3.11)
 
-**Sesión 2:**
-- BaseScraper + IdealistaScraper creados (backend/scrapers/)
-- database.py con SQLAlchemy 2.0 + SessionLocal
-- Listing model con UniqueConstraint (source, external_id)
-- Alembic inicializado, migración aplicada
-- Tabla listings creada en PostgreSQL local
-- Próximo: repository layer + conectar scraper con DB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CÓMO EJECUTAR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Scraping + QA
+poetry run python -m backend.scrapers.run_scrapers
 
-**Sesión 3:**
-- Repository layer creado (save_listing con dedup)
-- WallapopScraper funcionando — 40 listings reales en DB
-- playwright-stealth integrado (API v2: Stealth().apply_stealth_async)
-- Idealista bloqueado por CAPTCHA — pendiente con proxies
-- run_scrapers.py orquesta todos los scrapers
-- Próximo: QA agent (dedup, validación, detección anomalías)
+# Scoring
+poetry run python -m backend.agents.scoring_agent
 
-**Sesión 4:**
-- QA agent funcionando (elimina alquileres, precios anómalos)
-- Wallapop URL corregida a venta
-- 4 pisos reales de venta en DB (257k-740k€, barrio Palacio y Chueca)
-- Próximo: Scoring agent con Claude API (score 0-10 + reasoning)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PRÓXIMA SESIÓN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PASO 1 — Migración Alembic: guardar reasoning en DB (~15 min)
+  - Añadir columnas: score_reasoning TEXT, score_green_flags TEXT, score_red_flags TEXT
+  - Crear migración con alembic revision --autogenerate
+  - Actualizar scoring_agent.py para persistir los tres campos
+  - Concepto clave para portfolio: migraciones de schema en producción
 
-**Para retomar:** Próximo paso es Scoring agent.
-Necesita ANTHROPIC_API_KEY en .env antes de arrancar.
+PASO 2 — Dashboard básico: FastAPI + React + Leaflet (~resto de sesión)
+  - FastAPI: endpoint GET /api/listings que devuelve listings con score
+  - React: tabla de pisos ordenada por score
+  - Leaflet.js: mapa de Madrid con pins por score (verde/amarillo/rojo)
+  - Esto es lo que más impacta visualmente en entrevistas
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CÓMO ENSEÑARME
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Un módulo por sesión, paso a paso
+- Explicar el "por qué" de cada decisión técnica
+- Si hay varias opciones, mostrarlas y ayudarme a elegir
+- Code review de las partes clave al escribir código
+- Relacionar cada concepto con entrevistas de AI Engineer
+- Al final de cada sesión: resumen + próximo paso
+- IMPORTANTE: ejecutar siempre con poetry run python
+- IMPORTANTE: cuando se crea un archivo nuevo, hacerlo desde terminal
+  con cat > archivo << 'EOF' para evitar errores de edición
