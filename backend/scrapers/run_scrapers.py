@@ -1,14 +1,12 @@
 import asyncio
 from backend.models.database import SessionLocal
 from backend.models.repository import save_listing
-from backend.scrapers.idealista_scraper import IdealistaScraper
 from backend.scrapers.wallapop_scraper import WallapopScraper
+from backend.agents.qa_agent import QAAgent
 
 
 async def run_all():
-    scrapers = [
-        WallapopScraper(),
-    ]
+    scrapers = [WallapopScraper()]
 
     db = SessionLocal()
     total_new, total_dup = 0, 0
@@ -26,6 +24,11 @@ async def run_all():
             print(f"[{scraper.source_name}] {new_count} nuevos, {dup_count} duplicados.")
             total_new += new_count
             total_dup += dup_count
+
+        # QA agent: elimina alquileres y anomalías
+        qa = QAAgent()
+        qa.run(db)
+
     finally:
         db.close()
 

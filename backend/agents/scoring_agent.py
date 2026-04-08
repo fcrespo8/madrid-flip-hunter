@@ -79,12 +79,16 @@ class WallapopScraper(BaseScraper):
         location = item.get("location", {})
         lat = location.get("latitude")
         lon = location.get("longitude")
+        city = location.get("city", "")
 
         type_attrs = item.get("type_attributes", {})
+        operation = type_attrs.get("operation", "")
         rooms = type_attrs.get("rooms")
 
+        # Extraemos barrio del título: "Piso en venta en Chueca en Madrid"
         neighborhood = None
-        match = re.search(r"Piso en (?:venta|alquiler) en (.+?) en Madrid", title, re.IGNORECASE)
+        district = None
+        match = re.search(r"en (.+?) en Madrid", title, re.IGNORECASE)
         if match:
             neighborhood = match.group(1).strip()
 
@@ -94,10 +98,10 @@ class WallapopScraper(BaseScraper):
             url=url,
             title=title,
             price=price,
-            size_m2=None,
+            size_m2=None,          # No disponible en search API, pendiente
             rooms=rooms,
             neighborhood=neighborhood,
-            district=None,
+            district=district,
             lat=lat,
             lon=lon,
             description=description,
