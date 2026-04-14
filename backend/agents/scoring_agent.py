@@ -99,6 +99,9 @@ async def run_scoring_agent():
             try:
                 result = await score_listing(listing)
                 listing.score = result["score"]
+                listing.score_reasoning = result["reasoning"]
+                listing.score_green_flags = ", ".join(result.get("green_flags", []))
+                listing.score_red_flags = ", ".join(result.get("red_flags", []))
                 db.commit()
 
                 print(f"   ✅ Score: {result['score']}/10")

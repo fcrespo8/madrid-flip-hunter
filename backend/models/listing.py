@@ -24,6 +24,9 @@ class Listing(Base):
 
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    score_reasoning: Mapped[str | None] = mapped_column(Text, nullable=True)
+    score_green_flags: Mapped[str | None] = mapped_column(Text, nullable=True)
+    score_red_flags: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     scraped_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
