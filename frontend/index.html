@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Madrid Flip Hunter</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, sans-serif; background: #0f1117; color: #e0e0e0; }
+    header { background: #1a1d27; padding: 16px 24px; border-bottom: 1px solid #2a2d3a; }
+    header h1 { font-size: 1.3rem; color: #fff; }
+    header span { font-size: 0.85rem; color: #888; margin-left: 12px; }
+    #app { display: grid; grid-template-columns: 1fr 1fr; height: calc(100vh - 53px); }
+    #map { height: 100%; z-index: 1; }
+
+    /* TABLA */
+    #sidebar { overflow-y: auto; background: #1a1d27; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    thead th { position: sticky; top: 0; background: #12141e; padding: 10px 12px;
+               text-align: left; color: #888; font-weight: 600; border-bottom: 1px solid #2a2d3a; }
+    tbody tr { border-bottom: 1px solid #1e2130; cursor: pointer; transition: background 0.15s; }
+    tbody tr:hover { background: #22253a; }
+    tbody tr.selected { background: #2a2d4a; }
+    td { padding: 10px 12px; }
+    .score-badge { display: inline-block; width: 32px; height: 32px; border-radius: 50%;
+                   text-align: center; line-height: 32px; font-weight: 700; font-size: 0.9rem; }
+    .score-high { background: #1a3a2a; color: #4ade80; }
+    .score-mid  { background: #3a3010; color: #facc15; }
+    .score-low  { background: #3a1a1a; color: #f87171; }
+    .price { font-weight: 600; color: #fff; }
+    .neighborhood { color: #aaa; font-size: 0.78rem; }
+    .link { color: #60a5fa; text-decoration: none; font-size: 0.75rem; }
+    .link:hover { text-decoration: underline; }
+
+    /* PANEL DETALLE */
+    #detail { display: none; position: absolute; bottom: 0; left: 50%; width: 50%;
+              background: #1a1d27; border-top: 2px solid #2a2d3a; padding: 16px 20px;
+              z-index: 1000; max-height: 240px; overflow-y: auto; }
+    #detail h3 { font-size: 0.95rem; color: #fff; margin-bottom: 8px; }
+    #detail .reasoning { color: #ccc; font-size: 0.82rem; line-height: 1.5; margin-bottom: 10px; }
+    .flags { display: flex; gap: 16px; flex-wrap: wrap; }
+    .flag-group h4 { font-size: 0.75rem; font-weight: 700; margin-bottom: 4px; }
+    .flag-group.green h4 { color: #4ade80; }
+    .flag-group.red h4 { color: #f87171; }
+    .flag-item { font-size: 0.75rem; color: #bbb; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>🏠 Madrid Flip Hunter</h1>
+  <span id="count">Cargando...</span>
+</header>
+<div id="app">
+  <div id="sidebar">
+    <table>
+      <thead>
+        <tr>
+          <th>Score</th>
+          <th>Título</th>
+          <th>Precio</th>
+          <th>Barrio</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <div id="map"></div>
+</div>
+<div id="detail"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  // -- MAPA --
+  const map = L.map('map').setView([40.416, -3.703], 13);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© CartoDB'
+  }).addTo(map);
+
+  function scoreColor(s) {
+    if (s >= 7) return '#4ade80';
+    if (s >= 4) return '#facc15';
+    return '#f87171';
+  }
+
+  function makeMarker(l) {
+    if (!l.lat || !l.lon) return null;
+    return L.circleMarker([l.lat, l.lon], {
+      radius: 8, fillColor: scoreColor(l.score), color: '#fff',
+      weight: 1.5, opacity: 1, fillOpacity: 0.85
+    }).bindTooltip(`<b>${l.score}/10</b> — ${l.neighborhood || ''}<br>${(l.price/1000).toFixed(0)}k€`);
+  }
+
+  // -- TABLA + DETALLE --
+  function scoreBadgeClass(s) {
+    if (s >= 7) return 'score-high';
+    if (s >= 4) return 'score-mid';
+    return 'score-low';
+  }
+
+  function showDetail(l) {
+    const green = l.score_green_flags ? l.score_green_flags.split(', ') : [];
+    const red   = l.score_red_flags   ? l.score_red_flags.split(', ')   : [];
+    const d = document.getElementById('detail');
+    d.style.display = 'block';
+    d.innerHTML = `
+      <h3>${l.title}</h3>
+      <div class="reasoning">${l.score_reasoning || 'Sin razonamiento'}</div>
+      <div class="flags">
+        ${green.length ? `<div class="flag-group green"><h4>✅ Green flags</h4>${green.map(f=>`<div class="flag-item">· ${f}</div>`).join('')}</div>` : ''}
+        ${red.length   ? `<div class="flag-group red"><h4>⚠️ Red flags</h4>${red.map(f=>`<div class="flag-item">· ${f}</div>`).join('')}</div>` : ''}
+      </div>`;
+  }
+
+  // -- CARGA DE DATOS --
+  const markers = {};
+  let selectedRow = null;
+
+  fetch('/api/listings')
+    .then(r => r.json())
+    .then(listings => {
+      document.getElementById('count').textContent = `${listings.length} pisos analizados`;
+      const tbody = document.getElementById('tbody');
+
+      listings.forEach(l => {
+        // marker
+        const m = makeMarker(l);
+        if (m) {
+          markers[l.id] = m;
+          m.addTo(map);
+          m.on('click', () => { highlightRow(l.id); showDetail(l); });
+        }
+
+        // fila
+        const tr = document.createElement('tr');
+        tr.id = `row-${l.id}`;
+        tr.innerHTML = `
+          <td><span class="score-badge ${scoreBadgeClass(l.score)}">${l.score}</span></td>
+          <td>${l.title.substring(0, 45)}${l.title.length > 45 ? '…' : ''}</td>
+          <td class="price">${(l.price/1000).toFixed(0)}k€</td>
+          <td class="neighborhood">${l.neighborhood || l.district || '—'}</td>
+          <td><a class="link" href="${l.url}" target="_blank">ver →</a></td>`;
+        tr.addEventListener('click', () => {
+          highlightRow(l.id);
+          showDetail(l);
+          if (markers[l.id]) map.panTo(markers[l.id].getLatLng());
+        });
+        tbody.appendChild(tr);
+      });
+    });
+
+  function highlightRow(id) {
+    if (selectedRow) selectedRow.classList.remove('selected');
+    selectedRow = document.getElementById(`row-${id}`);
+    if (selectedRow) { selectedRow.classList.add('selected'); selectedRow.scrollIntoView({block:'nearest'}); }
+  }
+</script>
+</body>
+</html>

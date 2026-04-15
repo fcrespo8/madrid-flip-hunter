@@ -15,7 +15,10 @@ dependencies = [
     "alembic (>=1.18.4,<2.0.0)",
     "python-dotenv (>=1.2.2,<2.0.0)",
     "playwright-stealth (>=2.0.3,<3.0.0)",
-    "anthropic (>=0.91.0,<0.92.0)"
+    "anthropic (>=0.91.0,<0.92.0)",
+    "fastapi (>=0.135.3,<0.136.0)",
+    "uvicorn (>=0.44.0,<0.45.0)",
+    "aiofiles (>=25.1.0,<26.0.0)"
 ]
 
 
