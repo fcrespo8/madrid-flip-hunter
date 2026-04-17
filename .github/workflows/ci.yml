@@ -23,7 +23,7 @@ jobs:
         run: pip install poetry==2.3.2
 
       - name: Install dependencies
-        run: poetry install --with dev
+        run: poetry install --with dev --no-root
 
       - name: Lint with ruff
         run: poetry run ruff check backend/
