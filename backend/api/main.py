@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from backend.models.database import SessionLocal
 from backend.models.listing import Listing
@@ -22,28 +21,28 @@ def get_listings():
     try:
         listings = (
             db.query(Listing)
-            .filter(Listing.score != None)
+            .filter(Listing.score.is_not(None))
             .order_by(Listing.score.desc())
             .all()
         )
         return [
             {
-                "id": l.id,
-                "title": l.title,
-                "price": l.price,
-                "size_m2": l.size_m2,
-                "rooms": l.rooms,
-                "neighborhood": l.neighborhood,
-                "district": l.district,
-                "lat": l.lat,
-                "lon": l.lon,
-                "score": l.score,
-                "score_reasoning": l.score_reasoning,
-                "score_green_flags": l.score_green_flags,
-                "score_red_flags": l.score_red_flags,
-                "url": l.url,
+                "id": listing.id,
+                "title": listing.title,
+                "price": listing.price,
+                "size_m2": listing.size_m2,
+                "rooms": listing.rooms,
+                "neighborhood": listing.neighborhood,
+                "district": listing.district,
+                "lat": listing.lat,
+                "lon": listing.lon,
+                "score": listing.score,
+                "score_reasoning": listing.score_reasoning,
+                "score_green_flags": listing.score_green_flags,
+                "score_red_flags": listing.score_red_flags,
+                "url": listing.url,
             }
-            for l in listings
+            for listing in listings
         ]
     finally:
         db.close()

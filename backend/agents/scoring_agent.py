@@ -136,7 +136,7 @@ PISO A EVALUAR:
 async def run_scoring_agent():
     db: Session = SessionLocal()
     try:
-        pending = db.query(Listing).filter(Listing.score == None).all()
+        pending = db.query(Listing).filter(Listing.score.is_(None)).all()
         print(f"🔍 {len(pending)} listings pendientes de scoring")
 
         for listing in pending:

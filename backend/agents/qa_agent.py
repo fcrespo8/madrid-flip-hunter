@@ -12,7 +12,7 @@ PRICE_PER_M2_MAX = 20_000
 class QAAgent:
 
     def run(self, db: Session) -> dict:
-        listings = db.query(Listing).filter(Listing.score == None).all()
+        listings = db.query(Listing).filter(Listing.score.is_(None)).all()
         print(f"[QA] Analizando {len(listings)} listings...")
 
         results = {"valid": 0, "flagged": 0, "issues": []}
