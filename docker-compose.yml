@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:14
+    environment:
+      POSTGRES_DB: madrid_flip_hunter
+      POSTGRES_USER: flipuser
+      POSTGRES_PASSWORD: flippass
+    ports:
+      - "5432:5432"
+
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://flipuser:flippass@db:5432/madrid_flip_hunter
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    depends_on:
+      - db
