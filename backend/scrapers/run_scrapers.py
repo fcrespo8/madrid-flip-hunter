@@ -2,11 +2,12 @@ import asyncio
 from backend.models.database import SessionLocal
 from backend.models.repository import save_listing
 from backend.scrapers.wallapop_scraper import WallapopScraper
+from backend.scrapers.donpiso_scraper import DonpisoScraper
 from backend.agents.qa_agent import QAAgent
 
 
 async def run_all():
-    scrapers = [WallapopScraper()]
+    scrapers = [WallapopScraper(), DonpisoScraper()]
 
     db = SessionLocal()
     total_new, total_dup = 0, 0
