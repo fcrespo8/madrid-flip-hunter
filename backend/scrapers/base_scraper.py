@@ -40,3 +40,6 @@ class BaseScraper(ABC):
         listings = await self.fetch_listings()
         print(f"[{self.source_name}] {len(listings)} listings encontrados.")
         return listings
+
+    async def scrape(self) -> list[RawListing]:
+        return await self.run()

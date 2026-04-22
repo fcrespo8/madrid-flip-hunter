@@ -1,3 +1,5 @@
+# BLOCKED — Idealista uses Cloudflare bot protection that playwright-stealth cannot bypass.
+# To make this work, a residential proxy service (e.g. Bright Data, Oxylabs) is required.
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
