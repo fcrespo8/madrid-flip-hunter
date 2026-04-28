@@ -34,7 +34,6 @@ class RemaxScraper(BaseScraper):
         super().__init__(source_name="remax")
 
     async def fetch_listings(self) -> list[RawListing]:
-        # HTTP puro — no necesita async, pero BaseScraper lo requiere
         return await asyncio.to_thread(self._fetch_sync)
 
     def _fetch_sync(self) -> list[RawListing]:
@@ -42,7 +41,7 @@ class RemaxScraper(BaseScraper):
         session = requests.Session()
         session.headers.update(HEADERS)
 
-        for page in range(10):  # máx ~200 pisos
+        for page in range(10):
             start = page * 20
             url = BASE_URL if start == 0 else f"{BASE_URL}?start={start}"
             logger.info(f"[remax] Página {page + 1}: {url}")
@@ -71,61 +70,85 @@ class RemaxScraper(BaseScraper):
         results = []
         seen = set()
 
-        links = soup.select("a[href*='/buscador-de-inmuebles/venta/piso/madrid/']")
+        cards = soup.select("div.listingRow")
+        logger.info(f"[remax] {len(cards)} cards en HTML")
 
-        for link in links:
-            href = link.get("href", "")
-            if not href or href in seen:
-                continue
-
-            # Solo links de detalle — tienen al menos 8 segmentos en el path
-            parts = [p for p in href.rstrip("/").split("/") if p]
-            if len(parts) < 8:
-                continue
-
-            seen.add(href)
-            text = link.get_text(" ", strip=True)
-            price = self._parse_price(text)
-            if not price:
-                continue
-
-            external_id = parts[-1]
-            neighborhood = parts[-2].replace("-", " ").title()
-            full_url = href if href.startswith("http") else f"https://www.remax.es{href}"
-
-            title_tag = link.find(["h2", "h3"])
-            title = title_tag.get_text(strip=True) if title_tag else f"Piso en {neighborhood}"
-
-            results.append(RawListing(
-                source="remax",
-                external_id=external_id,
-                url=full_url,
-                title=title,
-                price=price,
-                size_m2=self._parse_size(text),
-                rooms=self._parse_rooms(text),
-                neighborhood=neighborhood,
-                district=None,
-                lat=None,
-                lon=None,
-                description=None,
-            ))
+        for card in cards:
+            try:
+                listing = self._parse_card(card)
+                if listing and listing.external_id not in seen:
+                    seen.add(listing.external_id)
+                    results.append(listing)
+            except Exception as e:
+                logger.warning(f"[remax] Error parseando card: {e}")
 
         return results
 
-    def _parse_price(self, text: str) -> Optional[float]:
-        m = re.search(r"([\d.]+)\s*€", text)
-        if m:
-            try:
-                return float(m.group(1).replace(".", ""))
-            except ValueError:
-                return None
-        return None
+    def _parse_card(self, card) -> Optional[RawListing]:
+        # ID y URL — link con clase "enlace_{id}"
+        link = card.find("a", class_=re.compile(r"^enlace_"))
+        if not link:
+            return None
 
-    def _parse_size(self, text: str) -> Optional[float]:
-        m = re.search(r"(\d+)\s*m2", text, re.IGNORECASE)
-        return float(m.group(1)) if m else None
+        href = link.get("href", "")
+        if not href:
+            return None
 
-    def _parse_rooms(self, text: str) -> Optional[int]:
-        m = re.search(r"(\d+)\s*hab", text, re.IGNORECASE)
-        return int(m.group(1)) if m else None
+        full_url = href if href.startswith("http") else f"https://www.remax.es{href}"
+
+        id_match = re.search(r"enlace_(\d+)", " ".join(link.get("class", [])))
+        external_id = id_match.group(1) if id_match else href.split("/")[-1]
+
+        # Precio
+        price_el = card.find(class_="inmueble-detalle-precio")
+        price = None
+        if price_el:
+            raw = price_el.get_text(strip=True)
+            digits = re.sub(r"[^\d]", "", raw.replace(".", ""))
+            price = float(digits) if digits else None
+
+        if not price:
+            return None
+
+        # Título
+        title_el = card.find(class_=re.compile(r"inmueble-detalle-nombre"))
+        title = title_el.get_text(strip=True) if title_el else "Piso en Madrid"
+
+        # m², habitaciones, baños
+        # Hay 3 divs con clase "inmueble-detalle-datos":
+        #   1º habitaciones, 2º baños, 3º m² (el que tiene <sup>2</sup>)
+        size_m2 = None
+        rooms = None
+
+        for block in card.find_all(class_="inmueble-detalle-datos"):
+            text = block.get_text(" ", strip=True)
+            if block.find("sup"):
+                # Este bloque contiene m²
+                m = re.search(r"(\d+(?:[.,]\d+)?)", text)
+                if m:
+                    size_m2 = float(m.group(1).replace(",", "."))
+            elif "hab" in text:
+                m = re.search(r"(\d+)", text)
+                if m:
+                    rooms = int(m.group(1))
+
+        # Barrio — del título "Piso en venta, Chamberí - Arapiles, Madrid"
+        neighborhood = None
+        title_match = re.search(r",\s*([^,]+),\s*Madrid", title, re.IGNORECASE)
+        if title_match:
+            neighborhood = title_match.group(1).strip()
+
+        return RawListing(
+            source="remax",
+            external_id=external_id,
+            url=full_url,
+            title=title,
+            price=price,
+            size_m2=size_m2,
+            rooms=rooms,
+            neighborhood=neighborhood,
+            district=None,
+            lat=None,
+            lon=None,
+            description=None,
+        )
