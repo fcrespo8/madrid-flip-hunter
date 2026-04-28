@@ -3,11 +3,18 @@ from backend.models.database import SessionLocal
 from backend.models.repository import save_listing
 from backend.scrapers.wallapop_scraper import WallapopScraper
 from backend.scrapers.donpiso_scraper import DonpisoScraper
+from backend.scrapers.remax_scraper import RemaxScraper        # ← nuevo
+from backend.scrapers.redpiso_scraper import RedpisoScraper    # ← nuevo
 from backend.agents.qa_agent import QAAgent
 
 
 async def run_all():
-    scrapers = [WallapopScraper(), DonpisoScraper()]
+    scrapers = [
+        WallapopScraper(),
+        DonpisoScraper(),
+        RemaxScraper(),     # ← nuevo
+        RedpisoScraper(),   # ← nuevo
+    ]
 
     db = SessionLocal()
     total_new, total_dup = 0, 0
@@ -26,7 +33,6 @@ async def run_all():
             total_new += new_count
             total_dup += dup_count
 
-        # QA agent: elimina alquileres y anomalías
         qa = QAAgent()
         qa.run(db)
 
