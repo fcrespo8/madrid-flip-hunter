@@ -49,7 +49,7 @@ class RedpisoScraper(BaseScraper):
         session = requests.Session()
         session.headers.update(HEADERS)
 
-        for page in range(1, 11):  # máx 10 páginas
+        for page in range(1, 11):
             url = BASE_URL if page == 1 else f"{BASE_URL}?page={page}"
             logger.info(f"[redpiso] Página {page}: {url}")
 
@@ -93,15 +93,24 @@ class RedpisoScraper(BaseScraper):
             ref_match = re.search(r"(RP\d+)$", href.rstrip("/"))
             external_id = ref_match.group(1) if ref_match else href.split("/")[-1]
 
-            text = link.get_text(" ", strip=True)
-            price = self._parse_price(text)
+            # Precio
+            price = self._parse_price_from_card(link)
             if not price:
                 continue
 
-            neighborhood, district = self._parse_location(href)
+            # Título — h3 dentro del link
+            title_tag = link.find("h3") or link.find("h2")
+            title = title_tag.get_text(strip=True) if title_tag else "Piso en Madrid"
 
-            title_tag = link.find(["h3", "h2"])
-            title = title_tag.get_text(strip=True) if title_tag else f"Piso en {neighborhood or 'Madrid'}"
+            # Barrio — formato "{barrio}, Madrid"
+            neighborhood = None
+            m = re.match(r"^(.+?),\s*Madrid", title, re.IGNORECASE)
+            if m:
+                neighborhood = m.group(1).strip()
+
+            # Habitaciones y m² — buscar por icono Font Awesome
+            rooms = self._parse_icon_value(link, "fa-bed")
+            size_m2 = self._parse_icon_value(link, "fa-angle-90", as_float=True)
 
             results.append(RawListing(
                 source="redpiso",
@@ -109,10 +118,10 @@ class RedpisoScraper(BaseScraper):
                 url=full_url,
                 title=title,
                 price=price,
-                size_m2=self._parse_size(text),
-                rooms=self._parse_rooms(text),
+                size_m2=size_m2,
+                rooms=rooms,
                 neighborhood=neighborhood,
-                district=district,
+                district=None,
                 lat=None,
                 lon=None,
                 description=None,
@@ -120,25 +129,32 @@ class RedpisoScraper(BaseScraper):
 
         return results
 
-    def _parse_location(self, href: str) -> tuple[Optional[str], Optional[str]]:
-        """
-        Slug: /inmueble/piso-en-venta-en-{calle}-{barrio}-{distrito}-madrid-RP{id}
-        Extrae los dos segmentos antes de 'madrid'.
-        """
-        slug = href.split("/inmueble/")[-1]
-        slug = re.sub(r"^(piso|casa|duplex|atico|estudio|loft)-en-venta-en-", "", slug)
-        slug = re.sub(r"-RP\d+$", "", slug)
-        parts = slug.split("-")
+    def _parse_icon_value(self, card, icon_class: str, as_float: bool = False):
+        """Busca <i class='... {icon_class} ...'> y extrae el número del span padre."""
+        icon = card.find("i", class_=re.compile(icon_class))
+        if not icon:
+            return None
+        span = icon.find_parent("span")
+        if not span:
+            return None
+        text = span.get_text(strip=True)
+        m = re.search(r"(\d+(?:[.,]\d+)?)", text)
+        if not m:
+            return None
+        val = m.group(1).replace(",", ".")
+        return float(val) if as_float else int(float(val))
 
-        try:
-            idx = parts.index("madrid")
-            district = parts[idx - 1].title() if idx >= 1 else None
-            neighborhood = parts[idx - 2].title() if idx >= 2 else district
-            return neighborhood, district
-        except ValueError:
-            return None, None
+    def _parse_price_from_card(self, card) -> Optional[float]:
+        """Busca el precio en el span con clase text-red-500 o similar."""
+        # Buscar span dentro de p con clase que contenga "red"
+        price_el = card.find("p", class_=re.compile(r"red"))
+        if price_el:
+            raw = price_el.get_text(strip=True)
+            digits = re.sub(r"[^\d]", "", raw.replace(".", ""))
+            return float(digits) if digits else None
 
-    def _parse_price(self, text: str) -> Optional[float]:
+        # Fallback: buscar cualquier texto con patrón de precio
+        text = card.get_text(" ", strip=True)
         m = re.search(r"([\d.]+)\s*€", text)
         if m:
             try:
@@ -146,12 +162,3 @@ class RedpisoScraper(BaseScraper):
             except ValueError:
                 return None
         return None
-
-    def _parse_size(self, text: str) -> Optional[float]:
-        m = re.search(r"(\d+)\s*m²", text)
-        return float(m.group(1)) if m else None
-
-    def _parse_rooms(self, text: str) -> Optional[int]:
-        # Redpiso: texto empieza "3 2 102 m²" → primer número = habitaciones
-        m = re.match(r"^(\d+)\s+\d+\s+\d+\s*m²", text)
-        return int(m.group(1)) if m else None
