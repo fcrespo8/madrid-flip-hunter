@@ -1,7 +1,10 @@
+import logging
 from anthropic import AsyncAnthropic
 from sqlalchemy.orm import Session
 from backend.models.listing import Listing
 from backend.models.database import SessionLocal
+
+logger = logging.getLogger(__name__)
 
 SCORE_TOOL = {
     "name": "score_listing",
@@ -137,10 +140,10 @@ async def run_scoring_agent():
     db: Session = SessionLocal()
     try:
         pending = db.query(Listing).filter(Listing.score.is_(None)).all()
-        print(f"🔍 {len(pending)} listings pendientes de scoring")
+        logger.info("%d listings pendientes de scoring", len(pending))
 
         for listing in pending:
-            print(f"\n📊 Scoring: {listing.title[:60]}...")
+            logger.info("Scoring: %s...", listing.title[:60])
             try:
                 result = await score_listing(listing)
                 listing.score = result["score"]
@@ -149,15 +152,14 @@ async def run_scoring_agent():
                 listing.score_red_flags = ", ".join(result.get("red_flags", []))
                 db.commit()
 
-                print(f"   ✅ Score: {result['score']}/10")
-                print(f"   💬 {result['reasoning']}")
+                logger.info("Score: %s/10 — %s", result['score'], result['reasoning'])
                 if result["green_flags"]:
-                    print(f"   ✅ Green: {', '.join(result['green_flags'])}")
+                    logger.debug("Green flags: %s", ', '.join(result['green_flags']))
                 if result["red_flags"]:
-                    print(f"   ⚠️  Red:   {', '.join(result['red_flags'])}")
+                    logger.debug("Red flags: %s", ', '.join(result['red_flags']))
 
             except Exception as e:
-                print(f"   ❌ Error scoring listing {listing.id}: {e}")
+                logger.error("Error scoring listing %s: %s", listing.id, e)
                 db.rollback()
     finally:
         db.close()

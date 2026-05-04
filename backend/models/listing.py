@@ -1,4 +1,4 @@
-from sqlalchemy import String, Float, Integer, DateTime, Text, UniqueConstraint
+from sqlalchemy import String, Float, Integer, DateTime, Text, UniqueConstraint, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
 from datetime import datetime
 from .database import Base
@@ -30,6 +30,8 @@ class Listing(Base):
 
     scraped_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
     __table_args__ = (
         UniqueConstraint("source", "external_id", name="uq_source_external_id"),

@@ -1,3 +1,4 @@
+from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from .listing import Listing
@@ -15,6 +16,8 @@ def save_listing(db: Session, raw: RawListing) -> tuple[Listing, bool]:
     ).first()
 
     if existing:
+        existing.last_seen_at = datetime.utcnow()
+        db.commit()
         return existing, False
 
     listing = Listing(

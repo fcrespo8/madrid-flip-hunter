@@ -8,6 +8,7 @@ from backend.scrapers.redpiso_scraper import RedpisoScraper    # ← nuevo
 from backend.scrapers.tecnocasa_scraper import TecnocasaScraper
 from backend.agents.qa_agent import QAAgent
 from backend.agents.enrich_location import enrich_locations
+from backend.agents.deactivate_stale import deactivate_stale
 
 
 async def run_all():
@@ -39,6 +40,7 @@ async def run_all():
         qa = QAAgent()
         qa.run(db)
         enrich_locations()
+        deactivate_stale()
 
     finally:
         db.close()
