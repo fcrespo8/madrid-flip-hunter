@@ -6,6 +6,7 @@ from backend.scrapers.donpiso_scraper import DonpisoScraper
 from backend.scrapers.remax_scraper import RemaxScraper        # ← nuevo
 from backend.scrapers.redpiso_scraper import RedpisoScraper    # ← nuevo
 from backend.agents.qa_agent import QAAgent
+from backend.agents.enrich_location import enrich_locations
 
 
 async def run_all():
@@ -35,6 +36,7 @@ async def run_all():
 
         qa = QAAgent()
         qa.run(db)
+        enrich_locations()
 
     finally:
         db.close()
