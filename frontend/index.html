@@ -7,42 +7,59 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, sans-serif; background: #0f1117; color: #e0e0e0; }
-    header { background: #1a1d27; padding: 16px 24px; border-bottom: 1px solid #2a2d3a; }
-    header h1 { font-size: 1.3rem; color: #fff; }
-    header span { font-size: 0.85rem; color: #888; margin-left: 12px; }
-    #app { display: grid; grid-template-columns: 1fr 1fr; height: calc(100vh - 53px); }
-    #map { height: 100%; z-index: 1; }
+    header { background: #1a1d27; padding: 12px 20px; border-bottom: 1px solid #2a2d3a; display: flex; align-items: center; gap: 12px; }
+    header h1 { font-size: 1.1rem; color: #fff; }
+    #count { font-size: 0.82rem; color: #888; }
 
-    /* TABLA */
+    #filters { background: #12141e; padding: 10px 16px; border-bottom: 1px solid #2a2d3a;
+               display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
+    .filter-group { display: flex; align-items: center; gap: 6px; }
+    .filter-group label { font-size: 0.75rem; color: #888; white-space: nowrap; }
+    .filter-group input[type=range] { width: 80px; accent-color: #60a5fa; }
+    .filter-group select { background: #1a1d27; color: #e0e0e0; border: 1px solid #2a2d3a;
+                           border-radius: 4px; padding: 3px 8px; font-size: 0.78rem; }
+    .filter-val { font-size: 0.78rem; color: #fff; min-width: 38px; }
+
+    #app { display: grid; grid-template-columns: 1fr 1fr; height: calc(100vh - 97px); }
+    #map { height: 100%; z-index: 1; }
     #sidebar { overflow-y: auto; background: #1a1d27; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-    thead th { position: sticky; top: 0; background: #12141e; padding: 10px 12px;
-               text-align: left; color: #888; font-weight: 600; border-bottom: 1px solid #2a2d3a; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    thead th { position: sticky; top: 0; background: #12141e; padding: 9px 10px;
+               text-align: left; color: #888; font-weight: 600; border-bottom: 1px solid #2a2d3a;
+               cursor: pointer; user-select: none; white-space: nowrap; }
+    thead th:hover { color: #ccc; }
+    thead th.sorted { color: #60a5fa; }
     tbody tr { border-bottom: 1px solid #1e2130; cursor: pointer; transition: background 0.15s; }
     tbody tr:hover { background: #22253a; }
     tbody tr.selected { background: #2a2d4a; }
-    td { padding: 10px 12px; }
-    .score-badge { display: inline-block; width: 32px; height: 32px; border-radius: 50%;
-                   text-align: center; line-height: 32px; font-weight: 700; font-size: 0.9rem; }
+    td { padding: 8px 10px; }
+
+    .score-badge { display: inline-flex; align-items: center; justify-content: center;
+                   width: 30px; height: 30px; border-radius: 50%;
+                   font-weight: 700; font-size: 0.85rem; }
     .score-high { background: #1a3a2a; color: #4ade80; }
     .score-mid  { background: #3a3010; color: #facc15; }
     .score-low  { background: #3a1a1a; color: #f87171; }
+
     .price { font-weight: 600; color: #fff; }
-    .neighborhood { color: #aaa; font-size: 0.78rem; }
-    .link { color: #60a5fa; text-decoration: none; font-size: 0.75rem; }
+    .ppm2  { color: #60a5fa; }
+    .neighborhood { color: #aaa; font-size: 0.73rem; }
+    .source-badge { background: #1e2130; color: #888; padding: 2px 6px;
+                    border-radius: 4px; font-size: 0.7rem; }
+    .link { color: #60a5fa; text-decoration: none; font-size: 0.72rem; }
     .link:hover { text-decoration: underline; }
 
-    /* PANEL DETALLE */
     #detail { display: none; position: absolute; bottom: 0; left: 50%; width: 50%;
-              background: #1a1d27; border-top: 2px solid #2a2d3a; padding: 16px 20px;
-              z-index: 1000; max-height: 240px; overflow-y: auto; }
-    #detail h3 { font-size: 0.95rem; color: #fff; margin-bottom: 8px; }
-    #detail .reasoning { color: #ccc; font-size: 0.82rem; line-height: 1.5; margin-bottom: 10px; }
+              background: #1a1d27; border-top: 2px solid #2a2d3a; padding: 14px 18px;
+              z-index: 1000; max-height: 220px; overflow-y: auto; }
+    #detail h3 { font-size: 0.9rem; color: #fff; margin-bottom: 6px; }
+    #detail .reasoning { color: #ccc; font-size: 0.8rem; line-height: 1.5; margin-bottom: 10px; }
     .flags { display: flex; gap: 16px; flex-wrap: wrap; }
-    .flag-group h4 { font-size: 0.75rem; font-weight: 700; margin-bottom: 4px; }
+    .flag-group h4 { font-size: 0.73rem; font-weight: 700; margin-bottom: 4px; }
     .flag-group.green h4 { color: #4ade80; }
     .flag-group.red h4 { color: #f87171; }
-    .flag-item { font-size: 0.75rem; color: #bbb; }
+    .flag-item { font-size: 0.73rem; color: #bbb; }
   </style>
 </head>
 <body>
@@ -50,6 +67,51 @@
   <h1>🏠 Madrid Flip Hunter</h1>
   <span id="count">Cargando...</span>
 </header>
+
+<div id="filters">
+  <div class="filter-group">
+    <label>Score mín</label>
+    <input type="range" id="f-score" min="0" max="10" value="0" step="1">
+    <span class="filter-val" id="f-score-val">0</span>
+  </div>
+  <div class="filter-group">
+    <label>Precio máx</label>
+    <input type="range" id="f-price" min="50" max="2000" value="2000" step="50">
+    <span class="filter-val" id="f-price-val">2000k€</span>
+  </div>
+  <div class="filter-group">
+    <label>m² mín</label>
+    <input type="range" id="f-size" min="0" max="200" value="0" step="5">
+    <span class="filter-val" id="f-size-val">0m²</span>
+  </div>
+  <div class="filter-group">
+    <label>€/m² máx</label>
+    <input type="range" id="f-ppm2" min="1000" max="15000" value="15000" step="500">
+    <span class="filter-val" id="f-ppm2-val">15k€/m²</span>
+  </div>
+  <div class="filter-group">
+    <label>Fuente</label>
+    <select id="f-source">
+      <option value="">Todas</option>
+      <option value="wallapop">Wallapop</option>
+      <option value="remax">Remax</option>
+      <option value="redpiso">Redpiso</option>
+      <option value="donpiso">Donpiso</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>Ordenar</label>
+    <select id="f-sort">
+      <option value="score-desc">Score ↓</option>
+      <option value="score-asc">Score ↑</option>
+      <option value="price-asc">Precio ↑</option>
+      <option value="price-desc">Precio ↓</option>
+      <option value="ppm2-asc">€/m² ↑</option>
+      <option value="ppm2-desc">€/m² ↓</option>
+    </select>
+  </div>
+</div>
+
 <div id="app">
   <div id="sidebar">
     <table>
@@ -58,7 +120,10 @@
           <th>Score</th>
           <th>Título</th>
           <th>Precio</th>
+          <th>€/m²</th>
+          <th>m²</th>
           <th>Barrio</th>
+          <th>Fuente</th>
           <th></th>
         </tr>
       </thead>
@@ -71,7 +136,6 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-  // -- MAPA --
   const map = L.map('map').setView([40.416, -3.703], 13);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '© CartoDB'
@@ -82,6 +146,18 @@
     if (s >= 4) return '#facc15';
     return '#f87171';
   }
+  function scoreBadgeClass(s) {
+    if (s >= 7) return 'score-high';
+    if (s >= 4) return 'score-mid';
+    return 'score-low';
+  }
+  function ppm2(l) {
+    return l.price && l.size_m2 ? Math.round(l.price / l.size_m2) : null;
+  }
+
+  const markers = {};
+  let allListings = [];
+  let selectedRow = null;
 
   function makeMarker(l) {
     if (!l.lat || !l.lon) return null;
@@ -89,13 +165,6 @@
       radius: 8, fillColor: scoreColor(l.score), color: '#fff',
       weight: 1.5, opacity: 1, fillOpacity: 0.85
     }).bindTooltip(`<b>${l.score}/10</b> — ${l.neighborhood || ''}<br>${(l.price/1000).toFixed(0)}k€`);
-  }
-
-  // -- TABLA + DETALLE --
-  function scoreBadgeClass(s) {
-    if (s >= 7) return 'score-high';
-    if (s >= 4) return 'score-mid';
-    return 'score-low';
   }
 
   function showDetail(l) {
@@ -112,48 +181,115 @@
       </div>`;
   }
 
-  // -- CARGA DE DATOS --
-  const markers = {};
-  let selectedRow = null;
+  function highlightRow(id) {
+    if (selectedRow) selectedRow.classList.remove('selected');
+    selectedRow = document.getElementById(`row-${id}`);
+    if (selectedRow) { selectedRow.classList.add('selected'); selectedRow.scrollIntoView({block:'nearest'}); }
+  }
 
+  function getFilters() {
+    return {
+      score: parseInt(document.getElementById('f-score').value),
+      price: parseInt(document.getElementById('f-price').value) * 1000,
+      size:  parseInt(document.getElementById('f-size').value),
+      ppm2:  parseInt(document.getElementById('f-ppm2').value),
+      source: document.getElementById('f-source').value,
+      sort:  document.getElementById('f-sort').value,
+    };
+  }
+
+  function applyFilters() {
+    const f = getFilters();
+    let list = allListings.filter(l => {
+      if (l.score < f.score) return false;
+      if (l.price > f.price) return false;
+      if (f.size > 0 && (!l.size_m2 || l.size_m2 < f.size)) return false;
+      const pp = ppm2(l);
+      if (pp && pp > f.ppm2) return false;
+      if (f.source && l.source !== f.source) return false;
+      return true;
+    });
+
+    // Ordenar
+    const [key, dir] = f.sort.split('-');
+    list.sort((a, b) => {
+      let av, bv;
+      if (key === 'score') { av = a.score; bv = b.score; }
+      else if (key === 'price') { av = a.price; bv = b.price; }
+      else if (key === 'ppm2') { av = ppm2(a) || 99999; bv = ppm2(b) || 99999; }
+      return dir === 'asc' ? av - bv : bv - av;
+    });
+
+    renderTable(list);
+    document.getElementById('count').textContent = `${list.length} de ${allListings.length} pisos`;
+  }
+
+  function renderTable(listings) {
+    // Ocultar/mostrar markers
+    Object.values(markers).forEach(m => map.removeLayer(m));
+    const visibleIds = new Set(listings.map(l => l.id));
+    allListings.forEach(l => {
+      if (markers[l.id] && visibleIds.has(l.id)) markers[l.id].addTo(map);
+    });
+
+    const tbody = document.getElementById('tbody');
+    tbody.innerHTML = '';
+    listings.forEach(l => {
+      const pp = ppm2(l);
+      const tr = document.createElement('tr');
+      tr.id = `row-${l.id}`;
+      tr.innerHTML = `
+        <td><span class="score-badge ${scoreBadgeClass(l.score)}">${l.score ?? '—'}</span></td>
+        <td>${(l.title || '').substring(0, 38)}${(l.title||'').length > 38 ? '…' : ''}</td>
+        <td class="price">${l.price ? (l.price/1000).toFixed(0)+'k€' : '—'}</td>
+        <td class="ppm2">${pp ? pp.toLocaleString()+'€' : '—'}</td>
+        <td class="neighborhood">${l.size_m2 ? l.size_m2+'m²' : '—'}</td>
+        <td class="neighborhood">${l.neighborhood || l.district || '—'}</td>
+        <td><span class="source-badge">${l.source || ''}</span></td>
+        <td><a class="link" href="${l.url}" target="_blank">ver →</a></td>`;
+      tr.addEventListener('click', () => {
+        highlightRow(l.id);
+        showDetail(l);
+        if (markers[l.id]) map.panTo(markers[l.id].getLatLng());
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Bind filtros
+  ['f-score','f-price','f-size','f-ppm2'].forEach(id => {
+    const el = document.getElementById(id);
+    const valEl = document.getElementById(id+'-val');
+    el.addEventListener('input', () => {
+      const v = parseInt(el.value);
+      if (id === 'f-score') valEl.textContent = v;
+      else if (id === 'f-price') valEl.textContent = v + 'k€';
+      else if (id === 'f-size') valEl.textContent = v + 'm²';
+      else if (id === 'f-ppm2') valEl.textContent = (v/1000).toFixed(1) + 'k€/m²';
+      applyFilters();
+    });
+  });
+  document.getElementById('f-source').addEventListener('change', applyFilters);
+  document.getElementById('f-sort').addEventListener('change', applyFilters);
+
+  // Carga inicial
   fetch('/api/listings')
     .then(r => r.json())
     .then(listings => {
+      allListings = listings;
       document.getElementById('count').textContent = `${listings.length} pisos analizados`;
-      const tbody = document.getElementById('tbody');
 
       listings.forEach(l => {
-        // marker
         const m = makeMarker(l);
         if (m) {
           markers[l.id] = m;
           m.addTo(map);
           m.on('click', () => { highlightRow(l.id); showDetail(l); });
         }
-
-        // fila
-        const tr = document.createElement('tr');
-        tr.id = `row-${l.id}`;
-        tr.innerHTML = `
-          <td><span class="score-badge ${scoreBadgeClass(l.score)}">${l.score}</span></td>
-          <td>${l.title.substring(0, 45)}${l.title.length > 45 ? '…' : ''}</td>
-          <td class="price">${(l.price/1000).toFixed(0)}k€</td>
-          <td class="neighborhood">${l.neighborhood || l.district || '—'}</td>
-          <td><a class="link" href="${l.url}" target="_blank">ver →</a></td>`;
-        tr.addEventListener('click', () => {
-          highlightRow(l.id);
-          showDetail(l);
-          if (markers[l.id]) map.panTo(markers[l.id].getLatLng());
-        });
-        tbody.appendChild(tr);
       });
-    });
 
-  function highlightRow(id) {
-    if (selectedRow) selectedRow.classList.remove('selected');
-    selectedRow = document.getElementById(`row-${id}`);
-    if (selectedRow) { selectedRow.classList.add('selected'); selectedRow.scrollIntoView({block:'nearest'}); }
-  }
+      applyFilters();
+    });
 </script>
 </body>
 </html>
