@@ -5,6 +5,7 @@ from backend.scrapers.wallapop_scraper import WallapopScraper
 from backend.scrapers.donpiso_scraper import DonpisoScraper
 from backend.scrapers.remax_scraper import RemaxScraper        # ← nuevo
 from backend.scrapers.redpiso_scraper import RedpisoScraper    # ← nuevo
+from backend.scrapers.tecnocasa_scraper import TecnocasaScraper
 from backend.agents.qa_agent import QAAgent
 from backend.agents.enrich_location import enrich_locations
 
@@ -15,6 +16,7 @@ async def run_all():
         DonpisoScraper(),
         RemaxScraper(),     # ← nuevo
         RedpisoScraper(),   # ← nuevo
+        TecnocasaScraper(),
     ]
 
     db = SessionLocal()
