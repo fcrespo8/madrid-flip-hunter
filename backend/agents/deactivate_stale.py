@@ -14,7 +14,7 @@ def deactivate_stale() -> None:
         cutoff = datetime.utcnow() - timedelta(days=STALE_DAYS)
         stale = db.query(Listing).filter(
             Listing.last_seen_at < cutoff,
-            Listing.is_active == True,
+            Listing.is_active.is_(True),
         ).all()
         for listing in stale:
             listing.is_active = False

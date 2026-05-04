@@ -130,9 +130,7 @@ BARRIOS_MADRID: dict[str, tuple[float, float]] = {
     "Pradolongo - Usera": (40.3830, -3.7010),
     "Usera": (40.3895, -3.7038),
     "San Andrés": (40.3895, -3.7105),
-    "Pradolongo": (40.3835, -3.7038),
     "Almendrales": (40.3942, -3.7005),
-    "Moscardó": (40.3895, -3.7072),
 
     # Puente de Vallecas
     "Entrevías": (40.3835, -3.6707),
