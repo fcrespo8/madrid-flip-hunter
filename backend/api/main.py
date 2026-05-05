@@ -7,6 +7,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from backend.models.database import SessionLocal
 from backend.models.listing import Listing
 from backend.scrapers.run_scrapers import run_all
+from backend.agents.market_prices import get_market_price
 import os
 
 scheduler = AsyncIOScheduler()
@@ -40,8 +41,16 @@ def get_listings():
             .order_by(Listing.score.desc())
             .all()
         )
-        return [
-            {
+        result = []
+        for listing in listings:
+            market_price = get_market_price(listing.neighborhood, listing.district)
+            ppm2 = listing.price / listing.size_m2 if listing.price and listing.size_m2 else None
+            vs_market_pct = (
+                round((ppm2 - market_price) / market_price * 100, 1)
+                if ppm2 and market_price
+                else None
+            )
+            result.append({
                 "id": listing.id,
                 "title": listing.title,
                 "price": listing.price,
@@ -56,9 +65,11 @@ def get_listings():
                 "score_green_flags": listing.score_green_flags,
                 "score_red_flags": listing.score_red_flags,
                 "url": listing.url,
-            }
-            for listing in listings
-        ]
+                "source": listing.source,
+                "market_price_m2": market_price,
+                "vs_market_pct": vs_market_pct,
+            })
+        return result
     finally:
         db.close()
 
