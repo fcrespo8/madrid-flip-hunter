@@ -1,5 +1,8 @@
+import logging
 from sqlalchemy.orm import Session
 from backend.models.listing import Listing
+
+logger = logging.getLogger(__name__)
 
 
 PRICE_MIN = 50_000
@@ -58,9 +61,19 @@ class QAAgent:
         if self._is_rental(listing.title):
             issues.append("es alquiler, no venta")
 
+        if self._is_non_residential(listing.title):
+            logger.info("Descartado por tipo no residencial: %s", listing.title)
+            issues.append("tipo no residencial")
+
         return issues
 
     def _is_rental(self, title: str) -> bool:
         title_lower = title.lower()
         rental_keywords = ["alquiler", "alquilo", "arriendo", "renta mensual", "mes"]
         return any(kw in title_lower for kw in rental_keywords)
+
+    def _is_non_residential(self, title: str) -> bool:
+        title_lower = title.lower()
+        non_residential = ["local", "oficina", "nave", "garaje", "trastero", "parking",
+                           "plaza de garaje", "comercial"]
+        return any(kw in title_lower for kw in non_residential)

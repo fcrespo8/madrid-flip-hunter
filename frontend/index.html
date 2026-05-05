@@ -7,66 +7,120 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, sans-serif; background: #0f1117; color: #e0e0e0; }
-    header { background: #1a1d27; padding: 12px 20px; border-bottom: 1px solid #2a2d3a; display: flex; align-items: center; gap: 12px; }
-    header h1 { font-size: 1.1rem; color: #fff; }
-    #count { font-size: 0.82rem; color: #888; }
 
-    #filters { background: #12141e; padding: 10px 16px; border-bottom: 1px solid #2a2d3a;
-               display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
+    header { background: #1a1d27; padding: 10px 20px; border-bottom: 1px solid #2a2d3a;
+             display: flex; align-items: center; gap: 12px; }
+    header h1 { font-size: 1.05rem; color: #fff; }
+
+    #kpis { background: #13151f; border-bottom: 1px solid #2a2d3a;
+            display: flex; gap: 0; }
+    .kpi { flex: 1; padding: 10px 16px; border-right: 1px solid #2a2d3a; }
+    .kpi:last-child { border-right: none; }
+    .kpi-val { font-size: 1.05rem; font-weight: 700; color: #fff; white-space: nowrap;
+               overflow: hidden; text-overflow: ellipsis; }
+    .kpi-val.green { color: #4ade80; }
+    .kpi-label { font-size: 0.68rem; color: #666; margin-top: 2px; text-transform: uppercase;
+                 letter-spacing: 0.04em; }
+
+    #filters { background: #12141e; padding: 8px 16px; border-bottom: 1px solid #2a2d3a;
+               display: flex; gap: 18px; flex-wrap: wrap; align-items: center; }
     .filter-group { display: flex; align-items: center; gap: 6px; }
-    .filter-group label { font-size: 0.75rem; color: #888; white-space: nowrap; }
+    .filter-group label { font-size: 0.73rem; color: #888; white-space: nowrap; }
     .filter-group input[type=range] { width: 80px; accent-color: #60a5fa; }
     .filter-group select { background: #1a1d27; color: #e0e0e0; border: 1px solid #2a2d3a;
                            border-radius: 4px; padding: 3px 8px; font-size: 0.78rem; }
     .filter-val { font-size: 0.78rem; color: #fff; min-width: 38px; }
 
-    #app { display: grid; grid-template-columns: 1fr 1fr; height: calc(100vh - 97px); }
+    #app { display: grid; grid-template-columns: 1fr 1fr; height: calc(100vh - 158px); }
     #map { height: 100%; z-index: 1; }
     #sidebar { overflow-y: auto; background: #1a1d27; }
 
-    table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
-    thead th { position: sticky; top: 0; background: #12141e; padding: 9px 10px;
-               text-align: left; color: #888; font-weight: 600; border-bottom: 1px solid #2a2d3a;
-               cursor: pointer; user-select: none; white-space: nowrap; }
-    thead th:hover { color: #ccc; }
-    thead th.sorted { color: #60a5fa; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.76rem; }
+    thead th { position: sticky; top: 0; background: #12141e; padding: 8px 8px;
+               text-align: left; color: #666; font-weight: 600; border-bottom: 1px solid #2a2d3a;
+               cursor: default; user-select: none; white-space: nowrap; }
+    thead th[title] { cursor: help; border-bottom: 1px dashed #3a3d5a; }
+    thead th[title]:hover { color: #aaa; }
     tbody tr { border-bottom: 1px solid #1e2130; cursor: pointer; transition: background 0.15s; }
     tbody tr:hover { background: #22253a; }
     tbody tr.selected { background: #2a2d4a; }
-    td { padding: 8px 10px; }
+    td { padding: 7px 8px; vertical-align: middle; }
 
     .score-badge { display: inline-flex; align-items: center; justify-content: center;
-                   width: 30px; height: 30px; border-radius: 50%;
-                   font-weight: 700; font-size: 0.85rem; }
+                   width: 28px; height: 28px; border-radius: 50%;
+                   font-weight: 700; font-size: 0.82rem; }
     .score-high { background: #1a3a2a; color: #4ade80; }
     .score-mid  { background: #3a3010; color: #facc15; }
     .score-low  { background: #3a1a1a; color: #f87171; }
 
     .price { font-weight: 600; color: #fff; }
     .ppm2  { color: #60a5fa; }
-    .neighborhood { color: #aaa; font-size: 0.73rem; }
-    .source-badge { background: #1e2130; color: #888; padding: 2px 6px;
-                    border-radius: 4px; font-size: 0.7rem; }
+    .mkt-price { color: #555; font-size: 0.72rem; }
+    .neighborhood { color: #aaa; font-size: 0.72rem; }
+
+    .vs-green  { color: #4ade80; font-weight: 600; }
+    .vs-yellow { color: #facc15; font-weight: 600; }
+    .vs-red    { color: #f87171; font-weight: 600; }
+
+    .source-badge { padding: 2px 6px; border-radius: 4px; font-size: 0.68rem; font-weight: 600; }
+    .src-wallapop  { background: #431407; color: #f97316; }
+    .src-remax     { background: #450a0a; color: #f87171; }
+    .src-redpiso   { background: #0c1a3a; color: #60a5fa; }
+    .src-donpiso   { background: #052e16; color: #4ade80; }
+    .src-tecnocasa { background: #1e1b4b; color: #a78bfa; }
+    .src-default   { background: #1e2130; color: #888; }
+
     .link { color: #60a5fa; text-decoration: none; font-size: 0.72rem; }
     .link:hover { text-decoration: underline; }
 
     #detail { display: none; position: absolute; bottom: 0; left: 50%; width: 50%;
               background: #1a1d27; border-top: 2px solid #2a2d3a; padding: 14px 18px;
-              z-index: 1000; max-height: 220px; overflow-y: auto; }
-    #detail h3 { font-size: 0.9rem; color: #fff; margin-bottom: 6px; }
-    #detail .reasoning { color: #ccc; font-size: 0.8rem; line-height: 1.5; margin-bottom: 10px; }
+              z-index: 1000; max-height: 240px; overflow-y: auto; }
+    #detail h3 { font-size: 0.88rem; color: #fff; margin-bottom: 8px; }
+    .market-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+                  margin-bottom: 8px; padding: 8px 10px; background: #12141e;
+                  border-radius: 6px; border-left: 3px solid #2a2d3a; }
+    .market-ppm2 { font-size: 0.85rem; font-weight: 700; color: #60a5fa; }
+    .market-sep  { color: #555; font-size: 0.8rem; }
+    .market-avg  { font-size: 0.82rem; color: #888; }
+    .market-diff { font-size: 0.82rem; font-weight: 700; }
+    .market-diff.green { color: #4ade80; }
+    .market-diff.red   { color: #f87171; }
+    .margin-row { font-size: 0.8rem; margin-top: 4px; }
+    .margin-row span { font-weight: 700; }
+    .margin-pos { color: #4ade80; }
+    .margin-neg { color: #f87171; }
+    #detail .reasoning { color: #ccc; font-size: 0.79rem; line-height: 1.5; margin-bottom: 10px; }
     .flags { display: flex; gap: 16px; flex-wrap: wrap; }
-    .flag-group h4 { font-size: 0.73rem; font-weight: 700; margin-bottom: 4px; }
+    .flag-group h4 { font-size: 0.72rem; font-weight: 700; margin-bottom: 4px; }
     .flag-group.green h4 { color: #4ade80; }
     .flag-group.red h4 { color: #f87171; }
-    .flag-item { font-size: 0.73rem; color: #bbb; }
+    .flag-item { font-size: 0.72rem; color: #bbb; }
   </style>
 </head>
 <body>
 <header>
   <h1>🏠 Madrid Flip Hunter</h1>
-  <span id="count">Cargando...</span>
 </header>
+
+<div id="kpis">
+  <div class="kpi">
+    <div class="kpi-val" id="kpi-total">—</div>
+    <div class="kpi-label">Pisos analizados</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-val" id="kpi-score">—</div>
+    <div class="kpi-label">Score medio</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-val" id="kpi-best">—</div>
+    <div class="kpi-label">Mejor deal</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-val green" id="kpi-below">—</div>
+    <div class="kpi-label">Bajo precio de mercado (&lt;−5%)</div>
+  </div>
+</div>
 
 <div id="filters">
   <div class="filter-group">
@@ -97,6 +151,7 @@
       <option value="remax">Remax</option>
       <option value="redpiso">Redpiso</option>
       <option value="donpiso">Donpiso</option>
+      <option value="tecnocasa">Tecnocasa</option>
     </select>
   </div>
   <div class="filter-group">
@@ -110,6 +165,10 @@
       <option value="ppm2-desc">€/m² ↓</option>
     </select>
   </div>
+  <div class="filter-group">
+    <label for="f-no-size">Sin m²</label>
+    <input type="checkbox" id="f-no-size">
+  </div>
 </div>
 
 <div id="app">
@@ -117,11 +176,14 @@
     <table>
       <thead>
         <tr>
-          <th>Score</th>
+          <th title="Puntuación de oportunidad de flipping (0–10)">Score</th>
           <th>Título</th>
-          <th>Precio</th>
-          <th>€/m²</th>
-          <th>m²</th>
+          <th title="Precio de venta del anuncio">Precio</th>
+          <th title="Precio por metro cuadrado del anuncio">€/m²</th>
+          <th title="Diferencia entre el precio/m² del anuncio y la media del barrio según Idealista">vs Mkt</th>
+          <th title="Precio medio de venta €/m² en el barrio o distrito (Idealista, abr 2026)">Zona</th>
+          <th title="Superficie en metros cuadrados">m²</th>
+          <th title="Número de habitaciones">Hab</th>
           <th>Barrio</th>
           <th>Fuente</th>
           <th></th>
@@ -154,6 +216,24 @@
   function ppm2(l) {
     return l.price && l.size_m2 ? Math.round(l.price / l.size_m2) : null;
   }
+  function sourceBadgeClass(src) {
+    const map = { wallapop: 'src-wallapop', remax: 'src-remax', redpiso: 'src-redpiso',
+                  donpiso: 'src-donpiso', tecnocasa: 'src-tecnocasa' };
+    return map[src] || 'src-default';
+  }
+  function vsMarketClass(pct) {
+    if (pct <= -10) return 'vs-green';
+    if (pct >= 10)  return 'vs-red';
+    return 'vs-yellow';
+  }
+  function fmtPct(pct) {
+    if (pct == null) return '—';
+    return (pct > 0 ? '+' : '') + pct.toFixed(1) + '%';
+  }
+  function fmtPrice(n) {
+    if (!n) return '—';
+    return n.toLocaleString('es-ES') + '€/m²';
+  }
 
   const markers = {};
   let allListings = [];
@@ -170,10 +250,35 @@
   function showDetail(l) {
     const green = l.score_green_flags ? l.score_green_flags.split(', ') : [];
     const red   = l.score_red_flags   ? l.score_red_flags.split(', ')   : [];
+    const pp = ppm2(l);
+    const mkt = l.market_price_m2;
+    const vsPct = l.vs_market_pct;
+
+    let marketHtml = '';
+    if (pp && mkt) {
+      const diffLabel = vsPct <= 0
+        ? `<span class="market-diff green">→ ${Math.abs(vsPct).toFixed(1)}% bajo mercado</span>`
+        : `<span class="market-diff red">→ ${vsPct.toFixed(1)}% sobre mercado</span>`;
+      const margin = mkt && pp && l.size_m2
+        ? Math.round((mkt - pp) * l.size_m2 * 0.7) : null;
+      const marginHtml = margin != null
+        ? `<div class="margin-row">Margen potencial bruto estimado: <span class="${margin >= 0 ? 'margin-pos' : 'margin-neg'}">${margin >= 0 ? '~+' : '~'}${margin.toLocaleString('es-ES')}€</span></div>`
+        : '';
+      marketHtml = `
+        <div class="market-row">
+          <span class="market-ppm2">${pp.toLocaleString('es-ES')}€/m²</span>
+          <span class="market-sep">vs</span>
+          <span class="market-avg">${Math.round(mkt).toLocaleString('es-ES')}€/m² mercado</span>
+          ${diffLabel}
+        </div>
+        ${marginHtml}`;
+    }
+
     const d = document.getElementById('detail');
     d.style.display = 'block';
     d.innerHTML = `
       <h3>${l.title}</h3>
+      ${marketHtml}
       <div class="reasoning">${l.score_reasoning || 'Sin razonamiento'}</div>
       <div class="flags">
         ${green.length ? `<div class="flag-group green"><h4>✅ Green flags</h4>${green.map(f=>`<div class="flag-item">· ${f}</div>`).join('')}</div>` : ''}
@@ -195,7 +300,25 @@
       ppm2:  parseInt(document.getElementById('f-ppm2').value),
       source: document.getElementById('f-source').value,
       sort:  document.getElementById('f-sort').value,
+      showNoSize: document.getElementById('f-no-size').checked,
     };
+  }
+
+  function updateKpis(filtered) {
+    document.getElementById('kpi-total').textContent = allListings.length;
+    const scores = filtered.map(l => l.score).filter(s => s != null);
+    document.getElementById('kpi-score').textContent =
+      scores.length ? (scores.reduce((a,b) => a+b, 0) / scores.length).toFixed(1) : '—';
+    const best = filtered.reduce((a, b) => (a && a.score >= b.score) ? a : b, null);
+    const bestEl = document.getElementById('kpi-best');
+    if (best) {
+      const title = (best.title || '').substring(0, 26) + ((best.title||'').length > 26 ? '…' : '');
+      bestEl.innerHTML = `<span style="color:#4ade80">${best.score}</span> — ${title}`;
+    } else {
+      bestEl.textContent = '—';
+    }
+    const belowMkt = filtered.filter(l => l.vs_market_pct != null && l.vs_market_pct < -5).length;
+    document.getElementById('kpi-below').textContent = belowMkt;
   }
 
   function applyFilters() {
@@ -207,10 +330,10 @@
       const pp = ppm2(l);
       if (pp && pp > f.ppm2) return false;
       if (f.source && l.source !== f.source) return false;
+      if (!f.showNoSize && !l.size_m2) return false;
       return true;
     });
 
-    // Ordenar
     const [key, dir] = f.sort.split('-');
     list.sort((a, b) => {
       let av, bv;
@@ -220,12 +343,11 @@
       return dir === 'asc' ? av - bv : bv - av;
     });
 
+    updateKpis(list);
     renderTable(list);
-    document.getElementById('count').textContent = `${list.length} de ${allListings.length} pisos`;
   }
 
   function renderTable(listings) {
-    // Ocultar/mostrar markers
     Object.values(markers).forEach(m => map.removeLayer(m));
     const visibleIds = new Set(listings.map(l => l.id));
     allListings.forEach(l => {
@@ -236,16 +358,20 @@
     tbody.innerHTML = '';
     listings.forEach(l => {
       const pp = ppm2(l);
+      const vsPct = l.vs_market_pct;
       const tr = document.createElement('tr');
       tr.id = `row-${l.id}`;
       tr.innerHTML = `
         <td><span class="score-badge ${scoreBadgeClass(l.score)}">${l.score ?? '—'}</span></td>
-        <td>${(l.title || '').substring(0, 38)}${(l.title||'').length > 38 ? '…' : ''}</td>
+        <td>${(l.title || '').substring(0, 32)}${(l.title||'').length > 32 ? '…' : ''}</td>
         <td class="price">${l.price ? (l.price/1000).toFixed(0)+'k€' : '—'}</td>
-        <td class="ppm2">${pp ? pp.toLocaleString()+'€' : '—'}</td>
+        <td class="ppm2">${pp ? pp.toLocaleString('es-ES')+'€' : '—'}</td>
+        <td><span class="${vsPct != null ? vsMarketClass(vsPct) : ''}">${fmtPct(vsPct)}</span></td>
+        <td class="mkt-price">${l.market_price_m2 ? Math.round(l.market_price_m2).toLocaleString('es-ES')+'€' : '—'}</td>
         <td class="neighborhood">${l.size_m2 ? l.size_m2+'m²' : '—'}</td>
+        <td class="neighborhood">${l.rooms ?? '—'}</td>
         <td class="neighborhood">${l.neighborhood || l.district || '—'}</td>
-        <td><span class="source-badge">${l.source || ''}</span></td>
+        <td><span class="source-badge ${sourceBadgeClass(l.source)}">${l.source || ''}</span></td>
         <td><a class="link" href="${l.url}" target="_blank">ver →</a></td>`;
       tr.addEventListener('click', () => {
         highlightRow(l.id);
@@ -256,7 +382,6 @@
     });
   }
 
-  // Bind filtros
   ['f-score','f-price','f-size','f-ppm2'].forEach(id => {
     const el = document.getElementById(id);
     const valEl = document.getElementById(id+'-val');
@@ -271,14 +396,12 @@
   });
   document.getElementById('f-source').addEventListener('change', applyFilters);
   document.getElementById('f-sort').addEventListener('change', applyFilters);
+  document.getElementById('f-no-size').addEventListener('change', applyFilters);
 
-  // Carga inicial
   fetch('/api/listings')
     .then(r => r.json())
     .then(listings => {
       allListings = listings;
-      document.getElementById('count').textContent = `${listings.length} pisos analizados`;
-
       listings.forEach(l => {
         const m = makeMarker(l);
         if (m) {
@@ -287,7 +410,6 @@
           m.on('click', () => { highlightRow(l.id); showDetail(l); });
         }
       });
-
       applyFilters();
     });
 </script>
