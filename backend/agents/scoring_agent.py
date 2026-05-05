@@ -1,5 +1,6 @@
 import logging
 from anthropic import AsyncAnthropic
+from backend.agents.market_prices import get_market_price
 from sqlalchemy.orm import Session
 from backend.models.listing import Listing
 from backend.models.database import SessionLocal
@@ -102,12 +103,17 @@ async def score_listing(listing: Listing) -> dict:
         else "desconocido"
     )
 
+    market_price = get_market_price(listing.neighborhood, listing.district)
+    market_context = f"{market_price:.0f}€/m² (media del barrio según Idealista abr 2026)" if market_price else "no disponible"
+
     listing_context = f"""
 PISO A EVALUAR:
 - Título: {listing.title}
 - Precio: {listing.price:,.0f}€
 - Tamaño: {listing.size_m2 or 'desconocido'}m²
 - Precio/m²: {price_per_m2}
+- Precio medio del barrio: {market_context}
+- Diferencia vs mercado: {f'{((listing.price / listing.size_m2) - market_price) / market_price * 100:+.1f}% vs media' if market_price and listing.size_m2 else 'no calculable'}
 - Habitaciones: {listing.rooms or 'desconocido'}
 - Barrio: {listing.neighborhood or 'desconocido'}
 - Distrito: {listing.district or 'desconocido'}
@@ -116,7 +122,7 @@ PISO A EVALUAR:
 """.strip()
 
     response = await client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-6",
         max_tokens=1024,
         system=SYSTEM_PROMPT,
         tools=[SCORE_TOOL],
