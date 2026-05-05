@@ -4,13 +4,10 @@ Usa Playwright porque Idealista bloquea HTTP puro.
 Se ejecuta una vez al mes — los datos no cambian tan rápido.
 """
 import asyncio
-import re
 import logging
 from datetime import datetime
 from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
-from backend.models.database import SessionLocal
-from backend.models.listing import Listing
 
 logger = logging.getLogger(__name__)
 
