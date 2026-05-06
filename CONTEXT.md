@@ -7,14 +7,14 @@ ESTADO ACTUAL (mayo 2026)
 - Scraper Redpiso: funcionando (HTML parsing con BeautifulSoup)
 - Scraper Tecnocasa: funcionando (API JSON interna, Playwright)
 - Scraper Idealista: bloqueado por Cloudflare — necesita proxies residenciales
-- QA agent: funcionando (filtra alquileres, precios y tamaños anómalos)
+- QA agent: filtra alquileres, precios/tamaños anómalos, y propiedades no residenciales (local, oficina, nave, garaje, trastero, parking, comercial)
 - Enrich location agent: funcionando — rellena lat/lon y barrio/distrito por nombre de barrio
 - Enrich size agent: funcionando — visita URLs con size_m2=NULL y extrae m² del HTML
-- Scoring agent: funcionando, prompt inversor (Carlos Martínez) + contexto precio medio de mercado por barrio (Idealista abr 2026)
+- Scoring agent: funcionando, prompt inversor (Carlos Martínez) + contexto precio medio de mercado por barrio (Idealista abr 2026); re-scoring completo ejecutado
 - market_prices.py: precios medios €/m² por barrio y distrito (21 distritos, ~130 barrios)
 - Soft delete: columnas is_active y last_seen_at — listings sin ver en 30 días se desactivan
 - APScheduler: pipeline completo se ejecuta automáticamente cada día a las 7:00 AM
-- Dashboard: FastAPI + React + Leaflet en http://localhost:8000 (solo muestra is_active=True)
+- Dashboard: FastAPI + Leaflet en http://localhost:8000 — KPIs (total, score medio, mejor deal, bajo mercado), columna vs mercado con color, precio medio zona, badges por fuente, toggle "sin m²", panel de detalle con margen estimado
 - CI/CD: GitHub Actions verde (lint ruff + 4 smoke tests)
 
 SCRAPERS ACTIVOS
@@ -27,8 +27,6 @@ PIPELINE COMPLETO (ejecutado automáticamente a las 7am vía APScheduler)
   poetry run uvicorn backend.api.main:app --reload --port 8000
 
 PROXIMOS PASOS
-- Re-scoring completo de listings existentes con nuevo contexto de mercado
-- Mejoras dashboard: filtros avanzados, vista comparativa vs precio medio barrio
-- Notificaciones: WhatsApp (Twilio) + Email (SendGrid) para score > 7
-- README portfolio para mostrar el proyecto
+- Notificaciones email (SendGrid) para score > 7
 - Deploy cloud: Railway (API + scheduler) + AWS S3 (frontend estático)
+- README portfolio para mostrar el proyecto
