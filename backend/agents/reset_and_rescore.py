@@ -13,7 +13,7 @@ def reset_scores():
     try:
         updated = (
             db.query(Listing)
-            .filter(Listing.is_active == True)
+            .filter(Listing.is_active.is_(True))
             .update({"score": None, "score_reasoning": None,
                      "score_green_flags": None, "score_red_flags": None})
         )
