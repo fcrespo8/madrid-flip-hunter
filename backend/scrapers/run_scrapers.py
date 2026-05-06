@@ -1,5 +1,7 @@
 import asyncio
+from datetime import datetime
 from backend.models.database import SessionLocal
+from backend.models.listing import Listing
 from backend.models.repository import save_listing
 from backend.scrapers.wallapop_scraper import WallapopScraper
 from backend.scrapers.donpiso_scraper import DonpisoScraper
@@ -9,6 +11,7 @@ from backend.scrapers.tecnocasa_scraper import TecnocasaScraper
 from backend.agents.qa_agent import QAAgent
 from backend.agents.enrich_location import enrich_locations
 from backend.agents.deactivate_stale import deactivate_stale
+from backend.agents.notifier import send_whatsapp_alerts
 
 
 async def run_all():
@@ -41,6 +44,20 @@ async def run_all():
         qa.run(db)
         enrich_locations()
         deactivate_stale()
+
+        to_notify = (
+            db.query(Listing)
+            .filter(
+                Listing.score >= 7.5,
+                Listing.is_active.is_(True),
+                Listing.notified_at.is_(None),
+            )
+            .all()
+        )
+        await send_whatsapp_alerts(to_notify)
+        for listing in to_notify:
+            listing.notified_at = datetime.utcnow()
+        db.commit()
 
     finally:
         db.close()
