@@ -142,10 +142,13 @@ PISO A EVALUAR:
     raise ValueError(f"Claude no devolvió tool_use para listing {listing.id}")
 
 
-async def run_scoring_agent():
+async def run_scoring_agent(listings: list[Listing] | None = None):
     db: Session = SessionLocal()
     try:
-        pending = db.query(Listing).filter(Listing.score.is_(None)).all()
+        if listings is not None:
+            pending = listings
+        else:
+            pending = db.query(Listing).filter(Listing.score.is_(None)).all()
         logger.info("%d listings pendientes de scoring", len(pending))
 
         for listing in pending:

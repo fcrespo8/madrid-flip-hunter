@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from datetime import datetime
 from backend.models.database import SessionLocal
 from backend.models.listing import Listing
@@ -12,6 +13,10 @@ from backend.agents.qa_agent import QAAgent
 from backend.agents.enrich_location import enrich_locations
 from backend.agents.deactivate_stale import deactivate_stale
 from backend.agents.notifier import send_whatsapp_alerts
+from backend.agents.pre_scorer import pre_score
+from backend.agents.scoring_agent import run_scoring_agent
+
+logger = logging.getLogger(__name__)
 
 
 async def run_all():
@@ -44,6 +49,21 @@ async def run_all():
         qa.run(db)
         enrich_locations()
         deactivate_stale()
+
+        # Pre-scoring: filtra candidatos para Claude sin coste de API
+        unscored = db.query(Listing).filter(Listing.score.is_(None)).all()
+        candidatos_claude = []
+        for listing in unscored:
+            ps = pre_score(listing)
+            if ps is not None and ps >= 7.0:
+                candidatos_claude.append(listing)
+            else:
+                listing.score = ps
+                listing.score_reasoning = "Score automático: precio vs mercado"
+        db.commit()
+        logger.info("%d candidatos para scoring Claude (pre-score >= 7.0)", len(candidatos_claude))
+
+        await run_scoring_agent(listings=candidatos_claude)
 
         to_notify = (
             db.query(Listing)
