@@ -15,7 +15,9 @@ ESTADO ACTUAL (mayo 2026)
 - Soft delete: columnas is_active y last_seen_at — listings sin ver en 30 días se desactivan
 - APScheduler: pipeline completo se ejecuta automáticamente cada día a las 7:00 AM
 - Dashboard: FastAPI + Leaflet en http://localhost:8000 — KPIs (total, score medio, mejor deal, bajo mercado), columna vs mercado con color, precio medio zona, badges por fuente, toggle "sin m²", panel de detalle con margen estimado
-- CI/CD: GitHub Actions verde (lint ruff + 4 smoke tests)
+- CI/CD: GitHub Actions verde (lint ruff + 4 smoke tests) + deploy automático a Railway en cada push a main
+- Deploy: Railway — madrid-flip-hunter-production.up.railway.app + PostgreSQL en Railway (DB se puebla con pipeline diario 7am)
+- Docker: Playwright + Chromium instalado para scraping en cloud
 
 SCRAPERS ACTIVOS
   poetry run python -m backend.scrapers.run_scrapers   # Wallapop + DonPiso + Remax + Redpiso + Tecnocasa
@@ -27,6 +29,5 @@ PIPELINE COMPLETO (ejecutado automáticamente a las 7am vía APScheduler)
   poetry run uvicorn backend.api.main:app --reload --port 8000
 
 PROXIMOS PASOS
-- Notificaciones email (SendGrid) para score > 7
-- Deploy cloud: Railway (API + scheduler) + AWS S3 (frontend estático)
 - README portfolio para mostrar el proyecto
+- Cancelar Wix
