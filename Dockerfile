@@ -6,6 +6,8 @@ RUN pip install poetry==2.3.2
 
 COPY pyproject.toml poetry.lock* ./
 RUN poetry install --no-root --without dev
+RUN poetry run playwright install chromium
+RUN poetry run playwright install-deps chromium
 
 COPY . .
 
