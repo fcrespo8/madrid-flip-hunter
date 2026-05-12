@@ -23,6 +23,9 @@ async def lifespan(app):
 
 app = FastAPI(title="Madrid Flip Hunter", lifespan=lifespan)
 
+from backend.auth.router import router as auth_router
+app.include_router(auth_router)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

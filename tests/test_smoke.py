@@ -32,3 +32,10 @@ def test_score_tool_campos_requeridos():
     from backend.agents.scoring_agent import SCORE_TOOL
     required = set(SCORE_TOOL["input_schema"]["required"])
     assert required == {"score", "reasoning", "red_flags", "green_flags"}
+
+
+def test_auth_token_schema():
+    from backend.auth.security import create_access_token, decode_token
+    token = create_access_token({"sub": "testuser"})
+    payload = decode_token(token)
+    assert payload["sub"] == "testuser"
