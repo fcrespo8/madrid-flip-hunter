@@ -15,6 +15,7 @@ ESTADO ACTUAL (mayo 2026)
 - Soft delete: columnas is_active y last_seen_at — listings sin ver en 30 días se desactivan
 - APScheduler: pipeline completo se ejecuta automáticamente cada día a las 7:00 AM
 - Dashboard: FastAPI + Leaflet en http://localhost:8000 — KPIs (total, score medio, mejor deal, bajo mercado), columna vs mercado con color, precio medio zona, badges por fuente, toggle "sin m²", panel de detalle con margen estimado
+- Deal Tracker (Tab "Operaciones"): Módulos 1-3 completos — 8 tablas PostgreSQL (operations, operation_financials, operation_dates, operation_expenses, recurring_expenses, partners, partner_distributions, users), autenticación JWT (admin/viewer), CRUD operaciones, primera pantalla con tabs Deal Finder/Operaciones
 - CI/CD: GitHub Actions verde (lint ruff + 4 smoke tests) + deploy automático a Railway en cada push a main
 - Deploy: Railway — madrid-flip-hunter-production.up.railway.app + PostgreSQL en Railway (DB se puebla con pipeline diario 7am)
 - Docker: Playwright + Chromium instalado para scraping en cloud
@@ -29,5 +30,12 @@ PIPELINE COMPLETO (ejecutado automáticamente a las 7am vía APScheduler)
   poetry run uvicorn backend.api.main:app --reload --port 8000
 
 PROXIMOS PASOS
+- Deal Tracker Módulo 4: Financiero (P&L por operación)
+- Deal Tracker Módulo 5: Gastos (operation_expenses — entrada línea a línea)
+- Deal Tracker Módulo 6: Documentos
+- Deal Tracker Módulo 7: Sociedad y reparto de beneficios
+- Deal Tracker Módulo 8: Portfolio view + KPIs globales
+- Deal Tracker Módulo 9: Exportación PDF/Excel para gestoría
+- Idealista scraper: pendiente proxies residenciales
 - README portfolio para mostrar el proyecto
 - Cancelar Wix

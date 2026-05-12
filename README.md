@@ -90,6 +90,18 @@ poetry run pytest tests/ -v
 
 ---
 
+## Deal Tracker
+
+ERP ligero para flippers inmobiliarios integrado en el mismo dashboard.
+
+Gestión completa del ciclo de vida de cada operación: prospecto → negociación → compra → en obra → en venta → vendido.
+
+Módulos: ficha general, gastos línea a línea, P&L automático, documentos, sociedad y reparto de beneficios, portfolio view, exportación para gestoría.
+
+Autenticación JWT con roles admin/viewer.
+
+---
+
 ## Deploy
 
 Deployed on Railway with a PostgreSQL addon. The pipeline runs automatically via APScheduler at 7am daily — no external cron needed. GitHub Actions runs lint (ruff) and smoke tests on every push, then deploys to Railway on green.
