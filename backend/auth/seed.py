@@ -5,12 +5,10 @@ Reads ADMIN_USERNAME and ADMIN_PASSWORD from env, falls back to dev defaults.
 """
 import os
 from dotenv import load_dotenv
-
 load_dotenv()
-
-from backend.models.database import SessionLocal
-from backend.models.operation import User, UserRole
-from backend.auth.security import hash_password
+from backend.models.database import SessionLocal  # noqa: E402
+from backend.models.operation import User, UserRole  # noqa: E402
+from backend.auth.security import hash_password  # noqa: E402
 
 
 def seed_admin() -> None:

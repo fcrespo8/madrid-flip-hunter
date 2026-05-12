@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,7 +9,8 @@ from backend.models.database import SessionLocal
 from backend.models.listing import Listing
 from backend.scrapers.run_scrapers import run_all
 from backend.agents.market_prices import get_market_price
-import os
+from backend.auth.router import router as auth_router
+from backend.api.operations import router as operations_router
 
 scheduler = AsyncIOScheduler()
 
@@ -23,10 +25,7 @@ async def lifespan(app):
 
 app = FastAPI(title="Madrid Flip Hunter", lifespan=lifespan)
 
-from backend.auth.router import router as auth_router
 app.include_router(auth_router)
-
-from backend.api.operations import router as operations_router
 app.include_router(operations_router)
 
 app.add_middleware(
