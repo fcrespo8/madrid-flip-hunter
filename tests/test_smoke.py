@@ -39,3 +39,9 @@ def test_auth_token_schema():
     token = create_access_token({"sub": "testuser"})
     payload = decode_token(token)
     assert payload["sub"] == "testuser"
+
+
+def test_operations_crud_schema():
+    from backend.api.operations import OperationCreate
+    op = OperationCreate(name="Test", status="prospecto")
+    assert op.status == "prospecto"

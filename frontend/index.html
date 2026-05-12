@@ -8,20 +8,35 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, sans-serif; background: #0f1117; color: #e0e0e0; }
 
-    header { background: #1a1d27; padding: 10px 20px; border-bottom: 1px solid #2a2d3a;
-             display: flex; align-items: center; gap: 12px; }
-    header h1 { font-size: 1.05rem; color: #fff; }
+    /* ── Header & tabs ── */
+    header { background: #1a1d27; padding: 0 20px; border-bottom: 1px solid #2a2d3a;
+             display: flex; align-items: stretch; gap: 0; }
+    .header-brand { display: flex; align-items: center; padding: 10px 0; margin-right: 20px; }
+    .header-brand h1 { font-size: 1.05rem; color: #fff; white-space: nowrap; }
+    .tabs { display: flex; gap: 0; flex: 1; }
+    .tab-btn { background: none; border: none; color: #888; font-size: 0.82rem; font-weight: 600;
+               padding: 0 16px; cursor: pointer; border-bottom: 2px solid transparent;
+               transition: color 0.15s; white-space: nowrap; }
+    .tab-btn:hover { color: #ccc; }
+    .tab-btn.active { color: #60a5fa; border-bottom-color: #60a5fa; }
+    .header-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+    #auth-status { font-size: 0.75rem; color: #888; }
+    .btn { background: #1e2130; color: #e0e0e0; border: 1px solid #2a2d3a; border-radius: 5px;
+           padding: 5px 12px; font-size: 0.78rem; cursor: pointer; transition: background 0.15s; }
+    .btn:hover { background: #2a2d4a; }
+    .btn-primary { background: #1d3a6e; border-color: #2a5298; color: #93c5fd; }
+    .btn-primary:hover { background: #2a4a8a; }
 
-    #kpis { background: #13151f; border-bottom: 1px solid #2a2d3a;
-            display: flex; gap: 0; }
+    /* ── KPIs ── */
+    #kpis { background: #13151f; border-bottom: 1px solid #2a2d3a; display: flex; }
     .kpi { flex: 1; padding: 10px 16px; border-right: 1px solid #2a2d3a; }
     .kpi:last-child { border-right: none; }
     .kpi-val { font-size: 1.05rem; font-weight: 700; color: #fff; white-space: nowrap;
                overflow: hidden; text-overflow: ellipsis; }
     .kpi-val.green { color: #4ade80; }
-    .kpi-label { font-size: 0.68rem; color: #666; margin-top: 2px; text-transform: uppercase;
-                 letter-spacing: 0.04em; }
+    .kpi-label { font-size: 0.68rem; color: #666; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
 
+    /* ── Filters ── */
     #filters { background: #12141e; padding: 8px 16px; border-bottom: 1px solid #2a2d3a;
                display: flex; gap: 18px; flex-wrap: wrap; align-items: center; }
     .filter-group { display: flex; align-items: center; gap: 6px; }
@@ -31,10 +46,12 @@
                            border-radius: 4px; padding: 3px 8px; font-size: 0.78rem; }
     .filter-val { font-size: 0.78rem; color: #fff; min-width: 38px; }
 
-    #app { display: grid; grid-template-columns: 1fr 1fr; height: calc(100vh - 158px); }
+    /* ── Deal Finder tab ── */
+    #app { display: grid; grid-template-columns: 1fr 1fr; height: calc(100vh - 196px); }
     #map { height: 100%; z-index: 1; }
     #sidebar { overflow-y: auto; background: #1a1d27; }
 
+    /* ── Tables (shared) ── */
     table { width: 100%; border-collapse: collapse; font-size: 0.76rem; }
     thead th { position: sticky; top: 0; background: #12141e; padding: 8px 8px;
                text-align: left; color: #666; font-weight: 600; border-bottom: 1px solid #2a2d3a;
@@ -47,21 +64,17 @@
     td { padding: 7px 8px; vertical-align: middle; }
 
     .score-badge { display: inline-flex; align-items: center; justify-content: center;
-                   width: 28px; height: 28px; border-radius: 50%;
-                   font-weight: 700; font-size: 0.82rem; }
+                   width: 28px; height: 28px; border-radius: 50%; font-weight: 700; font-size: 0.82rem; }
     .score-high { background: #1a3a2a; color: #4ade80; }
     .score-mid  { background: #3a3010; color: #facc15; }
     .score-low  { background: #3a1a1a; color: #f87171; }
-
     .price { font-weight: 600; color: #fff; }
     .ppm2  { color: #60a5fa; }
     .mkt-price { color: #555; font-size: 0.72rem; }
     .neighborhood { color: #aaa; font-size: 0.72rem; }
-
     .vs-green  { color: #4ade80; font-weight: 600; }
     .vs-yellow { color: #facc15; font-weight: 600; }
     .vs-red    { color: #f87171; font-weight: 600; }
-
     .source-badge { padding: 2px 6px; border-radius: 4px; font-size: 0.68rem; font-weight: 600; }
     .src-wallapop  { background: #431407; color: #f97316; }
     .src-remax     { background: #450a0a; color: #f87171; }
@@ -69,10 +82,10 @@
     .src-donpiso   { background: #052e16; color: #4ade80; }
     .src-tecnocasa { background: #1e1b4b; color: #a78bfa; }
     .src-default   { background: #1e2130; color: #888; }
-
     .link { color: #60a5fa; text-decoration: none; font-size: 0.72rem; }
     .link:hover { text-decoration: underline; }
 
+    /* ── Deal detail panel ── */
     #detail { display: none; position: absolute; bottom: 0; left: 50%; width: 50%;
               background: #1a1d27; border-top: 2px solid #2a2d3a; padding: 14px 18px;
               z-index: 1000; max-height: 240px; overflow-y: auto; }
@@ -96,190 +109,408 @@
     .flag-group.green h4 { color: #4ade80; }
     .flag-group.red h4 { color: #f87171; }
     .flag-item { font-size: 0.72rem; color: #bbb; }
+
+    /* ── Operaciones tab ── */
+    #tab-ops { display: none; height: calc(100vh - 46px); overflow: hidden; flex-direction: column; }
+    #tab-ops.active { display: flex; }
+    .ops-toolbar { background: #12141e; padding: 10px 16px; border-bottom: 1px solid #2a2d3a;
+                   display: flex; align-items: center; justify-content: space-between; }
+    .ops-toolbar span { font-size: 0.8rem; color: #888; }
+    #ops-table-wrap { flex: 1; overflow-y: auto; background: #1a1d27; }
+
+    .status-badge { padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
+    .st-prospecto   { background: #0c1a3a; color: #60a5fa; }
+    .st-negociacion { background: #3a2e0a; color: #facc15; }
+    .st-compra      { background: #1a3a2a; color: #4ade80; }
+    .st-en_obra     { background: #3a1a0a; color: #f97316; }
+    .st-en_venta    { background: #1e1b4b; color: #a78bfa; }
+    .st-vendido     { background: #052e16; color: #4ade80; }
+
+    /* ── Modals ── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+                     z-index: 2000; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 8px;
+             padding: 24px; width: 420px; max-width: 95vw; }
+    .modal h2 { font-size: 1rem; color: #fff; margin-bottom: 18px; }
+    .form-row { margin-bottom: 12px; }
+    .form-row label { display: block; font-size: 0.73rem; color: #888; margin-bottom: 4px; }
+    .form-row input, .form-row select, .form-row textarea {
+      width: 100%; background: #12141e; color: #e0e0e0; border: 1px solid #2a2d3a;
+      border-radius: 5px; padding: 7px 10px; font-size: 0.82rem; }
+    .form-row textarea { height: 72px; resize: vertical; }
+    .form-row input:focus, .form-row select:focus, .form-row textarea:focus {
+      outline: none; border-color: #3b5bdb; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+    .error-msg { color: #f87171; font-size: 0.75rem; margin-top: 8px; min-height: 16px; }
   </style>
 </head>
 <body>
+
 <header>
-  <h1>🏠 Madrid Flip Hunter</h1>
+  <div class="header-brand"><h1>🏠 Madrid Flip Hunter</h1></div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('finder')">Deal Finder</button>
+    <button class="tab-btn" onclick="switchTab('ops')">Operaciones</button>
+  </div>
+  <div class="header-right">
+    <span id="auth-status"></span>
+    <button class="btn" id="auth-btn" onclick="openLoginModal()">Login</button>
+  </div>
 </header>
 
-<div id="kpis">
-  <div class="kpi">
-    <div class="kpi-val" id="kpi-total">—</div>
-    <div class="kpi-label">Pisos analizados</div>
+<!-- ── Deal Finder tab ─────────────────────────────── -->
+<div id="tab-finder">
+  <div id="kpis">
+    <div class="kpi"><div class="kpi-val" id="kpi-total">—</div><div class="kpi-label">Pisos analizados</div></div>
+    <div class="kpi"><div class="kpi-val" id="kpi-score">—</div><div class="kpi-label">Score medio</div></div>
+    <div class="kpi"><div class="kpi-val" id="kpi-best">—</div><div class="kpi-label">Mejor deal</div></div>
+    <div class="kpi"><div class="kpi-val green" id="kpi-below">—</div><div class="kpi-label">Bajo precio de mercado (&lt;−5%)</div></div>
   </div>
-  <div class="kpi">
-    <div class="kpi-val" id="kpi-score">—</div>
-    <div class="kpi-label">Score medio</div>
+
+  <div id="filters">
+    <div class="filter-group">
+      <label>Score mín</label>
+      <input type="range" id="f-score" min="0" max="10" value="0" step="1">
+      <span class="filter-val" id="f-score-val">0</span>
+    </div>
+    <div class="filter-group">
+      <label>Precio máx</label>
+      <input type="range" id="f-price" min="50" max="2000" value="2000" step="50">
+      <span class="filter-val" id="f-price-val">2000k€</span>
+    </div>
+    <div class="filter-group">
+      <label>m² mín</label>
+      <input type="range" id="f-size" min="0" max="200" value="0" step="5">
+      <span class="filter-val" id="f-size-val">0m²</span>
+    </div>
+    <div class="filter-group">
+      <label>€/m² máx</label>
+      <input type="range" id="f-ppm2" min="1000" max="15000" value="15000" step="500">
+      <span class="filter-val" id="f-ppm2-val">15k€/m²</span>
+    </div>
+    <div class="filter-group">
+      <label>Fuente</label>
+      <select id="f-source">
+        <option value="">Todas</option>
+        <option value="wallapop">Wallapop</option>
+        <option value="remax">Remax</option>
+        <option value="redpiso">Redpiso</option>
+        <option value="donpiso">Donpiso</option>
+        <option value="tecnocasa">Tecnocasa</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Ordenar</label>
+      <select id="f-sort">
+        <option value="score-desc">Score ↓</option>
+        <option value="score-asc">Score ↑</option>
+        <option value="price-asc">Precio ↑</option>
+        <option value="price-desc">Precio ↓</option>
+        <option value="ppm2-asc">€/m² ↑</option>
+        <option value="ppm2-desc">€/m² ↓</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="f-no-size">Sin m²</label>
+      <input type="checkbox" id="f-no-size">
+    </div>
   </div>
-  <div class="kpi">
-    <div class="kpi-val" id="kpi-best">—</div>
-    <div class="kpi-label">Mejor deal</div>
+
+  <div id="app">
+    <div id="sidebar">
+      <table>
+        <thead>
+          <tr>
+            <th title="Puntuación de oportunidad de flipping (0–10)">Score</th>
+            <th>Título</th>
+            <th title="Precio de venta del anuncio">Precio</th>
+            <th title="Precio por metro cuadrado del anuncio">€/m²</th>
+            <th title="Diferencia entre el precio/m² del anuncio y la media del barrio según Idealista">vs Mkt</th>
+            <th title="Precio medio de venta €/m² en el barrio o distrito (Idealista, abr 2026)">Zona</th>
+            <th title="Superficie en metros cuadrados">m²</th>
+            <th title="Número de habitaciones">Hab</th>
+            <th>Barrio</th>
+            <th>Fuente</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div id="map"></div>
   </div>
-  <div class="kpi">
-    <div class="kpi-val green" id="kpi-below">—</div>
-    <div class="kpi-label">Bajo precio de mercado (&lt;−5%)</div>
-  </div>
+  <div id="detail"></div>
 </div>
 
-<div id="filters">
-  <div class="filter-group">
-    <label>Score mín</label>
-    <input type="range" id="f-score" min="0" max="10" value="0" step="1">
-    <span class="filter-val" id="f-score-val">0</span>
+<!-- ── Operaciones tab ─────────────────────────────── -->
+<div id="tab-ops">
+  <div class="ops-toolbar">
+    <span id="ops-count">—</span>
+    <button class="btn btn-primary" onclick="openNewOpModal()">+ Nueva Operación</button>
   </div>
-  <div class="filter-group">
-    <label>Precio máx</label>
-    <input type="range" id="f-price" min="50" max="2000" value="2000" step="50">
-    <span class="filter-val" id="f-price-val">2000k€</span>
-  </div>
-  <div class="filter-group">
-    <label>m² mín</label>
-    <input type="range" id="f-size" min="0" max="200" value="0" step="5">
-    <span class="filter-val" id="f-size-val">0m²</span>
-  </div>
-  <div class="filter-group">
-    <label>€/m² máx</label>
-    <input type="range" id="f-ppm2" min="1000" max="15000" value="15000" step="500">
-    <span class="filter-val" id="f-ppm2-val">15k€/m²</span>
-  </div>
-  <div class="filter-group">
-    <label>Fuente</label>
-    <select id="f-source">
-      <option value="">Todas</option>
-      <option value="wallapop">Wallapop</option>
-      <option value="remax">Remax</option>
-      <option value="redpiso">Redpiso</option>
-      <option value="donpiso">Donpiso</option>
-      <option value="tecnocasa">Tecnocasa</option>
-    </select>
-  </div>
-  <div class="filter-group">
-    <label>Ordenar</label>
-    <select id="f-sort">
-      <option value="score-desc">Score ↓</option>
-      <option value="score-asc">Score ↑</option>
-      <option value="price-asc">Precio ↑</option>
-      <option value="price-desc">Precio ↓</option>
-      <option value="ppm2-asc">€/m² ↑</option>
-      <option value="ppm2-desc">€/m² ↓</option>
-    </select>
-  </div>
-  <div class="filter-group">
-    <label for="f-no-size">Sin m²</label>
-    <input type="checkbox" id="f-no-size">
-  </div>
-</div>
-
-<div id="app">
-  <div id="sidebar">
+  <div id="ops-table-wrap">
     <table>
       <thead>
         <tr>
-          <th title="Puntuación de oportunidad de flipping (0–10)">Score</th>
-          <th>Título</th>
-          <th title="Precio de venta del anuncio">Precio</th>
-          <th title="Precio por metro cuadrado del anuncio">€/m²</th>
-          <th title="Diferencia entre el precio/m² del anuncio y la media del barrio según Idealista">vs Mkt</th>
-          <th title="Precio medio de venta €/m² en el barrio o distrito (Idealista, abr 2026)">Zona</th>
-          <th title="Superficie en metros cuadrados">m²</th>
-          <th title="Número de habitaciones">Hab</th>
+          <th>Nombre</th>
+          <th>Estado</th>
+          <th>Dirección</th>
           <th>Barrio</th>
-          <th>Fuente</th>
-          <th></th>
+          <th>Creada</th>
         </tr>
       </thead>
-      <tbody id="tbody"></tbody>
+      <tbody id="ops-tbody"></tbody>
     </table>
   </div>
-  <div id="map"></div>
 </div>
-<div id="detail"></div>
+
+<!-- ── Modal: Login ───────────────────────────────── -->
+<div class="modal-overlay" id="modal-login">
+  <div class="modal">
+    <h2>Iniciar sesión</h2>
+    <div class="form-row">
+      <label>Usuario</label>
+      <input type="text" id="login-username" placeholder="admin" autocomplete="username">
+    </div>
+    <div class="form-row">
+      <label>Contraseña</label>
+      <input type="password" id="login-password" autocomplete="current-password">
+    </div>
+    <div class="error-msg" id="login-error"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-login')">Cancelar</button>
+      <button class="btn btn-primary" onclick="doLogin()">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Nueva Operación ─────────────────────── -->
+<div class="modal-overlay" id="modal-new-op">
+  <div class="modal">
+    <h2>Nueva Operación</h2>
+    <div class="form-row">
+      <label>Nombre *</label>
+      <input type="text" id="op-name" placeholder="Lavapiés 42 3ºB">
+    </div>
+    <div class="form-row">
+      <label>Estado</label>
+      <select id="op-status">
+        <option value="prospecto">Prospecto</option>
+        <option value="negociacion">Negociación</option>
+        <option value="compra">Compra</option>
+        <option value="en_obra">En obra</option>
+        <option value="en_venta">En venta</option>
+        <option value="vendido">Vendido</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Dirección</label>
+      <input type="text" id="op-address" placeholder="Calle Lavapiés 42, 3ºB">
+    </div>
+    <div class="form-row">
+      <label>Barrio</label>
+      <input type="text" id="op-neighborhood" placeholder="Lavapiés">
+    </div>
+    <div class="form-row">
+      <label>Distrito</label>
+      <input type="text" id="op-district" placeholder="Centro">
+    </div>
+    <div class="form-row">
+      <label>Notas</label>
+      <textarea id="op-notes" placeholder="Contacto, condiciones, observaciones..."></textarea>
+    </div>
+    <div class="error-msg" id="op-error"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-new-op')">Cancelar</button>
+      <button class="btn btn-primary" onclick="doCreateOp()">Guardar</button>
+    </div>
+  </div>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-  const map = L.map('map').setView([40.416, -3.703], 13);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '© CartoDB'
-  }).addTo(map);
+  // ── Auth helpers ──────────────────────────────────────────────────────────
+  function getToken() { return localStorage.getItem('mfh_token'); }
+  function authHeaders() {
+    const t = getToken();
+    return t ? { 'Authorization': `Bearer ${t}`, 'Content-Type': 'application/json' } : {};
+  }
+  function updateAuthUI() {
+    const t = getToken();
+    document.getElementById('auth-status').textContent = t ? '✓ conectado' : '';
+    document.getElementById('auth-btn').textContent = t ? 'Logout' : 'Login';
+    document.getElementById('auth-btn').onclick = t ? doLogout : openLoginModal;
+  }
+  function doLogout() {
+    localStorage.removeItem('mfh_token');
+    updateAuthUI();
+  }
 
-  function scoreColor(s) {
-    if (s >= 7) return '#4ade80';
-    if (s >= 4) return '#facc15';
-    return '#f87171';
+  function openLoginModal() {
+    document.getElementById('login-error').textContent = '';
+    document.getElementById('login-username').value = '';
+    document.getElementById('login-password').value = '';
+    document.getElementById('modal-login').classList.add('open');
+    setTimeout(() => document.getElementById('login-username').focus(), 50);
   }
-  function scoreBadgeClass(s) {
-    if (s >= 7) return 'score-high';
-    if (s >= 4) return 'score-mid';
-    return 'score-low';
+  async function doLogin() {
+    const username = document.getElementById('login-username').value.trim();
+    const password = document.getElementById('login-password').value;
+    document.getElementById('login-error').textContent = '';
+    try {
+      const resp = await fetch('/api/auth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`,
+      });
+      if (!resp.ok) { document.getElementById('login-error').textContent = 'Credenciales incorrectas'; return; }
+      const data = await resp.json();
+      localStorage.setItem('mfh_token', data.access_token);
+      closeModal('modal-login');
+      updateAuthUI();
+      loadOperations();
+    } catch { document.getElementById('login-error').textContent = 'Error de conexión'; }
   }
-  function ppm2(l) {
-    return l.price && l.size_m2 ? Math.round(l.price / l.size_m2) : null;
+
+  // ── Modal helpers ─────────────────────────────────────────────────────────
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+  document.querySelectorAll('.modal-overlay').forEach(el => {
+    el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(el => el.classList.remove('open'));
+  });
+  document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+  // ── Tabs ──────────────────────────────────────────────────────────────────
+  function switchTab(name) {
+    document.getElementById('tab-finder').style.display = name === 'finder' ? 'block' : 'none';
+    document.getElementById('tab-ops').classList.toggle('active', name === 'ops');
+    document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', (i === 0) === (name === 'finder')));
+    if (name === 'ops') loadOperations();
   }
+
+  // ── Operaciones ───────────────────────────────────────────────────────────
+  const STATUS_LABELS = {
+    prospecto: 'Prospecto', negociacion: 'Negociación', compra: 'Compra',
+    en_obra: 'En obra', en_venta: 'En venta', vendido: 'Vendido',
+  };
+
+  async function loadOperations() {
+    const token = getToken();
+    if (!token) {
+      document.getElementById('ops-tbody').innerHTML = '<tr><td colspan="5" style="color:#888;padding:20px;text-align:center">Inicia sesión para ver las operaciones</td></tr>';
+      document.getElementById('ops-count').textContent = '';
+      return;
+    }
+    try {
+      const resp = await fetch('/api/operations/', { headers: authHeaders() });
+      if (resp.status === 401) { doLogout(); loadOperations(); return; }
+      const ops = await resp.json();
+      renderOperations(ops);
+    } catch { console.error('Error loading operations'); }
+  }
+
+  function renderOperations(ops) {
+    document.getElementById('ops-count').textContent = `${ops.length} operaciones`;
+    const tbody = document.getElementById('ops-tbody');
+    if (!ops.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="color:#888;padding:20px;text-align:center">Sin operaciones todavía</td></tr>';
+      return;
+    }
+    tbody.innerHTML = ops.map(op => `
+      <tr>
+        <td style="font-weight:600;color:#fff">${escHtml(op.name)}</td>
+        <td><span class="status-badge st-${op.status}">${STATUS_LABELS[op.status] || op.status}</span></td>
+        <td class="neighborhood">${escHtml(op.address || '—')}</td>
+        <td class="neighborhood">${escHtml(op.neighborhood || op.district || '—')}</td>
+        <td class="neighborhood">${new Date(op.created_at).toLocaleDateString('es-ES')}</td>
+      </tr>`).join('');
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function openNewOpModal() {
+    if (!getToken()) { openLoginModal(); return; }
+    document.getElementById('op-name').value = '';
+    document.getElementById('op-status').value = 'prospecto';
+    document.getElementById('op-address').value = '';
+    document.getElementById('op-neighborhood').value = '';
+    document.getElementById('op-district').value = '';
+    document.getElementById('op-notes').value = '';
+    document.getElementById('op-error').textContent = '';
+    document.getElementById('modal-new-op').classList.add('open');
+    setTimeout(() => document.getElementById('op-name').focus(), 50);
+  }
+
+  async function doCreateOp() {
+    const name = document.getElementById('op-name').value.trim();
+    if (!name) { document.getElementById('op-error').textContent = 'El nombre es obligatorio'; return; }
+    const body = {
+      name,
+      status: document.getElementById('op-status').value,
+      address: document.getElementById('op-address').value.trim() || null,
+      neighborhood: document.getElementById('op-neighborhood').value.trim() || null,
+      district: document.getElementById('op-district').value.trim() || null,
+      notes: document.getElementById('op-notes').value.trim() || null,
+    };
+    document.getElementById('op-error').textContent = '';
+    try {
+      const resp = await fetch('/api/operations/', {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify(body),
+      });
+      if (resp.status === 401) { closeModal('modal-new-op'); openLoginModal(); return; }
+      if (!resp.ok) {
+        const err = await resp.json();
+        document.getElementById('op-error').textContent = err.detail || 'Error al guardar';
+        return;
+      }
+      closeModal('modal-new-op');
+      loadOperations();
+    } catch { document.getElementById('op-error').textContent = 'Error de conexión'; }
+  }
+
+  // ── Deal Finder ───────────────────────────────────────────────────────────
+  const map = L.map('map').setView([40.416, -3.703], 13);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© CartoDB' }).addTo(map);
+
+  function scoreColor(s) { return s >= 7 ? '#4ade80' : s >= 4 ? '#facc15' : '#f87171'; }
+  function scoreBadgeClass(s) { return s >= 7 ? 'score-high' : s >= 4 ? 'score-mid' : 'score-low'; }
+  function ppm2(l) { return l.price && l.size_m2 ? Math.round(l.price / l.size_m2) : null; }
   function sourceBadgeClass(src) {
-    const map = { wallapop: 'src-wallapop', remax: 'src-remax', redpiso: 'src-redpiso',
-                  donpiso: 'src-donpiso', tecnocasa: 'src-tecnocasa' };
-    return map[src] || 'src-default';
+    return ({ wallapop:'src-wallapop', remax:'src-remax', redpiso:'src-redpiso', donpiso:'src-donpiso', tecnocasa:'src-tecnocasa' })[src] || 'src-default';
   }
-  function vsMarketClass(pct) {
-    if (pct <= -10) return 'vs-green';
-    if (pct >= 10)  return 'vs-red';
-    return 'vs-yellow';
-  }
-  function fmtPct(pct) {
-    if (pct == null) return '—';
-    return (pct > 0 ? '+' : '') + pct.toFixed(1) + '%';
-  }
-  function fmtPrice(n) {
-    if (!n) return '—';
-    return n.toLocaleString('es-ES') + '€/m²';
-  }
+  function vsMarketClass(pct) { return pct <= -10 ? 'vs-green' : pct >= 10 ? 'vs-red' : 'vs-yellow'; }
+  function fmtPct(pct) { return pct == null ? '—' : (pct > 0 ? '+' : '') + pct.toFixed(1) + '%'; }
 
   const markers = {};
-  let allListings = [];
-  let selectedRow = null;
+  let allListings = [], selectedRow = null;
 
   function makeMarker(l) {
     if (!l.lat || !l.lon) return null;
-    return L.circleMarker([l.lat, l.lon], {
-      radius: 8, fillColor: scoreColor(l.score), color: '#fff',
-      weight: 1.5, opacity: 1, fillOpacity: 0.85
-    }).bindTooltip(`<b>${l.score}/10</b> — ${l.neighborhood || ''}<br>${(l.price/1000).toFixed(0)}k€`);
+    return L.circleMarker([l.lat, l.lon], { radius: 8, fillColor: scoreColor(l.score), color: '#fff', weight: 1.5, opacity: 1, fillOpacity: 0.85 })
+      .bindTooltip(`<b>${l.score}/10</b> — ${l.neighborhood || ''}<br>${(l.price/1000).toFixed(0)}k€`);
   }
 
   function showDetail(l) {
     const green = l.score_green_flags ? l.score_green_flags.split(', ') : [];
     const red   = l.score_red_flags   ? l.score_red_flags.split(', ')   : [];
-    const pp = ppm2(l);
-    const mkt = l.market_price_m2;
-    const vsPct = l.vs_market_pct;
-
+    const pp = ppm2(l), mkt = l.market_price_m2, vsPct = l.vs_market_pct;
     let marketHtml = '';
     if (pp && mkt) {
       const diffLabel = vsPct <= 0
         ? `<span class="market-diff green">→ ${Math.abs(vsPct).toFixed(1)}% bajo mercado</span>`
         : `<span class="market-diff red">→ ${vsPct.toFixed(1)}% sobre mercado</span>`;
-      const margin = mkt && pp && l.size_m2
-        ? Math.round((mkt - pp) * l.size_m2 * 0.7) : null;
-      const marginHtml = margin != null
-        ? `<div class="margin-row">Margen potencial bruto estimado: <span class="${margin >= 0 ? 'margin-pos' : 'margin-neg'}">${margin >= 0 ? '~+' : '~'}${margin.toLocaleString('es-ES')}€</span></div>`
-        : '';
-      marketHtml = `
-        <div class="market-row">
-          <span class="market-ppm2">${pp.toLocaleString('es-ES')}€/m²</span>
-          <span class="market-sep">vs</span>
-          <span class="market-avg">${Math.round(mkt).toLocaleString('es-ES')}€/m² mercado</span>
-          ${diffLabel}
-        </div>
-        ${marginHtml}`;
+      const margin = l.size_m2 ? Math.round((mkt - pp) * l.size_m2 * 0.7) : null;
+      const marginHtml = margin != null ? `<div class="margin-row">Margen potencial bruto estimado: <span class="${margin >= 0 ? 'margin-pos' : 'margin-neg'}">${margin >= 0 ? '~+' : '~'}${margin.toLocaleString('es-ES')}€</span></div>` : '';
+      marketHtml = `<div class="market-row"><span class="market-ppm2">${pp.toLocaleString('es-ES')}€/m²</span><span class="market-sep">vs</span><span class="market-avg">${Math.round(mkt).toLocaleString('es-ES')}€/m² mercado</span>${diffLabel}</div>${marginHtml}`;
     }
-
     const d = document.getElementById('detail');
     d.style.display = 'block';
-    d.innerHTML = `
-      <h3>${l.title}</h3>
-      ${marketHtml}
-      <div class="reasoning">${l.score_reasoning || 'Sin razonamiento'}</div>
+    d.innerHTML = `<h3>${l.title}</h3>${marketHtml}<div class="reasoning">${l.score_reasoning || 'Sin razonamiento'}</div>
       <div class="flags">
         ${green.length ? `<div class="flag-group green"><h4>✅ Green flags</h4>${green.map(f=>`<div class="flag-item">· ${f}</div>`).join('')}</div>` : ''}
         ${red.length   ? `<div class="flag-group red"><h4>⚠️ Red flags</h4>${red.map(f=>`<div class="flag-item">· ${f}</div>`).join('')}</div>` : ''}
@@ -307,18 +538,14 @@
   function updateKpis(filtered) {
     document.getElementById('kpi-total').textContent = allListings.length;
     const scores = filtered.map(l => l.score).filter(s => s != null);
-    document.getElementById('kpi-score').textContent =
-      scores.length ? (scores.reduce((a,b) => a+b, 0) / scores.length).toFixed(1) : '—';
-    const best = filtered.reduce((a, b) => (a && a.score >= b.score) ? a : b, null);
+    document.getElementById('kpi-score').textContent = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1) : '—';
+    const best = filtered.reduce((a,b) => (a && a.score >= b.score) ? a : b, null);
     const bestEl = document.getElementById('kpi-best');
     if (best) {
-      const title = (best.title || '').substring(0, 26) + ((best.title||'').length > 26 ? '…' : '');
+      const title = (best.title||'').substring(0,26) + ((best.title||'').length > 26 ? '…' : '');
       bestEl.innerHTML = `<span style="color:#4ade80">${best.score}</span> — ${title}`;
-    } else {
-      bestEl.textContent = '—';
-    }
-    const belowMkt = filtered.filter(l => l.vs_market_pct != null && l.vs_market_pct < -5).length;
-    document.getElementById('kpi-below').textContent = belowMkt;
+    } else { bestEl.textContent = '—'; }
+    document.getElementById('kpi-below').textContent = filtered.filter(l => l.vs_market_pct != null && l.vs_market_pct < -5).length;
   }
 
   function applyFilters() {
@@ -333,16 +560,14 @@
       if (!f.showNoSize && !l.size_m2) return false;
       return true;
     });
-
     const [key, dir] = f.sort.split('-');
-    list.sort((a, b) => {
+    list.sort((a,b) => {
       let av, bv;
-      if (key === 'score') { av = a.score; bv = b.score; }
+      if (key === 'score')      { av = a.score; bv = b.score; }
       else if (key === 'price') { av = a.price; bv = b.price; }
-      else if (key === 'ppm2') { av = ppm2(a) || 99999; bv = ppm2(b) || 99999; }
-      return dir === 'asc' ? av - bv : bv - av;
+      else if (key === 'ppm2')  { av = ppm2(a)||99999; bv = ppm2(b)||99999; }
+      return dir === 'asc' ? av-bv : bv-av;
     });
-
     updateKpis(list);
     renderTable(list);
   }
@@ -350,20 +575,16 @@
   function renderTable(listings) {
     Object.values(markers).forEach(m => map.removeLayer(m));
     const visibleIds = new Set(listings.map(l => l.id));
-    allListings.forEach(l => {
-      if (markers[l.id] && visibleIds.has(l.id)) markers[l.id].addTo(map);
-    });
-
+    allListings.forEach(l => { if (markers[l.id] && visibleIds.has(l.id)) markers[l.id].addTo(map); });
     const tbody = document.getElementById('tbody');
     tbody.innerHTML = '';
     listings.forEach(l => {
-      const pp = ppm2(l);
-      const vsPct = l.vs_market_pct;
+      const pp = ppm2(l), vsPct = l.vs_market_pct;
       const tr = document.createElement('tr');
       tr.id = `row-${l.id}`;
       tr.innerHTML = `
         <td><span class="score-badge ${scoreBadgeClass(l.score)}">${l.score ?? '—'}</span></td>
-        <td>${(l.title || '').substring(0, 32)}${(l.title||'').length > 32 ? '…' : ''}</td>
+        <td>${(l.title||'').substring(0,32)}${(l.title||'').length > 32 ? '…' : ''}</td>
         <td class="price">${l.price ? (l.price/1000).toFixed(0)+'k€' : '—'}</td>
         <td class="ppm2">${pp ? pp.toLocaleString('es-ES')+'€' : '—'}</td>
         <td><span class="${vsPct != null ? vsMarketClass(vsPct) : ''}">${fmtPct(vsPct)}</span></td>
@@ -371,26 +592,21 @@
         <td class="neighborhood">${l.size_m2 ? l.size_m2+'m²' : '—'}</td>
         <td class="neighborhood">${l.rooms ?? '—'}</td>
         <td class="neighborhood">${l.neighborhood || l.district || '—'}</td>
-        <td><span class="source-badge ${sourceBadgeClass(l.source)}">${l.source || ''}</span></td>
+        <td><span class="source-badge ${sourceBadgeClass(l.source)}">${l.source||''}</span></td>
         <td><a class="link" href="${l.url}" target="_blank">ver →</a></td>`;
-      tr.addEventListener('click', () => {
-        highlightRow(l.id);
-        showDetail(l);
-        if (markers[l.id]) map.panTo(markers[l.id].getLatLng());
-      });
+      tr.addEventListener('click', () => { highlightRow(l.id); showDetail(l); if (markers[l.id]) map.panTo(markers[l.id].getLatLng()); });
       tbody.appendChild(tr);
     });
   }
 
   ['f-score','f-price','f-size','f-ppm2'].forEach(id => {
-    const el = document.getElementById(id);
-    const valEl = document.getElementById(id+'-val');
+    const el = document.getElementById(id), valEl = document.getElementById(id+'-val');
     el.addEventListener('input', () => {
       const v = parseInt(el.value);
-      if (id === 'f-score') valEl.textContent = v;
-      else if (id === 'f-price') valEl.textContent = v + 'k€';
-      else if (id === 'f-size') valEl.textContent = v + 'm²';
-      else if (id === 'f-ppm2') valEl.textContent = (v/1000).toFixed(1) + 'k€/m²';
+      if (id==='f-score') valEl.textContent = v;
+      else if (id==='f-price') valEl.textContent = v+'k€';
+      else if (id==='f-size') valEl.textContent = v+'m²';
+      else if (id==='f-ppm2') valEl.textContent = (v/1000).toFixed(1)+'k€/m²';
       applyFilters();
     });
   });
@@ -398,17 +614,16 @@
   document.getElementById('f-sort').addEventListener('change', applyFilters);
   document.getElementById('f-no-size').addEventListener('change', applyFilters);
 
+  // ── Init ──────────────────────────────────────────────────────────────────
+  updateAuthUI();
+
   fetch('/api/listings')
     .then(r => r.json())
     .then(listings => {
       allListings = listings;
       listings.forEach(l => {
         const m = makeMarker(l);
-        if (m) {
-          markers[l.id] = m;
-          m.addTo(map);
-          m.on('click', () => { highlightRow(l.id); showDetail(l); });
-        }
+        if (m) { markers[l.id] = m; m.addTo(map); m.on('click', () => { highlightRow(l.id); showDetail(l); }); }
       });
       applyFilters();
     });

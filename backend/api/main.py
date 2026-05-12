@@ -26,6 +26,9 @@ app = FastAPI(title="Madrid Flip Hunter", lifespan=lifespan)
 from backend.auth.router import router as auth_router
 app.include_router(auth_router)
 
+from backend.api.operations import router as operations_router
+app.include_router(operations_router)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
