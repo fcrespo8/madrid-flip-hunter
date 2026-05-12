@@ -1,20 +1,16 @@
 # Madrid Flip Hunter
 
-Sistema multi-agente que detecta oportunidades de flipping inmobiliario en Madrid de forma automatizada. Scrapa 5 portales, filtra con QA, pre-puntúa matemáticamente, y llama a Claude solo para los candidatos con potencial real.
+Automated pipeline that finds real estate flipping opportunities in Madrid and sends WhatsApp alerts for the best deals.
+
+**Live demo:** [madrid-flip-hunter-production.up.railway.app](https://madrid-flip-hunter-production.up.railway.app)
 
 ![CI](https://github.com/fcrespo8/madrid-flip-hunter/actions/workflows/ci.yml/badge.svg)
 
-**Demo en vivo:** [madrid-flip-hunter-production.up.railway.app](https://madrid-flip-hunter-production.up.railway.app)
-
 ---
 
-## El problema
+## What it does
 
-Encontrar un piso para flipear en Madrid implica revisar cientos de anuncios diariamente en múltiples portales, calcular precio/m² por barrio, estimar margen de reforma y filtrar ruido (alquileres, locales, precios anómalos). Es trabajo repetitivo y costoso en tiempo.
-
-## La solución
-
-Un pipeline automático que corre cada día a las 7am, scrapa 5 portales, aplica filtros de calidad, calcula si el precio está por debajo del mercado, y solo llama a Claude para los pisos que matemáticamente tienen potencial. Los deals con score ≥ 7.5 llegan por WhatsApp.
+Scrapes 5 property portals daily, filters out noise (rentals, commercial properties, anomalous prices), scores each listing against neighborhood market prices, and sends a WhatsApp message when it finds a deal with a score ≥ 7.5/10. Results are visible in a dashboard with an interactive map.
 
 ---
 
@@ -22,122 +18,84 @@ Un pipeline automático que corre cada día a las 7am, scrapa 5 portales, aplica
 
 ```
 Wallapop · DonPiso · Remax · Redpiso · Tecnocasa
-         ↓
-    QA Agent — filtra alquileres, locales, precios anómalos
-         ↓
-  Enrich Location — rellena lat/lon y barrio por nombre
-         ↓
-  Pre-scorer matemático — precio/m² vs media del barrio
-         ↓
-  ┌─────────────────────────────────────┐
-  │  pre-score < 7 → score automático   │  (sin coste de API)
-  │  pre-score ≥ 7 → Claude API         │  (solo candidatos reales)
-  └─────────────────────────────────────┘
-         ↓
-  Deactivate Stale — soft delete de listings sin ver > 30 días
-         ↓
-  WhatsApp Alert (Twilio) — score ≥ 7.5, notified_at IS NULL
-         ↓
-  Dashboard — FastAPI + Leaflet, ordenado por score
+              ↓
+         QA Agent
+   (filters rentals, commercial, price anomalies)
+              ↓
+     Math pre-scorer
+   (price/m² vs neighborhood average)
+              ↓
+    pre-score < 7 ──→ auto score (no API call)
+    pre-score ≥ 7 ──→ Claude scoring (tool use)
+              ↓
+     WhatsApp alert
+   (score ≥ 7.5, first time only)
+              ↓
+         Dashboard
+   (FastAPI + Leaflet, sorted by score)
 ```
 
 ---
 
-## Stack
+## Tech stack
 
-| Capa | Tecnología |
-|------|-----------|
+| Layer | Technology |
+|-------|-----------|
 | Scraping | Python + Playwright + playwright-stealth |
-| Base de datos | PostgreSQL + SQLAlchemy 2.0 + Alembic |
-| AI / Scoring | Claude API (Anthropic) — tool use |
-| Backend | FastAPI + APScheduler |
+| Database | PostgreSQL + SQLAlchemy 2.0 + Alembic |
+| AI scoring | Claude API — tool use (structured output) |
+| Backend | FastAPI + APScheduler (daily at 7am) |
 | Frontend | Vanilla JS + Leaflet.js |
-| Notificaciones | Twilio WhatsApp API |
-| Deploy | Railway (API + PostgreSQL + scheduler) |
-| CI/CD | GitHub Actions — lint + tests + deploy automático |
+| Alerts | Twilio WhatsApp API |
+| Deploy | Railway (API + PostgreSQL) |
+| CI/CD | GitHub Actions — lint, tests, auto-deploy on push |
 
 ---
 
-## Decisiones técnicas
+## Key technical decisions
 
-**Intercepción XHR en lugar de parsear HTML**
-El scraper de Wallapop usa Playwright para interceptar la llamada interna a `/api/v3/search/section` y captura el JSON directamente. Más robusto que parsear HTML ante cambios de UI, y devuelve datos estructurados (precio, m², coordenadas) sin necesidad de extracción.
+**Playwright XHR interception instead of HTML parsing**
+The Wallapop scraper intercepts the internal `/api/v3/search/section` call rather than scraping the DOM. Yields structured JSON (price, m², coordinates) directly and is resilient to UI changes.
 
-**Claude tool use para structured output garantizado**
-El scoring agent usa function calling en lugar de parsear texto libre. Claude debe invocar `score_listing(score, reasoning, green_flags, red_flags)` — si no lo hace, el sistema lanza error. Garantiza integridad de datos en producción sin validación post-hoc.
+**Math pre-scorer to minimize Claude API calls**
+Before hitting Claude, each listing gets a score based on `price/m² vs neighborhood median` using a static lookup table (~130 neighborhoods, sourced from Idealista). Only listings ≥ 20% below market (pre-score ≥ 7) go to Claude. Reduces API cost significantly without missing real deals.
 
-**Pre-scoring matemático para optimizar costes de API**
-Antes de llamar a Claude, cada listing recibe un score basado en precio/m² vs media del barrio (datos estáticos de Idealista). Solo los pisos con potencial matemático real (pre-score ≥ 7, es decir, al menos 20% por debajo del mercado) llegan a Claude. Reduce el coste de API drásticamente sin sacrificar calidad en los candidatos.
+**Claude tool use for guaranteed structured output**
+The scoring agent forces Claude to call `score_listing(score, reasoning, green_flags, red_flags)` via tool use. If it doesn't, the call raises. No regex, no post-hoc parsing — the response is always a valid typed dict.
 
-**Precios de mercado por barrio embebidos**
-`market_prices.py` contiene ~130 barrios y 21 distritos de Madrid con precio medio €/m² de Idealista. El lookup es O(1), sin llamadas externas, y se usa tanto en el pre-scorer como en el contexto que recibe Claude y en el dashboard.
-
-**Soft delete con `is_active` + `last_seen_at`**
-Los listings no se borran — se marcan como inactivos si no aparecen en ningún scraping en 30 días. Permite análisis histórico y evita re-notificar deals ya vistos.
+**Soft delete with `is_active` + `last_seen_at`**
+Listings are never hard-deleted. If a listing doesn't appear in any scrape for 30 days, `is_active` is set to `False`. Preserves history, prevents re-alerting on reactivated listings, and keeps the dashboard clean.
 
 ---
 
-## Cómo correrlo
-
-### Requisitos
-Python 3.11, Poetry, PostgreSQL 14
-
-### Setup
+## Local setup
 
 ```bash
 git clone https://github.com/fcrespo8/madrid-flip-hunter
 cd madrid-flip-hunter
-cp .env.example .env   # rellenar DATABASE_URL y ANTHROPIC_API_KEY
+cp .env.example .env        # fill in DATABASE_URL and ANTHROPIC_API_KEY
 poetry install
 poetry run playwright install chromium
 poetry run alembic upgrade head
-```
 
-### Pipeline completo
+# Run the pipeline
+poetry run python -m backend.scrapers.run_scrapers
 
-```bash
-poetry run python -m backend.scrapers.run_scrapers   # scraping + QA + scoring
+# Start the dashboard
 poetry run uvicorn backend.api.main:app --reload --port 8000
-```
 
-### Tests
-
-```bash
+# Tests
 poetry run pytest tests/ -v
 ```
 
 ---
 
-## Estructura
+## Deploy
 
-```
-backend/
-├── agents/
-│   ├── qa_agent.py            # filtra alquileres, locales, precios anómalos
-│   ├── pre_scorer.py          # score matemático precio vs mercado (sin API)
-│   ├── scoring_agent.py       # Claude API tool use, score 0-10
-│   ├── enrich_location.py     # lat/lon por nombre de barrio
-│   ├── deactivate_stale.py    # soft delete listings > 30 días
-│   ├── market_prices.py       # precios €/m² por barrio (Idealista abr 2026)
-│   └── notifier.py            # alertas WhatsApp via Twilio
-├── models/
-│   ├── listing.py             # modelo SQLAlchemy
-│   └── repository.py          # insert-or-skip con last_seen_at
-├── scrapers/
-│   ├── wallapop_scraper.py    # intercepción XHR API interna
-│   ├── donpiso_scraper.py
-│   ├── remax_scraper.py
-│   ├── redpiso_scraper.py
-│   ├── tecnocasa_scraper.py
-│   └── run_scrapers.py        # orquestador del pipeline
-└── api/
-    └── main.py                # FastAPI + APScheduler (7am diario)
-frontend/
-└── index.html                 # dashboard: KPIs, tabla vs mercado, mapa Leaflet
-```
+Deployed on Railway with a PostgreSQL addon. The pipeline runs automatically via APScheduler at 7am daily — no external cron needed. GitHub Actions runs lint (ruff) and smoke tests on every push, then deploys to Railway on green.
 
 ---
 
-## Autor
+## Author
 
 Francisco Crespo — [github.com/fcrespo8](https://github.com/fcrespo8)
