@@ -20,3 +20,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+# Import all models so Alembic autogenerate can detect them
+from backend.models import listing, operation  # noqa: E402, F401
