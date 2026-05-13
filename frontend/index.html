@@ -269,12 +269,55 @@
     .exp-sum-val { color: #e0e0e0; font-weight: 600; }
 
     /* ── P&L detailed sections ── */
-    .pnl-section { margin-bottom: 2px; }
-    .pnl-section-title { font-size: 0.65rem; color: #60a5fa; text-transform: uppercase;
-                         letter-spacing: 0.06em; padding: 6px 12px 2px; font-weight: 700; }
+    .pnl-section-header { font-size: 0.62rem; color: #60a5fa; text-transform: uppercase;
+                          letter-spacing: 0.08em; padding: 7px 12px 3px; font-weight: 800;
+                          border-top: 1px solid #2a2d3a; background: #0d1020; }
+    .pnl-section-header:first-child { border-top: none; }
+    .pnl-sub-header { font-size: 0.59rem; color: #888; text-transform: uppercase;
+                      letter-spacing: 0.05em; padding: 5px 12px 2px 16px; }
     .pnl-row-indent { display: flex; justify-content: space-between; padding: 4px 12px 4px 20px;
                       border-bottom: 1px solid #1a1d2a; font-size: 0.79rem; }
     .pnl-row-indent:last-child { border-bottom: none; }
+    .pnl-subtotal { display: flex; justify-content: space-between; padding: 4px 12px;
+                    background: #12141e; font-size: 0.78rem; color: #ccc; font-weight: 600;
+                    border-top: 1px solid #1e2130; border-bottom: 1px solid #2a2d3a; }
+
+    /* ── Timeline (Ficha tab) ── */
+    .timeline-wrap { padding: 12px 0 8px; }
+    .timeline-track { display: flex; align-items: flex-start; position: relative; }
+    .timeline-line-bg { position: absolute; top: 9px; left: 0; right: 0; height: 2px; background: #2a2d3a; }
+    .timeline-line-fill { position: absolute; top: 9px; left: 0; height: 2px; background: #3b5bdb; transition: width 0.3s; }
+    .milestone { display: flex; flex-direction: column; align-items: center; flex: 1; position: relative; padding-top: 2px; }
+    .milestone-dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #333; background: #0f1117; flex-shrink: 0; z-index: 2; position: relative; }
+    .milestone-dot.done { background: #3b5bdb; border-color: #3b5bdb; }
+    .milestone-label { font-size: 0.58rem; color: #888; margin-top: 5px; text-align: center; line-height: 1.2; }
+    .milestone-date { font-size: 0.56rem; color: #4ade80; margin-top: 2px; text-align: center; }
+    .ficha-section-header { display: flex; justify-content: space-between; align-items: center;
+                             padding: 8px 0 4px; border-top: 1px solid #1e2130; margin-top: 12px; }
+    .ficha-section-header span { font-size: 0.65rem; color: #60a5fa; text-transform: uppercase;
+                                  letter-spacing: 0.06em; font-weight: 700; }
+    .ficha-dates-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+    .status-sel-ficha { background: #12141e; color: #e0e0e0; border: 1px solid #2a2d3a;
+                        border-radius: 5px; padding: 5px 8px; font-size: 0.8rem; }
+    .status-sel-ficha:focus { outline: none; border-color: #3b5bdb; }
+
+    /* ── Status dropdown in header ── */
+    .status-badge-wrap { position: relative; }
+    .status-drop { position: absolute; top: calc(100% + 4px); right: 0; background: #1a1d27;
+                   border: 1px solid #2a2d3a; border-radius: 6px; min-width: 130px; z-index: 200;
+                   box-shadow: 0 4px 16px rgba(0,0,0,0.5); }
+    .status-drop-item { padding: 6px 14px; font-size: 0.78rem; color: #ccc; cursor: pointer; }
+    .status-drop-item:hover { background: #22253a; color: #fff; }
+    .status-drop-item:first-child { border-radius: 6px 6px 0 0; }
+    .status-drop-item:last-child  { border-radius: 0 0 6px 6px; }
+
+    /* ── Ops filter pills ── */
+    #ops-filter-pills { display: flex; gap: 6px; padding: 8px 12px; flex-wrap: wrap;
+                        background: #0f1117; border-bottom: 1px solid #1e2130; flex-shrink: 0; }
+    .pill { background: #1a1d27; border: 1px solid #2a2d3a; color: #888; font-size: 0.72rem;
+            padding: 3px 12px; border-radius: 12px; cursor: pointer; transition: all 0.15s; }
+    .pill:hover { border-color: #3b5bdb; color: #c0c0c0; }
+    .pill.active { background: #1e2a6b; border-color: #3b5bdb; color: #60a5fa; font-weight: 700; }
 
     /* ── Sociedad tab (operation detail) ── */
     .society-form { display: flex; gap: 6px; flex-wrap: wrap; align-items: flex-end;
@@ -415,6 +458,15 @@
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="vertical-align:middle;margin-right:5px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Nueva Operación
       </button>
     </div>
+    <div id="ops-filter-pills">
+      <button class="pill active" onclick="filterOpsBy('')">Todos</button>
+      <button class="pill" onclick="filterOpsBy('prospecto')">Prospecto</button>
+      <button class="pill" onclick="filterOpsBy('negociacion')">Negociación</button>
+      <button class="pill" onclick="filterOpsBy('compra')">Compra</button>
+      <button class="pill" onclick="filterOpsBy('en_obra')">En obra</button>
+      <button class="pill" onclick="filterOpsBy('en_venta')">En venta</button>
+      <button class="pill" onclick="filterOpsBy('vendido')">Vendido</button>
+    </div>
     <div id="ops-table-wrap">
       <table>
         <thead><tr>
@@ -495,7 +547,17 @@
       <h2 id="op-detail-title">—</h2>
       <span class="op-detail-subtitle" id="op-detail-subtitle"></span>
     </div>
-    <span class="status-badge" id="op-detail-status"></span>
+    <div class="status-badge-wrap">
+      <span class="status-badge" id="op-detail-status" style="cursor:pointer" onclick="toggleStatusDrop(event)"></span>
+      <div class="status-drop" id="op-status-drop" style="display:none">
+        <div class="status-drop-item" onclick="setOpStatus('prospecto')">Prospecto</div>
+        <div class="status-drop-item" onclick="setOpStatus('negociacion')">Negociación</div>
+        <div class="status-drop-item" onclick="setOpStatus('compra')">Compra</div>
+        <div class="status-drop-item" onclick="setOpStatus('en_obra')">En obra</div>
+        <div class="status-drop-item" onclick="setOpStatus('en_venta')">En venta</div>
+        <div class="status-drop-item" onclick="setOpStatus('vendido')">Vendido</div>
+      </div>
+    </div>
     <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
       <span id="auth-status-detail" style="font-size:0.75rem;color:#888"></span>
       <button class="btn btn-sm" id="auth-btn-detail">Login</button>
@@ -528,11 +590,47 @@
             <span style="font-size:0.75rem;color:#666">Datos de la operación</span>
             <button class="btn btn-sm btn-primary" onclick="enterEditMode()">Editar</button>
           </div>
+          <!-- Status row -->
+          <div class="field-row" style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+            <div class="field-label" style="margin-bottom:0;min-width:60px">Estado</div>
+            <select id="fv-status" class="status-sel-ficha" onchange="setOpStatus(this.value)">
+              <option value="prospecto">Prospecto</option>
+              <option value="negociacion">Negociación</option>
+              <option value="compra">Compra</option>
+              <option value="en_obra">En obra</option>
+              <option value="en_venta">En venta</option>
+              <option value="vendido">Vendido</option>
+            </select>
+          </div>
           <div class="ficha-grid">
             <div class="field-row"><div class="field-label">Dirección</div><div class="field-val" id="fv-address"></div></div>
             <div class="field-row"><div class="field-label">Barrio</div><div class="field-val" id="fv-neighborhood"></div></div>
             <div class="field-row"><div class="field-label">Distrito</div><div class="field-val" id="fv-district"></div></div>
             <div class="field-row full"><div class="field-label">Notas</div><div class="field-val" id="fv-notes" style="white-space:pre-wrap"></div></div>
+          </div>
+          <!-- Dates section -->
+          <div class="ficha-section-header">
+            <span>Fechas clave</span>
+            <button class="btn btn-sm" id="dates-edit-btn" onclick="enterDatesEditMode()">Editar fechas</button>
+          </div>
+          <div id="dates-view">
+            <div class="timeline-wrap" id="ficha-timeline"></div>
+          </div>
+          <div id="dates-edit" style="display:none">
+            <div class="ficha-dates-grid">
+              <div class="field-row"><div class="field-label">Oferta</div><input type="date" class="field-input" id="fd-offer"></div>
+              <div class="field-row"><div class="field-label">Arras</div><input type="date" class="field-input" id="fd-arras"></div>
+              <div class="field-row"><div class="field-label">Escritura</div><input type="date" class="field-input" id="fd-escritura"></div>
+              <div class="field-row"><div class="field-label">Inicio obra</div><input type="date" class="field-input" id="fd-renov-start"></div>
+              <div class="field-row"><div class="field-label">Fin obra</div><input type="date" class="field-input" id="fd-renov-end"></div>
+              <div class="field-row"><div class="field-label">Publicación</div><input type="date" class="field-input" id="fd-listing"></div>
+              <div class="field-row"><div class="field-label">Venta</div><input type="date" class="field-input" id="fd-sale"></div>
+            </div>
+            <div class="error-msg" id="dates-error"></div>
+            <div class="ficha-actions">
+              <button class="btn btn-sm btn-primary" onclick="saveDates()">Guardar fechas</button>
+              <button class="btn btn-sm" onclick="cancelDatesEditMode()">Cancelar</button>
+            </div>
           </div>
         </div>
         <div id="ficha-edit" style="display:none">
@@ -587,6 +685,10 @@
           </div><!-- /.collapsible-body -->
         </details>
 
+        <!-- Expenses toolbar -->
+        <div style="display:flex;justify-content:flex-end;margin:8px 0 4px">
+          <button class="btn btn-sm" onclick="exportExpensesCSV()">⬇ Exportar CSV</button>
+        </div>
         <!-- Expenses table -->
         <table>
           <thead><tr>
@@ -681,42 +783,43 @@
         <div class="error-msg" id="fin-error"></div>
         <button class="btn btn-primary fin-save-btn" onclick="saveFinancials()">Guardar financiero</button>
         <div class="pnl-card" style="margin-top:16px">
-          <div class="pnl-card-title">P&L detallado</div>
-          <div class="pnl-section">
-            <div class="pnl-section-title">Costes de compra</div>
-            <div class="pnl-row-indent"><span class="pnl-row-label">Precio compra</span><span class="pnl-row-val" id="pnl-pp">—</span></div>
-            <div class="pnl-row-indent"><span class="pnl-row-label">ITP (6%)</span><span class="pnl-row-val" id="pnl-itp">—</span></div>
-            <div class="pnl-row-indent"><span class="pnl-row-label">Notaría + registro</span><span class="pnl-row-val" id="pnl-notaria">—</span></div>
-            <div class="pnl-row-indent"><span class="pnl-row-label">Comisión compra</span><span class="pnl-row-val" id="pnl-buy-comm">—</span></div>
-          </div>
-          <div class="pnl-section">
-            <div class="pnl-section-title">Costes de obra</div>
-            <div class="pnl-row-indent"><span class="pnl-row-label">Reforma y materiales</span><span class="pnl-row-val" id="pnl-obra">—</span></div>
-          </div>
-          <div class="pnl-section">
-            <div class="pnl-section-title">Trámites</div>
-            <div class="pnl-row-indent"><span class="pnl-row-label">Honorarios</span><span class="pnl-row-val" id="pnl-tramites">—</span></div>
-          </div>
-          <div class="pnl-section">
-            <div class="pnl-section-title">Otros gastos</div>
-            <div class="pnl-row-indent"><span class="pnl-row-label">Comunidad y otros</span><span class="pnl-row-val" id="pnl-otros">—</span></div>
-          </div>
-          <div class="pnl-section">
-            <div class="pnl-section-title">Agencia venta</div>
-            <div class="pnl-row-indent"><span class="pnl-row-label">Comisión venta</span><span class="pnl-row-val" id="pnl-agencia">—</span></div>
-          </div>
-          <div class="pnl-section">
-            <div class="pnl-section-title">Financiación</div>
-            <div class="pnl-row-indent"><span class="pnl-row-label">Coste financiero</span><span class="pnl-row-val" id="pnl-financiero">—</span></div>
-          </div>
-          <div class="pnl-section">
-            <div class="pnl-section-title">Impuestos</div>
-            <div class="pnl-row-indent"><span class="pnl-row-label" id="pnl-irpf-label">IRPF / IS</span><span class="pnl-row-val" id="pnl-irpf">—</span></div>
-            <div class="pnl-row-indent"><span class="pnl-row-label">Plusvalía municipal</span><span class="pnl-row-val" id="pnl-plusvalia">—</span></div>
-          </div>
-          <div class="pnl-row divider">
-            <span class="pnl-row-label">Precio venta</span><span class="pnl-row-val" id="pnl-precio-venta">—</span>
-          </div>
+          <div class="pnl-card-title">P&amp;L detallado</div>
+
+          <!-- INGRESOS -->
+          <div class="pnl-section-header">Ingresos</div>
+          <div class="pnl-row-indent"><span class="pnl-row-label">Precio venta</span><span class="pnl-row-val" id="pnl-precio-venta">—</span></div>
+
+          <!-- INVERSIÓN REALIZADA -->
+          <div class="pnl-section-header">Inversión realizada</div>
+          <div class="pnl-sub-header">Compra</div>
+          <div class="pnl-row-indent"><span class="pnl-row-label">Precio compra</span><span class="pnl-row-val" id="pnl-pp">—</span></div>
+          <div class="pnl-row-indent"><span class="pnl-row-label">ITP</span><span class="pnl-row-val" id="pnl-itp">—</span></div>
+          <div class="pnl-row-indent"><span class="pnl-row-label">Notaría + registro</span><span class="pnl-row-val" id="pnl-notaria">—</span></div>
+          <div class="pnl-row-indent"><span class="pnl-row-label">Comisión compra</span><span class="pnl-row-val" id="pnl-buy-comm">—</span></div>
+          <div class="pnl-subtotal"><span>Subtotal compra</span><span id="pnl-sub-compra">—</span></div>
+          <div class="pnl-sub-header" style="margin-top:2px">Obra y gestión</div>
+          <div class="pnl-row-indent"><span class="pnl-row-label">Reforma</span><span class="pnl-row-val" id="pnl-reforma">—</span></div>
+          <div class="pnl-row-indent"><span class="pnl-row-label">Reforma extra</span><span class="pnl-row-val" id="pnl-reforma-extra">—</span></div>
+          <div class="pnl-row-indent"><span class="pnl-row-label">Trámites / honorarios</span><span class="pnl-row-val" id="pnl-tramites">—</span></div>
+          <div class="pnl-row-indent"><span class="pnl-row-label">Gastos corrientes</span><span class="pnl-row-val" id="pnl-gastos-corrientes">—</span></div>
+          <div class="pnl-row-indent"><span class="pnl-row-label">Otros gastos</span><span class="pnl-row-val" id="pnl-otros">—</span></div>
+          <div class="pnl-subtotal"><span>Subtotal obra</span><span id="pnl-sub-obra">—</span></div>
+          <div class="pnl-row divider"><span class="pnl-row-label" style="font-weight:700">Total inversión</span><span class="pnl-row-val" id="pnl-total-inversion">—</span></div>
+
+          <!-- GASTOS DE VENTA -->
+          <div class="pnl-section-header">Gastos de venta</div>
+          <div class="pnl-row-indent"><span class="pnl-row-label">Comisión venta</span><span class="pnl-row-val" id="pnl-agencia">—</span></div>
+          <div class="pnl-row-indent"><span class="pnl-row-label">Coste financiero</span><span class="pnl-row-val" id="pnl-financiero">—</span></div>
+          <div class="pnl-subtotal"><span>Subtotal gastos venta</span><span id="pnl-sub-venta">—</span></div>
+
+          <!-- IMPUESTOS -->
+          <div class="pnl-section-header">Impuestos</div>
+          <div class="pnl-row-indent"><span class="pnl-row-label">Plusvalía municipal</span><span class="pnl-row-val" id="pnl-plusvalia">—</span></div>
+          <div class="pnl-row-indent"><span class="pnl-row-label" id="pnl-irpf-label">IRPF</span><span class="pnl-row-val" id="pnl-irpf">—</span></div>
+          <div class="pnl-subtotal"><span>Subtotal impuestos</span><span id="pnl-sub-impuestos">—</span></div>
+
+          <!-- RESULTADO -->
+          <div class="pnl-section-header">Resultado</div>
           <div class="pnl-row divider">
             <span class="pnl-row-label" style="font-weight:700;color:#fff">Beneficio neto</span>
             <span class="pnl-row-val" id="pnl-net">—</span>
@@ -724,6 +827,14 @@
           <div class="pnl-row">
             <span class="pnl-row-label" style="font-weight:700;color:#fff">ROI %</span>
             <span class="pnl-row-val" id="pnl-roi">—</span>
+          </div>
+          <div class="pnl-row" id="pnl-roi-anual-row" style="display:none">
+            <span class="pnl-row-label" style="color:#60a5fa">ROI anualizado</span>
+            <span class="pnl-row-val" id="pnl-roi-anual">—</span>
+          </div>
+          <div class="pnl-row" id="pnl-hold-row" style="display:none">
+            <span class="pnl-row-label" style="color:#888">Hold</span>
+            <span class="pnl-row-val" id="pnl-hold" style="color:#e0e0e0">—</span>
           </div>
         </div>
       </div>
@@ -937,6 +1048,9 @@
   // ── Ops state ─────────────────────────────────────────────────────────────
   let currentOp = null;
   let currentFinancialsData = null;
+  let currentOpDates = null;
+  let _opsAll = [];
+  let _opsFilterStatus = '';
   const STATUS_LABELS = { prospecto:'Prospecto', negociacion:'Negociación', compra:'Compra',
                           en_obra:'En obra', en_venta:'En venta', vendido:'Vendido' };
 
@@ -963,8 +1077,17 @@
         op._net_profit = fin?.net_profit ?? null;
         op._roi_pct    = fin?.roi_pct    ?? null;
       });
-      renderOperations(ops);
+      _opsAll = ops;
+      renderOperations(_opsFilterStatus ? ops.filter(o => o.status === _opsFilterStatus) : ops);
     } catch { console.error('Error loading operations'); }
+  }
+
+  function filterOpsBy(status) {
+    _opsFilterStatus = status;
+    document.querySelectorAll('#ops-filter-pills .pill').forEach(b => {
+      b.classList.toggle('active', b.textContent.trim() === (status ? STATUS_LABELS[status] : 'Todos'));
+    });
+    renderOperations(status ? _opsAll.filter(o => o.status === status) : _opsAll);
   }
 
   function renderOperations(ops) {
@@ -1016,6 +1139,8 @@
       if (resp.status === 401) { openLoginModal(); return; }
       if (!resp.ok) { navigateTo('/operaciones'); return; }
       currentOp = await resp.json();
+      const dResp = await fetch(`/api/operations/${id}/dates`, { headers: authHeaders() });
+      currentOpDates = dResp.ok ? await dResp.json() : null;
       document.getElementById('op-detail-title').textContent = currentOp.name;
       const subtitle = [currentOp.address, currentOp.neighborhood, currentOp.district].filter(Boolean).join(' · ');
       document.getElementById('op-detail-subtitle').textContent = subtitle || '';
@@ -1051,6 +1176,47 @@
     setVal('fv-neighborhood', currentOp.neighborhood);
     setVal('fv-district', currentOp.district);
     setVal('fv-notes', currentOp.notes);
+    document.getElementById('fv-status').value = currentOp.status;
+    renderTimeline();
+  }
+
+  function renderTimeline() {
+    const milestones = [
+      { key: 'offer_date',       label: 'Oferta' },
+      { key: 'arras_date',       label: 'Arras' },
+      { key: 'escritura_date',   label: 'Escritura' },
+      { key: 'renovation_start', label: 'Inicio obra' },
+      { key: 'renovation_end',   label: 'Fin obra' },
+      { key: 'listing_date',     label: 'Publicación' },
+      { key: 'sale_date',        label: 'Venta' },
+    ];
+    const d = currentOpDates;
+    const lastDoneIdx = milestones.reduce((idx, m, i) => d?.[m.key] ? i : idx, -1);
+    const fillPct = lastDoneIdx >= 0 ? (lastDoneIdx / (milestones.length - 1) * 100) : 0;
+
+    const track = document.createElement('div');
+    track.className = 'timeline-track';
+    const lineBg   = document.createElement('div'); lineBg.className   = 'timeline-line-bg';
+    const lineFill = document.createElement('div'); lineFill.className = 'timeline-line-fill';
+    lineFill.style.width = fillPct + '%';
+    track.appendChild(lineBg);
+    track.appendChild(lineFill);
+
+    milestones.forEach(m => {
+      const ms    = document.createElement('div'); ms.className = 'milestone';
+      const dot   = document.createElement('div'); dot.className = 'milestone-dot' + (d?.[m.key] ? ' done' : '');
+      const lbl   = document.createElement('div'); lbl.className = 'milestone-label'; lbl.textContent = m.label;
+      const dateEl = document.createElement('div'); dateEl.className = 'milestone-date';
+      dateEl.textContent = d?.[m.key] ? d[m.key].slice(5) : ''; // MM-DD only
+      ms.appendChild(dot); ms.appendChild(lbl); ms.appendChild(dateEl);
+      track.appendChild(ms);
+    });
+
+    const wrap = document.getElementById('ficha-timeline');
+    wrap.innerHTML = '';
+    const scroll = document.createElement('div'); scroll.style.cssText = 'overflow-x:auto;padding-bottom:4px';
+    scroll.appendChild(track);
+    wrap.appendChild(scroll);
   }
 
   function enterEditMode() {
@@ -1164,6 +1330,15 @@
     return v.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + '€';
   }
 
+  function getHoldMonths() {
+    if (!currentOpDates) return null;
+    const e = currentOpDates.escritura_date, s = currentOpDates.sale_date;
+    if (!e || !s) return null;
+    const d1 = new Date(e), d2 = new Date(s);
+    const m = (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth());
+    return m > 0 ? m : null;
+  }
+
   function calcPnl() {
     const gv  = id => parseFloat(document.getElementById(id).value) || 0;
     const pp  = gv('fin-purchase-price'), pt = gv('fin-purchase-taxes');
@@ -1174,32 +1349,45 @@
     const asp = parseFloat(document.getElementById('fin-actual-sale-price').value);
     const tsp = parseFloat(document.getElementById('fin-target-sale-price').value);
     const ebc = currentFinancialsData?.expenses_by_category || {};
-    const obra    = ebc.obra          || 0;
-    const tramites= ebc.tramites      || 0;
-    const otros   = ebc.otros         || 0;
-    const agencia = ebc.agencia_venta || 0;
-    const fin_exp = ebc.financiacion  || 0;
-    const imp_exp = ebc.impuestos_gastos || 0;
 
-    const agencia_total    = saf + agencia;
-    const financiero_total = fc + fin_exp;
-    const plusvalia_total  = ste + imp_exp;
+    const reforma       = ebc.reforma           || 0;
+    const reformaExtra  = ebc.reforma_extra      || 0;
+    const tramites      = ebc.tramites           || 0;
+    const gastosCorrientes = ebc.gastos_corrientes || 0;
+    const otros         = ebc.otros              || 0;
+    const agenciaExp    = ebc.agencia_venta      || 0;
+    const financiacionExp = ebc.financiacion     || 0;
+    const impuestosExp  = ebc.impuestos_gastos   || 0;
+
     const pv = (!isNaN(asp) && asp > 0) ? asp : (!isNaN(tsp) && tsp > 0 ? tsp : null);
 
-    // Update P&L rows
-    document.getElementById('pnl-pp').textContent       = fmtEur(pp);
-    document.getElementById('pnl-itp').textContent      = fmtEur(pt);
-    document.getElementById('pnl-notaria').textContent  = fmtEur(pn);
-    document.getElementById('pnl-buy-comm').textContent = fmtEur(bc);
-    document.getElementById('pnl-obra').textContent     = fmtEur(obra);
-    document.getElementById('pnl-tramites').textContent = fmtEur(tramites);
-    document.getElementById('pnl-otros').textContent    = fmtEur(otros);
-    document.getElementById('pnl-agencia').textContent  = fmtEur(agencia_total);
-    document.getElementById('pnl-financiero').textContent = fmtEur(financiero_total);
-    document.getElementById('pnl-plusvalia').textContent  = fmtEur(plusvalia_total);
+    const subCompra     = pp + pt + pn + bc;
+    const subObra       = reforma + reformaExtra + tramites + gastosCorrientes + otros;
+    const totalInversion = subCompra + subObra;
+    const agenciaTotal   = saf + agenciaExp;
+    const financieroTotal = fc + financiacionExp;
+    const subVenta       = agenciaTotal + financieroTotal;
+    const plusvaliaTotal = ste + impuestosExp;
+
+    const set = (id, val) => { document.getElementById(id).textContent = fmtEur(val); };
     document.getElementById('pnl-precio-venta').textContent = pv != null ? fmtEur(pv) : '—';
-    document.getElementById('pnl-irpf-label').textContent =
-      getTaxRegime() === 'sl' ? 'IS (23%)' : 'IRPF';
+    set('pnl-pp',                 pp);
+    set('pnl-itp',                pt);
+    set('pnl-notaria',            pn);
+    set('pnl-buy-comm',           bc);
+    set('pnl-sub-compra',         subCompra);
+    set('pnl-reforma',            reforma);
+    set('pnl-reforma-extra',      reformaExtra);
+    set('pnl-tramites',           tramites);
+    set('pnl-gastos-corrientes',  gastosCorrientes);
+    set('pnl-otros',              otros);
+    set('pnl-sub-obra',           subObra);
+    set('pnl-total-inversion',    totalInversion);
+    set('pnl-agencia',            agenciaTotal);
+    set('pnl-financiero',         financieroTotal);
+    set('pnl-sub-venta',          subVenta);
+    set('pnl-plusvalia',          plusvaliaTotal);
+    document.getElementById('pnl-irpf-label').textContent   = getTaxRegime() === 'sl' ? 'IS (23%)' : 'IRPF';
 
     const sign = (id, val) => {
       const el = document.getElementById(id);
@@ -1208,27 +1396,51 @@
     };
 
     if (pv != null) {
-      const totalCostesPreTax = (pp + pt + pn + bc) + obra + tramites + otros + agencia_total + financiero_total + plusvalia_total;
-      const gross  = pv - totalCostesPreTax;
+      const gross  = pv - totalInversion - subVenta - plusvaliaTotal;
       const regime = getTaxRegime();
       const taxes  = regime === 'sl' ? Math.max(0, gross * 0.23) : calcIRPF(Math.max(0, gross));
       const net    = gross - taxes;
       const denom  = foc + fib;
-      document.getElementById('fin-tax-amount').value = taxes > 0 ? taxes.toFixed(2) : '';
-      document.getElementById('pnl-irpf').textContent = fmtEur(taxes);
+
+      document.getElementById('fin-tax-amount').value      = taxes > 0 ? taxes.toFixed(2) : '';
+      document.getElementById('pnl-irpf').textContent      = fmtEur(taxes);
+      document.getElementById('pnl-sub-impuestos').textContent = fmtEur(plusvaliaTotal + taxes);
       sign('pnl-net', net);
+
       const roiEl = document.getElementById('pnl-roi');
       if (denom > 0) {
         const roi = net / denom * 100;
         roiEl.textContent = (roi >= 0 ? '+' : '') + roi.toFixed(1) + '%';
         roiEl.className = 'pnl-row-val ' + (roi >= 0 ? 'pnl-pos' : 'pnl-neg');
-      } else { roiEl.textContent = '—'; roiEl.className = 'pnl-row-val'; }
+        const hold = getHoldMonths();
+        const roiAnualRow = document.getElementById('pnl-roi-anual-row');
+        const holdRow     = document.getElementById('pnl-hold-row');
+        if (hold) {
+          const roiA = (net / denom) * (12 / hold) * 100;
+          const roiAEl = document.getElementById('pnl-roi-anual');
+          roiAEl.textContent = (roiA >= 0 ? '+' : '') + roiA.toFixed(1) + '%';
+          roiAEl.className   = 'pnl-row-val ' + (roiA >= 0 ? 'pnl-pos' : 'pnl-neg');
+          roiAnualRow.style.display = 'flex';
+          document.getElementById('pnl-hold').textContent = hold + ' meses';
+          holdRow.style.display = 'flex';
+        } else {
+          roiAnualRow.style.display = 'none';
+          holdRow.style.display     = 'none';
+        }
+      } else {
+        roiEl.textContent = '—'; roiEl.className = 'pnl-row-val';
+        document.getElementById('pnl-roi-anual-row').style.display = 'none';
+        document.getElementById('pnl-hold-row').style.display      = 'none';
+      }
     } else {
       sign('pnl-net', null);
-      document.getElementById('pnl-irpf').textContent = '—';
-      document.getElementById('pnl-roi').textContent = '—';
-      document.getElementById('pnl-roi').className = 'pnl-row-val';
-      document.getElementById('fin-tax-amount').value = '';
+      document.getElementById('pnl-irpf').textContent          = '—';
+      document.getElementById('pnl-sub-impuestos').textContent  = '—';
+      document.getElementById('pnl-roi').textContent           = '—';
+      document.getElementById('pnl-roi').className             = 'pnl-row-val';
+      document.getElementById('fin-tax-amount').value          = '';
+      document.getElementById('pnl-roi-anual-row').style.display = 'none';
+      document.getElementById('pnl-hold-row').style.display      = 'none';
     }
   }
 
@@ -1324,12 +1536,12 @@
       const el = document.getElementById(id);
       if (el) el.textContent = val > 0 ? val.toLocaleString('es-ES',{minimumFractionDigits:0,maximumFractionDigits:0})+'€' : '—';
     };
-    set('esum-obra',        ebc.obra          || 0);
-    set('esum-tramites',    ebc.tramites       || 0);
-    set('esum-otros',       ebc.otros          || 0);
-    set('esum-agencia',     ebc.agencia_venta  || 0);
-    set('esum-financiacion',ebc.financiacion   || 0);
-    set('esum-impuestos',   ebc.impuestos_gastos || 0);
+    set('esum-obra',        ebc.obra              || 0);
+    set('esum-tramites',    ebc.tramites          || 0);
+    set('esum-otros',       (ebc.gastos_corrientes || 0) + (ebc.otros || 0));
+    set('esum-agencia',     ebc.agencia_venta     || 0);
+    set('esum-financiacion',ebc.financiacion      || 0);
+    set('esum-impuestos',   ebc.impuestos_gastos  || 0);
     const totEl = document.getElementById('esum-total');
     if (totEl) totEl.textContent = total > 0 ? total.toLocaleString('es-ES',{minimumFractionDigits:0,maximumFractionDigits:0})+'€' : '—';
   }
@@ -1370,6 +1582,114 @@
       if (!resp.ok) return;
       await loadExpenses(currentOp.id);
     } catch { console.error('Error deleting expense'); }
+  }
+
+  // ── Status update (Block 2 + 3) ──────────────────────────────────────────
+  async function setOpStatus(status) {
+    if (!currentOp) return;
+    document.getElementById('op-status-drop').style.display = 'none';
+    try {
+      const resp = await fetch(`/api/operations/${currentOp.id}/status`, {
+        method: 'PATCH', headers: authHeaders(), body: JSON.stringify({ status }),
+      });
+      if (!resp.ok) { toast('Error al actualizar estado', 'error'); return; }
+      currentOp = await resp.json();
+      const sb = document.getElementById('op-detail-status');
+      sb.textContent = STATUS_LABELS[currentOp.status] || currentOp.status;
+      sb.className = `status-badge st-${currentOp.status}`;
+      document.getElementById('fv-status').value = currentOp.status;
+      toast('Estado actualizado', 'success');
+    } catch { toast('Error de conexión', 'error'); }
+  }
+
+  function toggleStatusDrop(e) {
+    if (!getToken()) return;
+    e.stopPropagation();
+    const drop = document.getElementById('op-status-drop');
+    drop.style.display = drop.style.display === 'none' ? 'block' : 'none';
+  }
+
+  document.addEventListener('click', () => {
+    const drop = document.getElementById('op-status-drop');
+    if (drop) drop.style.display = 'none';
+  });
+
+  // ── Dates editing (Block 2) ───────────────────────────────────────────────
+  function enterDatesEditMode() {
+    if (!getToken()) return;
+    const d = currentOpDates || {};
+    const set = (id, val) => { document.getElementById(id).value = val || ''; };
+    set('fd-offer',       d.offer_date);
+    set('fd-arras',       d.arras_date);
+    set('fd-escritura',   d.escritura_date);
+    set('fd-renov-start', d.renovation_start);
+    set('fd-renov-end',   d.renovation_end);
+    set('fd-listing',     d.listing_date);
+    set('fd-sale',        d.sale_date);
+    document.getElementById('dates-error').textContent = '';
+    document.getElementById('dates-view').style.display = 'none';
+    document.getElementById('dates-edit').style.display = 'block';
+    document.getElementById('dates-edit-btn').style.display = 'none';
+  }
+
+  function cancelDatesEditMode() {
+    document.getElementById('dates-view').style.display = 'block';
+    document.getElementById('dates-edit').style.display = 'none';
+    document.getElementById('dates-edit-btn').style.display = '';
+  }
+
+  async function saveDates() {
+    if (!currentOp) return;
+    const nv = id => document.getElementById(id).value || null;
+    const body = {
+      offer_date:       nv('fd-offer'),
+      arras_date:       nv('fd-arras'),
+      escritura_date:   nv('fd-escritura'),
+      renovation_start: nv('fd-renov-start'),
+      renovation_end:   nv('fd-renov-end'),
+      listing_date:     nv('fd-listing'),
+      sale_date:        nv('fd-sale'),
+    };
+    document.getElementById('dates-error').textContent = '';
+    try {
+      const resp = await fetch(`/api/operations/${currentOp.id}/dates`, {
+        method: 'PUT', headers: authHeaders(), body: JSON.stringify(body),
+      });
+      if (!resp.ok) { document.getElementById('dates-error').textContent = (await resp.json()).detail || 'Error'; return; }
+      currentOpDates = await resp.json();
+      cancelDatesEditMode();
+      renderTimeline();
+      toast('Fechas guardadas', 'success');
+    } catch { document.getElementById('dates-error').textContent = 'Error de conexión'; }
+  }
+
+  // ── CSV export (Block 4) ──────────────────────────────────────────────────
+  function exportExpensesCSV() {
+    if (!currentOp) return;
+    const rows = document.querySelectorAll('#expenses-tbody tr');
+    const lines = ['Fecha,Descripción,Categoría,Importe,Pagado por,Método'];
+    rows.forEach(tr => {
+      const cells = tr.querySelectorAll('td');
+      if (cells.length < 6) return;
+      const row = [
+        cells[0].textContent.trim(),
+        '"' + cells[1].textContent.trim().replace(/"/g, '""') + '"',
+        cells[2].textContent.trim(),
+        cells[3].textContent.trim().replace(/[€\s]/g, '').replace(',', '.'),
+        cells[4].textContent.trim(),
+        '"' + cells[5].textContent.trim().replace(/"/g, '""') + '"',
+      ];
+      lines.push(row.join(','));
+    });
+    const csv = lines.join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const date = new Date().toISOString().slice(0, 10);
+    a.href     = url;
+    a.download = `gastos_${currentOp.name.replace(/\s+/g, '_')}_${date}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   // ── New operation modal ───────────────────────────────────────────────────

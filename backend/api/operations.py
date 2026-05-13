@@ -1,13 +1,13 @@
 from __future__ import annotations
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from backend.models.database import get_db
-from backend.models.operation import Operation, OperationStatus, OperationFinancials, OperationExpense, ExpenseCategory
+from backend.models.operation import Operation, OperationStatus, OperationFinancials, OperationExpense, ExpenseCategory, OperationDates
 from backend.auth.dependencies import get_current_user, require_admin
 from backend.models.operation import User
 
@@ -83,6 +83,20 @@ class FinancialsUpdate(BaseModel):
     tax_regime:              Optional[str]     = None
 
 
+_DATE_FIELDS = ["offer_date", "arras_date", "escritura_date", "renovation_start",
+                "renovation_end", "listing_date", "sale_date"]
+
+
+class DatesUpdate(BaseModel):
+    offer_date:       Optional[str] = None
+    arras_date:       Optional[str] = None
+    escritura_date:   Optional[str] = None
+    renovation_start: Optional[str] = None
+    renovation_end:   Optional[str] = None
+    listing_date:     Optional[str] = None
+    sale_date:        Optional[str] = None
+
+
 def _f(v) -> float | None:
     return float(v) if v is not None else None
 
@@ -92,8 +106,11 @@ def _build_financials_out(
     total_expenses: float,
     expenses_by_category: dict | None = None,
 ) -> dict:
-    ebc = expenses_by_category or {"obra": 0.0, "tramites": 0.0, "otros": 0.0,
-                                   "agencia_venta": 0.0, "financiacion": 0.0, "impuestos_gastos": 0.0}
+    ebc = expenses_by_category or {
+        "obra": 0.0, "reforma": 0.0, "reforma_extra": 0.0,
+        "tramites": 0.0, "gastos_corrientes": 0.0, "otros": 0.0,
+        "agencia_venta": 0.0, "financiacion": 0.0, "impuestos_gastos": 0.0,
+    }
     empty = {
         "purchase_price": None, "purchase_taxes": None, "purchase_notary": None,
         "buy_commission": None, "renovation_budget": None,
@@ -161,18 +178,23 @@ def _get_expenses_data(db: Session, op_id: uuid.UUID) -> tuple[float, dict]:
     expenses = db.query(OperationExpense).filter_by(operation_id=op_id).all()
     total = float(sum(e.amount for e in expenses))
     by_cat: dict[str, float] = {
-        "obra": 0.0, "tramites": 0.0, "otros": 0.0,
+        "obra": 0.0, "reforma": 0.0, "reforma_extra": 0.0,
+        "tramites": 0.0, "gastos_corrientes": 0.0, "otros": 0.0,
         "agencia_venta": 0.0, "financiacion": 0.0, "impuestos_gastos": 0.0,
     }
-    obra_cats     = {ExpenseCategory.reforma, ExpenseCategory.reforma_extra}
-    otros_cats    = {ExpenseCategory.comunidad, ExpenseCategory.suministros, ExpenseCategory.otros}
     for e in expenses:
         cat = e.category
-        if cat in obra_cats:
-            by_cat["obra"] += float(e.amount)
+        if cat == ExpenseCategory.reforma:
+            by_cat["obra"]    += float(e.amount)
+            by_cat["reforma"] += float(e.amount)
+        elif cat == ExpenseCategory.reforma_extra:
+            by_cat["obra"]         += float(e.amount)
+            by_cat["reforma_extra"] += float(e.amount)
         elif cat == ExpenseCategory.honorarios:
             by_cat["tramites"] += float(e.amount)
-        elif cat in otros_cats:
+        elif cat in {ExpenseCategory.comunidad, ExpenseCategory.suministros}:
+            by_cat["gastos_corrientes"] += float(e.amount)
+        elif cat == ExpenseCategory.otros:
             by_cat["otros"] += float(e.amount)
         elif cat == ExpenseCategory.agencia:
             by_cat["agencia_venta"] += float(e.amount)
@@ -322,6 +344,47 @@ def upsert_financials(
 
     total_exp, by_cat = _get_expenses_data(db, uid)
     return _build_financials_out(fin, total_exp, by_cat)
+
+
+def _dates_out(d: OperationDates | None) -> dict:
+    if d is None:
+        return {f: None for f in _DATE_FIELDS}
+    return {f: getattr(d, f).isoformat() if getattr(d, f) else None for f in _DATE_FIELDS}
+
+
+@router.get("/{op_id}/dates")
+def get_dates(
+    op_id: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    uid = uuid.UUID(op_id)
+    op = db.query(Operation).filter_by(id=uid).first()
+    if not op:
+        raise HTTPException(status_code=404, detail="Operation not found")
+    return _dates_out(op.dates)
+
+
+@router.put("/{op_id}/dates")
+def upsert_dates(
+    op_id: str,
+    body: DatesUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    uid = uuid.UUID(op_id)
+    op = db.query(Operation).filter_by(id=uid).first()
+    if not op:
+        raise HTTPException(status_code=404, detail="Operation not found")
+    d = db.query(OperationDates).filter_by(operation_id=uid).first()
+    if d is None:
+        d = OperationDates(operation_id=uid)
+        db.add(d)
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(d, field, date.fromisoformat(value) if value else None)
+    db.commit()
+    db.refresh(d)
+    return _dates_out(d)
 
 
 @router.delete("/{op_id}", status_code=204)
