@@ -8,37 +8,38 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, sans-serif; background: #0f1117; color: #e0e0e0; }
 
-    /* ── Header & tabs ── */
-    header { background: #1a1d27; padding: 0 20px; border-bottom: 1px solid #2a2d3a;
-             display: flex; align-items: stretch; gap: 0; }
+    /* ── Shared header ── */
+    .app-header { background: #1a1d27; padding: 0 20px; border-bottom: 1px solid #2a2d3a;
+                  display: flex; align-items: stretch; flex-shrink: 0; }
     .header-brand { display: flex; align-items: center; padding: 10px 0; margin-right: 20px; }
     .header-brand h1 { font-size: 1.05rem; color: #fff; white-space: nowrap; }
-    .tabs { display: flex; gap: 0; flex: 1; }
+    .tabs { display: flex; flex: 1; }
     .tab-btn { background: none; border: none; color: #888; font-size: 0.82rem; font-weight: 600;
-               padding: 0 16px; cursor: pointer; border-bottom: 2px solid transparent;
-               transition: color 0.15s; white-space: nowrap; }
+               padding: 0 16px; cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.15s; }
     .tab-btn:hover { color: #ccc; }
     .tab-btn.active { color: #60a5fa; border-bottom-color: #60a5fa; }
     .header-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
     #auth-status { font-size: 0.75rem; color: #888; }
+
+    /* ── Buttons ── */
     .btn { background: #1e2130; color: #e0e0e0; border: 1px solid #2a2d3a; border-radius: 5px;
            padding: 5px 12px; font-size: 0.78rem; cursor: pointer; transition: background 0.15s; }
     .btn:hover { background: #2a2d4a; }
     .btn-primary { background: #1d3a6e; border-color: #2a5298; color: #93c5fd; }
     .btn-primary:hover { background: #2a4a8a; }
+    .btn-sm { padding: 3px 10px; font-size: 0.73rem; }
 
     /* ── KPIs ── */
-    #kpis { background: #13151f; border-bottom: 1px solid #2a2d3a; display: flex; }
+    #kpis { background: #13151f; border-bottom: 1px solid #2a2d3a; display: flex; flex-shrink: 0; }
     .kpi { flex: 1; padding: 10px 16px; border-right: 1px solid #2a2d3a; }
     .kpi:last-child { border-right: none; }
-    .kpi-val { font-size: 1.05rem; font-weight: 700; color: #fff; white-space: nowrap;
-               overflow: hidden; text-overflow: ellipsis; }
+    .kpi-val { font-size: 1.05rem; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .kpi-val.green { color: #4ade80; }
     .kpi-label { font-size: 0.68rem; color: #666; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
 
     /* ── Filters ── */
     #filters { background: #12141e; padding: 8px 16px; border-bottom: 1px solid #2a2d3a;
-               display: flex; gap: 18px; flex-wrap: wrap; align-items: center; }
+               display: flex; gap: 18px; flex-wrap: wrap; align-items: center; flex-shrink: 0; }
     .filter-group { display: flex; align-items: center; gap: 6px; }
     .filter-group label { font-size: 0.73rem; color: #888; white-space: nowrap; }
     .filter-group input[type=range] { width: 80px; accent-color: #60a5fa; }
@@ -46,12 +47,12 @@
                            border-radius: 4px; padding: 3px 8px; font-size: 0.78rem; }
     .filter-val { font-size: 0.78rem; color: #fff; min-width: 38px; }
 
-    /* ── Deal Finder tab ── */
+    /* ── Deal Finder layout ── */
     #app { display: grid; grid-template-columns: 1fr 1fr; height: calc(100vh - 196px); }
     #map { height: 100%; z-index: 1; }
     #sidebar { overflow-y: auto; background: #1a1d27; }
 
-    /* ── Tables (shared) ── */
+    /* ── Tables ── */
     table { width: 100%; border-collapse: collapse; font-size: 0.76rem; }
     thead th { position: sticky; top: 0; background: #12141e; padding: 8px 8px;
                text-align: left; color: #666; font-weight: 600; border-bottom: 1px solid #2a2d3a;
@@ -85,7 +86,7 @@
     .link { color: #60a5fa; text-decoration: none; font-size: 0.72rem; }
     .link:hover { text-decoration: underline; }
 
-    /* ── Deal detail panel ── */
+    /* ── Deal detail overlay ── */
     #detail { display: none; position: absolute; bottom: 0; left: 50%; width: 50%;
               background: #1a1d27; border-top: 2px solid #2a2d3a; padding: 14px 18px;
               z-index: 1000; max-height: 240px; overflow-y: auto; }
@@ -110,14 +111,15 @@
     .flag-group.red h4 { color: #f87171; }
     .flag-item { font-size: 0.72rem; color: #bbb; }
 
-    /* ── Operaciones tab ── */
-    #tab-ops { display: none; height: calc(100vh - 46px); overflow: hidden; flex-direction: column; }
+    /* ── Operaciones tab (full-width table) ── */
+    #tab-ops { display: none; flex-direction: column; height: calc(100vh - 46px); overflow: hidden; }
     #tab-ops.active { display: flex; }
-    .ops-toolbar { background: #12141e; padding: 10px 16px; border-bottom: 1px solid #2a2d3a;
-                   display: flex; align-items: center; justify-content: space-between; }
+    .ops-toolbar { flex-shrink: 0; background: #12141e; padding: 10px 16px;
+                   border-bottom: 1px solid #2a2d3a; display: flex; align-items: center; justify-content: space-between; }
     .ops-toolbar span { font-size: 0.8rem; color: #888; }
     #ops-table-wrap { flex: 1; overflow-y: auto; background: #1a1d27; }
 
+    /* ── Status badges ── */
     .status-badge { padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
     .st-prospecto   { background: #0c1a3a; color: #60a5fa; }
     .st-negociacion { background: #3a2e0a; color: #facc15; }
@@ -125,6 +127,60 @@
     .st-en_obra     { background: #3a1a0a; color: #f97316; }
     .st-en_venta    { background: #1e1b4b; color: #a78bfa; }
     .st-vendido     { background: #052e16; color: #4ade80; }
+
+    /* ── Operation detail page ── */
+    #view-op-detail { display: none; flex-direction: column; height: 100vh; overflow: hidden; }
+    .op-detail-header { background: #1a1d27; padding: 12px 20px; border-bottom: 1px solid #2a2d3a;
+                        display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+    .op-detail-header h2 { font-size: 1.05rem; color: #fff; }
+    .op-detail-tabs { flex-shrink: 0; display: flex; background: #12141e; border-bottom: 1px solid #2a2d3a; }
+    .dtab-btn { background: none; border: none; color: #888; font-size: 0.82rem; font-weight: 600;
+                padding: 10px 18px; cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.15s; }
+    .dtab-btn:hover { color: #ccc; }
+    .dtab-btn.active { color: #60a5fa; border-bottom-color: #60a5fa; }
+    #op-detail-body { flex: 1; overflow-y: auto; }
+    .op-detail-inner { max-width: 860px; margin: 0 auto; padding: 20px; }
+
+    /* ── Ficha tab ── */
+    .field-row { margin-bottom: 12px; }
+    .field-label { font-size: 0.7rem; color: #666; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 3px; }
+    .field-val { font-size: 0.82rem; color: #e0e0e0; }
+    .field-val.empty { color: #555; font-style: italic; }
+    .field-input { width: 100%; background: #12141e; color: #e0e0e0; border: 1px solid #2a2d3a;
+                   border-radius: 5px; padding: 6px 9px; font-size: 0.82rem; }
+    .field-input:focus { outline: none; border-color: #3b5bdb; }
+    textarea.field-input { height: 72px; resize: vertical; }
+    .ficha-actions { display: flex; gap: 8px; margin-top: 16px; }
+
+    /* ── Financiero tab ── */
+    .fin-section { margin-bottom: 18px; }
+    .fin-section-title { font-size: 0.7rem; color: #60a5fa; text-transform: uppercase;
+                         letter-spacing: 0.06em; font-weight: 700; margin-bottom: 10px;
+                         padding-bottom: 4px; border-bottom: 1px solid #1e2130; }
+    .fin-row { display: flex; gap: 10px; margin-bottom: 8px; }
+    .fin-field { flex: 1; }
+    .fin-field label { display: block; font-size: 0.68rem; color: #666; margin-bottom: 3px; }
+    .fin-field input { width: 100%; background: #12141e; color: #e0e0e0; border: 1px solid #2a2d3a;
+                       border-radius: 5px; padding: 5px 8px; font-size: 0.8rem; }
+    .fin-field input:focus { outline: none; border-color: #3b5bdb; }
+    .fin-save-btn { margin-top: 4px; width: 100%; }
+
+    /* ── P&L card ── */
+    .pnl-card { margin-top: 16px; background: #12141e; border: 1px solid #2a2d3a; border-radius: 6px; overflow: hidden; }
+    .pnl-card-title { font-size: 0.72rem; font-weight: 700; color: #60a5fa; padding: 8px 12px;
+                      border-bottom: 1px solid #1e2130; text-transform: uppercase; letter-spacing: 0.05em; }
+    .pnl-row { display: flex; justify-content: space-between; align-items: center;
+               padding: 6px 12px; border-bottom: 1px solid #1e2130; font-size: 0.8rem; }
+    .pnl-row:last-child { border-bottom: none; }
+    .pnl-row.divider { border-top: 1px solid #2a2d3a; background: #0f1117; }
+    .pnl-row-label { color: #888; }
+    .pnl-row-val { font-weight: 600; color: #fff; }
+    .pnl-pos { color: #4ade80 !important; }
+    .pnl-neg { color: #f87171 !important; }
+
+    /* ── Placeholders ── */
+    .placeholder { display: flex; align-items: center; justify-content: center;
+                   height: 120px; color: #555; font-size: 0.82rem; }
 
     /* ── Modals ── */
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
@@ -139,144 +195,241 @@
       width: 100%; background: #12141e; color: #e0e0e0; border: 1px solid #2a2d3a;
       border-radius: 5px; padding: 7px 10px; font-size: 0.82rem; }
     .form-row textarea { height: 72px; resize: vertical; }
-    .form-row input:focus, .form-row select:focus, .form-row textarea:focus {
-      outline: none; border-color: #3b5bdb; }
+    .form-row input:focus, .form-row select:focus, .form-row textarea:focus { outline: none; border-color: #3b5bdb; }
     .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
     .error-msg { color: #f87171; font-size: 0.75rem; margin-top: 8px; min-height: 16px; }
   </style>
 </head>
 <body>
 
-<header>
-  <div class="header-brand"><h1>🏠 Madrid Flip Hunter</h1></div>
-  <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('finder')">Deal Finder</button>
-    <button class="tab-btn" onclick="switchTab('ops')">Operaciones</button>
-  </div>
-  <div class="header-right">
-    <span id="auth-status"></span>
-    <button class="btn" id="auth-btn" onclick="openLoginModal()">Login</button>
-  </div>
-</header>
+<!-- ══════════════════════════════════════════════════════════
+     MAIN APP (Deal Finder + Operaciones list)
+══════════════════════════════════════════════════════════ -->
+<div id="main-app">
+  <header class="app-header">
+    <div class="header-brand"><h1>🏠 Madrid Flip Hunter</h1></div>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('finder')">Deal Finder</button>
+      <button class="tab-btn" onclick="switchTab('ops')">Operaciones</button>
+    </div>
+    <div class="header-right">
+      <span id="auth-status"></span>
+      <button class="btn" id="auth-btn" onclick="openLoginModal()">Login</button>
+    </div>
+  </header>
 
-<!-- ── Deal Finder tab ─────────────────────────────── -->
-<div id="tab-finder">
-  <div id="kpis">
-    <div class="kpi"><div class="kpi-val" id="kpi-total">—</div><div class="kpi-label">Pisos analizados</div></div>
-    <div class="kpi"><div class="kpi-val" id="kpi-score">—</div><div class="kpi-label">Score medio</div></div>
-    <div class="kpi"><div class="kpi-val" id="kpi-best">—</div><div class="kpi-label">Mejor deal</div></div>
-    <div class="kpi"><div class="kpi-val green" id="kpi-below">—</div><div class="kpi-label">Bajo precio de mercado (&lt;−5%)</div></div>
-  </div>
-
-  <div id="filters">
-    <div class="filter-group">
-      <label>Score mín</label>
-      <input type="range" id="f-score" min="0" max="10" value="0" step="1">
-      <span class="filter-val" id="f-score-val">0</span>
+  <!-- Deal Finder tab -->
+  <div id="tab-finder">
+    <div id="kpis">
+      <div class="kpi"><div class="kpi-val" id="kpi-total">—</div><div class="kpi-label">Pisos analizados</div></div>
+      <div class="kpi"><div class="kpi-val" id="kpi-score">—</div><div class="kpi-label">Score medio</div></div>
+      <div class="kpi"><div class="kpi-val" id="kpi-best">—</div><div class="kpi-label">Mejor deal</div></div>
+      <div class="kpi"><div class="kpi-val green" id="kpi-below">—</div><div class="kpi-label">Bajo precio de mercado (&lt;−5%)</div></div>
     </div>
-    <div class="filter-group">
-      <label>Precio máx</label>
-      <input type="range" id="f-price" min="50" max="2000" value="2000" step="50">
-      <span class="filter-val" id="f-price-val">2000k€</span>
+    <div id="filters">
+      <div class="filter-group"><label>Score mín</label><input type="range" id="f-score" min="0" max="10" value="0" step="1"><span class="filter-val" id="f-score-val">0</span></div>
+      <div class="filter-group"><label>Precio máx</label><input type="range" id="f-price" min="50" max="2000" value="2000" step="50"><span class="filter-val" id="f-price-val">2000k€</span></div>
+      <div class="filter-group"><label>m² mín</label><input type="range" id="f-size" min="0" max="200" value="0" step="5"><span class="filter-val" id="f-size-val">0m²</span></div>
+      <div class="filter-group"><label>€/m² máx</label><input type="range" id="f-ppm2" min="1000" max="15000" value="15000" step="500"><span class="filter-val" id="f-ppm2-val">15k€/m²</span></div>
+      <div class="filter-group">
+        <label>Fuente</label>
+        <select id="f-source">
+          <option value="">Todas</option><option value="wallapop">Wallapop</option>
+          <option value="remax">Remax</option><option value="redpiso">Redpiso</option>
+          <option value="donpiso">Donpiso</option><option value="tecnocasa">Tecnocasa</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Ordenar</label>
+        <select id="f-sort">
+          <option value="score-desc">Score ↓</option><option value="score-asc">Score ↑</option>
+          <option value="price-asc">Precio ↑</option><option value="price-desc">Precio ↓</option>
+          <option value="ppm2-asc">€/m² ↑</option><option value="ppm2-desc">€/m² ↓</option>
+        </select>
+      </div>
+      <div class="filter-group"><label for="f-no-size">Sin m²</label><input type="checkbox" id="f-no-size"></div>
     </div>
-    <div class="filter-group">
-      <label>m² mín</label>
-      <input type="range" id="f-size" min="0" max="200" value="0" step="5">
-      <span class="filter-val" id="f-size-val">0m²</span>
-    </div>
-    <div class="filter-group">
-      <label>€/m² máx</label>
-      <input type="range" id="f-ppm2" min="1000" max="15000" value="15000" step="500">
-      <span class="filter-val" id="f-ppm2-val">15k€/m²</span>
-    </div>
-    <div class="filter-group">
-      <label>Fuente</label>
-      <select id="f-source">
-        <option value="">Todas</option>
-        <option value="wallapop">Wallapop</option>
-        <option value="remax">Remax</option>
-        <option value="redpiso">Redpiso</option>
-        <option value="donpiso">Donpiso</option>
-        <option value="tecnocasa">Tecnocasa</option>
-      </select>
-    </div>
-    <div class="filter-group">
-      <label>Ordenar</label>
-      <select id="f-sort">
-        <option value="score-desc">Score ↓</option>
-        <option value="score-asc">Score ↑</option>
-        <option value="price-asc">Precio ↑</option>
-        <option value="price-desc">Precio ↓</option>
-        <option value="ppm2-asc">€/m² ↑</option>
-        <option value="ppm2-desc">€/m² ↓</option>
-      </select>
-    </div>
-    <div class="filter-group">
-      <label for="f-no-size">Sin m²</label>
-      <input type="checkbox" id="f-no-size">
-    </div>
-  </div>
-
-  <div id="app">
-    <div id="sidebar">
-      <table>
-        <thead>
-          <tr>
+    <div id="app">
+      <div id="sidebar">
+        <table>
+          <thead><tr>
             <th title="Puntuación de oportunidad de flipping (0–10)">Score</th>
             <th>Título</th>
             <th title="Precio de venta del anuncio">Precio</th>
             <th title="Precio por metro cuadrado del anuncio">€/m²</th>
-            <th title="Diferencia entre el precio/m² del anuncio y la media del barrio según Idealista">vs Mkt</th>
-            <th title="Precio medio de venta €/m² en el barrio o distrito (Idealista, abr 2026)">Zona</th>
+            <th title="Diferencia vs media del barrio (Idealista)">vs Mkt</th>
+            <th title="Precio medio €/m² del barrio (Idealista, abr 2026)">Zona</th>
             <th title="Superficie en metros cuadrados">m²</th>
             <th title="Número de habitaciones">Hab</th>
-            <th>Barrio</th>
-            <th>Fuente</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="tbody"></tbody>
+            <th>Barrio</th><th>Fuente</th><th></th>
+          </tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div id="map"></div>
+    </div>
+    <div id="detail"></div>
+  </div>
+
+  <!-- Operaciones tab (full-width table) -->
+  <div id="tab-ops">
+    <div class="ops-toolbar">
+      <span id="ops-count">—</span>
+      <button class="btn btn-primary" onclick="openNewOpModal()">+ Nueva Operación</button>
+    </div>
+    <div id="ops-table-wrap">
+      <table>
+        <thead><tr>
+          <th>Nombre</th><th>Estado</th><th>Dirección</th><th>Barrio</th><th>Distrito</th><th>Creada</th><th></th>
+        </tr></thead>
+        <tbody id="ops-tbody"></tbody>
       </table>
     </div>
-    <div id="map"></div>
-  </div>
-  <div id="detail"></div>
-</div>
-
-<!-- ── Operaciones tab ─────────────────────────────── -->
-<div id="tab-ops">
-  <div class="ops-toolbar">
-    <span id="ops-count">—</span>
-    <button class="btn btn-primary" onclick="openNewOpModal()">+ Nueva Operación</button>
-  </div>
-  <div id="ops-table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Nombre</th>
-          <th>Estado</th>
-          <th>Dirección</th>
-          <th>Barrio</th>
-          <th>Creada</th>
-        </tr>
-      </thead>
-      <tbody id="ops-tbody"></tbody>
-    </table>
   </div>
 </div>
 
-<!-- ── Modal: Login ───────────────────────────────── -->
+<!-- ══════════════════════════════════════════════════════════
+     OPERATION DETAIL PAGE (/operaciones/{id})
+══════════════════════════════════════════════════════════ -->
+<div id="view-op-detail">
+  <div class="op-detail-header">
+    <button class="btn btn-sm" onclick="navigateTo('/operaciones')">← Operaciones</button>
+    <h2 id="op-detail-title">—</h2>
+    <span class="status-badge" id="op-detail-status"></span>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+      <span id="auth-status-detail" style="font-size:0.75rem;color:#888"></span>
+      <button class="btn btn-sm" id="auth-btn-detail">Login</button>
+    </div>
+  </div>
+  <div class="op-detail-tabs">
+    <button class="dtab-btn active" onclick="switchDetailTab('ficha')">Ficha</button>
+    <button class="dtab-btn" onclick="switchDetailTab('gastos')">Gastos</button>
+    <button class="dtab-btn" onclick="switchDetailTab('financiero')">Financiero</button>
+    <button class="dtab-btn" onclick="switchDetailTab('docs')">Documentos</button>
+  </div>
+  <div id="op-detail-body">
+    <div class="op-detail-inner">
+
+      <!-- Tab: Ficha -->
+      <div id="dtab-ficha">
+        <div id="ficha-view">
+          <div class="field-row"><div class="field-label">Dirección</div><div class="field-val" id="fv-address"></div></div>
+          <div class="field-row"><div class="field-label">Barrio</div><div class="field-val" id="fv-neighborhood"></div></div>
+          <div class="field-row"><div class="field-label">Distrito</div><div class="field-val" id="fv-district"></div></div>
+          <div class="field-row"><div class="field-label">Notas</div><div class="field-val" id="fv-notes" style="white-space:pre-wrap"></div></div>
+          <div class="ficha-actions"><button class="btn btn-sm btn-primary" onclick="enterEditMode()">Editar</button></div>
+        </div>
+        <div id="ficha-edit" style="display:none">
+          <div class="field-row"><div class="field-label">Dirección</div><input class="field-input" id="fe-address"></div>
+          <div class="field-row"><div class="field-label">Barrio</div><input class="field-input" id="fe-neighborhood"></div>
+          <div class="field-row"><div class="field-label">Distrito</div><input class="field-input" id="fe-district"></div>
+          <div class="field-row"><div class="field-label">Notas</div><textarea class="field-input" id="fe-notes"></textarea></div>
+          <div class="error-msg" id="ficha-error"></div>
+          <div class="ficha-actions">
+            <button class="btn btn-sm btn-primary" onclick="saveFicha()">Guardar</button>
+            <button class="btn btn-sm" onclick="cancelEditMode()">Cancelar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Gastos -->
+      <div id="dtab-gastos" style="display:none"><div class="placeholder">Próximamente</div></div>
+
+      <!-- Tab: Financiero -->
+      <div id="dtab-financiero" style="display:none">
+        <div class="fin-section">
+          <div class="fin-section-title">Compra</div>
+          <div class="fin-row">
+            <div class="fin-field"><label>Precio compra</label><input type="number" id="fin-purchase-price" placeholder="0"></div>
+            <div class="fin-field"><label>ITP (auto 6%, editable)</label><input type="number" id="fin-purchase-taxes" placeholder="0"></div>
+          </div>
+          <div class="fin-row">
+            <div class="fin-field"><label>Notaría + registro</label><input type="number" id="fin-purchase-notary" placeholder="0"></div>
+            <div class="fin-field"><label>Comisión inmob. compra</label><input type="number" id="fin-buy-commission" placeholder="0"></div>
+          </div>
+        </div>
+        <div class="fin-section">
+          <div class="fin-section-title">Reforma</div>
+          <div class="fin-row">
+            <div class="fin-field"><label>Presupuesto reforma</label><input type="number" id="fin-renovation-budget" placeholder="0"></div>
+          </div>
+        </div>
+        <div class="fin-section">
+          <div class="fin-section-title">Venta</div>
+          <div class="fin-row">
+            <div class="fin-field"><label>Precio objetivo</label><input type="number" id="fin-target-sale-price" placeholder="0"></div>
+            <div class="fin-field"><label>Precio venta real</label><input type="number" id="fin-actual-sale-price" placeholder="0"></div>
+          </div>
+          <div class="fin-row">
+            <div class="fin-field"><label>Comisión inmob. venta</label><input type="number" id="fin-sale-agency-fee" placeholder="0"></div>
+            <div class="fin-field"><label>Plusvalía municipal</label><input type="number" id="fin-sale-tax-estimate" placeholder="0"></div>
+          </div>
+        </div>
+        <div class="fin-section">
+          <div class="fin-section-title">Financiación</div>
+          <div class="fin-row">
+            <div class="fin-field"><label>Capital propio</label><input type="number" id="fin-own-capital" placeholder="0"></div>
+            <div class="fin-field"><label>Capital inversor (préstamo SL)</label><input type="number" id="fin-borrowed" placeholder="0"></div>
+          </div>
+          <div class="fin-row">
+            <div class="fin-field"><label>Interés anual %</label><input type="number" id="fin-interest-rate" placeholder="5" step="0.1"></div>
+            <div class="fin-field"><label>Meses estimados</label><input type="number" id="fin-loan-months" placeholder="12" step="1"></div>
+          </div>
+          <div class="fin-row">
+            <div class="fin-field" style="flex:1">
+              <label>Coste financiero (auto)</label>
+              <input type="number" id="fin-financing-cost" readonly style="color:#555;background:#0f1117">
+            </div>
+          </div>
+        </div>
+        <div class="fin-section">
+          <div class="fin-section-title">Impuestos</div>
+          <div class="fin-row" style="align-items:center;gap:16px">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.8rem">
+              <input type="radio" name="tax-regime" id="tax-fisica" value="persona_fisica" checked> Persona física (IRPF)
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.8rem">
+              <input type="radio" name="tax-regime" id="tax-sl" value="sl"> SL (IS 23%)
+            </label>
+          </div>
+          <div class="fin-row">
+            <div class="fin-field" style="flex:1">
+              <label id="tax-label">IRPF estimado (tramos)</label>
+              <input type="number" id="fin-tax-amount" readonly style="color:#555;background:#0f1117">
+            </div>
+          </div>
+        </div>
+        <div class="error-msg" id="fin-error"></div>
+        <button class="btn btn-primary fin-save-btn" onclick="saveFinancials()">Guardar financiero</button>
+        <div class="pnl-card" style="margin-top:16px">
+          <div class="pnl-card-title">P&L estimado</div>
+          <div class="pnl-row"><span class="pnl-row-label">Coste total compra</span><span class="pnl-row-val" id="pnl-total-pc">—</span></div>
+          <div class="pnl-row"><span class="pnl-row-label">Coste reforma</span><span class="pnl-row-val" id="pnl-reforma">—</span></div>
+          <div class="pnl-row"><span class="pnl-row-label">Coste financiero</span><span class="pnl-row-val" id="pnl-financiero">—</span></div>
+          <div class="pnl-row"><span class="pnl-row-label">Plusvalía municipal</span><span class="pnl-row-val" id="pnl-plusvalia">—</span></div>
+          <div class="pnl-row"><span class="pnl-row-label">Comisión venta</span><span class="pnl-row-val" id="pnl-comision-venta">—</span></div>
+          <div class="pnl-row divider"><span class="pnl-row-label" style="font-weight:700">Total costes</span><span class="pnl-row-val" id="pnl-total-costes">—</span></div>
+          <div class="pnl-row"><span class="pnl-row-label">Precio venta</span><span class="pnl-row-val" id="pnl-precio-venta">—</span></div>
+          <div class="pnl-row divider"><span class="pnl-row-label" style="font-weight:700">Beneficio bruto</span><span class="pnl-row-val" id="pnl-gross">—</span></div>
+          <div class="pnl-row"><span class="pnl-row-label">Impuestos estimados</span><span class="pnl-row-val" id="pnl-taxes">—</span></div>
+          <div class="pnl-row"><span class="pnl-row-label" style="font-weight:700">Beneficio neto</span><span class="pnl-row-val" id="pnl-net">—</span></div>
+          <div class="pnl-row"><span class="pnl-row-label">ROI</span><span class="pnl-row-val" id="pnl-roi">—</span></div>
+        </div>
+      </div>
+
+      <!-- Tab: Documentos -->
+      <div id="dtab-docs" style="display:none"><div class="placeholder">Próximamente</div></div>
+
+    </div><!-- /.op-detail-inner -->
+  </div><!-- /#op-detail-body -->
+</div><!-- /#view-op-detail -->
+
+<!-- ── Modal: Login ── -->
 <div class="modal-overlay" id="modal-login">
   <div class="modal">
     <h2>Iniciar sesión</h2>
-    <div class="form-row">
-      <label>Usuario</label>
-      <input type="text" id="login-username" placeholder="admin" autocomplete="username">
-    </div>
-    <div class="form-row">
-      <label>Contraseña</label>
-      <input type="password" id="login-password" autocomplete="current-password">
-    </div>
+    <div class="form-row"><label>Usuario</label><input type="text" id="login-username" placeholder="admin" autocomplete="username"></div>
+    <div class="form-row"><label>Contraseña</label><input type="password" id="login-password" autocomplete="current-password"></div>
     <div class="error-msg" id="login-error"></div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('modal-login')">Cancelar</button>
@@ -285,41 +438,23 @@
   </div>
 </div>
 
-<!-- ── Modal: Nueva Operación ─────────────────────── -->
+<!-- ── Modal: Nueva Operación ── -->
 <div class="modal-overlay" id="modal-new-op">
   <div class="modal">
     <h2>Nueva Operación</h2>
-    <div class="form-row">
-      <label>Nombre *</label>
-      <input type="text" id="op-name" placeholder="Lavapiés 42 3ºB">
-    </div>
+    <div class="form-row"><label>Nombre *</label><input type="text" id="op-name" placeholder="Lavapiés 42 3ºB"></div>
     <div class="form-row">
       <label>Estado</label>
       <select id="op-status">
-        <option value="prospecto">Prospecto</option>
-        <option value="negociacion">Negociación</option>
-        <option value="compra">Compra</option>
-        <option value="en_obra">En obra</option>
-        <option value="en_venta">En venta</option>
-        <option value="vendido">Vendido</option>
+        <option value="prospecto">Prospecto</option><option value="negociacion">Negociación</option>
+        <option value="compra">Compra</option><option value="en_obra">En obra</option>
+        <option value="en_venta">En venta</option><option value="vendido">Vendido</option>
       </select>
     </div>
-    <div class="form-row">
-      <label>Dirección</label>
-      <input type="text" id="op-address" placeholder="Calle Lavapiés 42, 3ºB">
-    </div>
-    <div class="form-row">
-      <label>Barrio</label>
-      <input type="text" id="op-neighborhood" placeholder="Lavapiés">
-    </div>
-    <div class="form-row">
-      <label>Distrito</label>
-      <input type="text" id="op-district" placeholder="Centro">
-    </div>
-    <div class="form-row">
-      <label>Notas</label>
-      <textarea id="op-notes" placeholder="Contacto, condiciones, observaciones..."></textarea>
-    </div>
+    <div class="form-row"><label>Dirección</label><input type="text" id="op-address"></div>
+    <div class="form-row"><label>Barrio</label><input type="text" id="op-neighborhood"></div>
+    <div class="form-row"><label>Distrito</label><input type="text" id="op-district"></div>
+    <div class="form-row"><label>Notas</label><textarea id="op-notes"></textarea></div>
     <div class="error-msg" id="op-error"></div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('modal-new-op')">Cancelar</button>
@@ -330,23 +465,28 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-  // ── Auth helpers ──────────────────────────────────────────────────────────
+  // ── Auth ──────────────────────────────────────────────────────────────────
   function getToken() { return localStorage.getItem('mfh_token'); }
   function authHeaders() {
     const t = getToken();
-    return t ? { 'Authorization': `Bearer ${t}`, 'Content-Type': 'application/json' } : {};
+    return t ? { 'Authorization': `Bearer ${t}`, 'Content-Type': 'application/json' }
+             : { 'Content-Type': 'application/json' };
   }
   function updateAuthUI() {
     const t = getToken();
-    document.getElementById('auth-status').textContent = t ? '✓ conectado' : '';
-    document.getElementById('auth-btn').textContent = t ? 'Logout' : 'Login';
-    document.getElementById('auth-btn').onclick = t ? doLogout : openLoginModal;
+    ['auth-status','auth-status-detail'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = t ? '✓ conectado' : '';
+    });
+    const mainBtn   = document.getElementById('auth-btn');
+    const detailBtn = document.getElementById('auth-btn-detail');
+    [mainBtn, detailBtn].forEach(btn => {
+      if (!btn) return;
+      btn.textContent = t ? 'Logout' : 'Login';
+      btn.onclick = t ? doLogout : openLoginModal;
+    });
   }
-  function doLogout() {
-    localStorage.removeItem('mfh_token');
-    updateAuthUI();
-  }
-
+  function doLogout() { localStorage.removeItem('mfh_token'); updateAuthUI(); }
   function openLoginModal() {
     document.getElementById('login-error').textContent = '';
     document.getElementById('login-username').value = '';
@@ -360,16 +500,16 @@
     document.getElementById('login-error').textContent = '';
     try {
       const resp = await fetch('/api/auth/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`,
       });
       if (!resp.ok) { document.getElementById('login-error').textContent = 'Credenciales incorrectas'; return; }
-      const data = await resp.json();
-      localStorage.setItem('mfh_token', data.access_token);
+      localStorage.setItem('mfh_token', (await resp.json()).access_token);
       closeModal('modal-login');
       updateAuthUI();
-      loadOperations();
+      // Refresh whichever view is active
+      const m = window.location.pathname.match(/^\/operaciones\/([^/]+)$/);
+      if (m) loadOpDetail(m[1]); else loadOperations();
     } catch { document.getElementById('login-error').textContent = 'Error de conexión'; }
   }
 
@@ -383,32 +523,65 @@
   });
   document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
-  // ── Tabs ──────────────────────────────────────────────────────────────────
-  function switchTab(name) {
-    document.getElementById('tab-finder').style.display = name === 'finder' ? 'block' : 'none';
-    document.getElementById('tab-ops').classList.toggle('active', name === 'ops');
-    document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', (i === 0) === (name === 'finder')));
-    if (name === 'ops') loadOperations();
+  // ── SPA Router ────────────────────────────────────────────────────────────
+  function navigateTo(path) {
+    history.pushState({}, '', path);
+    router();
   }
 
-  // ── Operaciones ───────────────────────────────────────────────────────────
-  const STATUS_LABELS = {
-    prospecto: 'Prospecto', negociacion: 'Negociación', compra: 'Compra',
-    en_obra: 'En obra', en_venta: 'En venta', vendido: 'Vendido',
-  };
+  function router() {
+    const path = window.location.pathname;
+    const m = path.match(/^\/operaciones\/([^/]+)$/);
+    const mainApp  = document.getElementById('main-app');
+    const detailView = document.getElementById('view-op-detail');
+    if (m) {
+      mainApp.style.display = 'none';
+      detailView.style.display = 'flex';
+      loadOpDetail(m[1]);
+    } else {
+      mainApp.style.display = 'block';
+      detailView.style.display = 'none';
+      if (path.startsWith('/operaciones')) {
+        _setActiveMainTab('ops');
+        loadOperations();
+      } else {
+        _setActiveMainTab('finder');
+      }
+    }
+  }
 
+  window.addEventListener('popstate', router);
+
+  function _setActiveMainTab(name) {
+    document.getElementById('tab-finder').style.display = name === 'finder' ? 'block' : 'none';
+    document.getElementById('tab-ops').classList.toggle('active', name === 'ops');
+    document.querySelectorAll('.tab-btn').forEach((b, i) => {
+      b.classList.toggle('active', (i === 0) === (name === 'finder'));
+    });
+  }
+
+  function switchTab(name) {
+    navigateTo(name === 'finder' ? '/' : '/operaciones');
+  }
+
+  // ── Ops state ─────────────────────────────────────────────────────────────
+  let currentOp = null;
+  let currentFinancialsData = null;
+  const STATUS_LABELS = { prospecto:'Prospecto', negociacion:'Negociación', compra:'Compra',
+                          en_obra:'En obra', en_venta:'En venta', vendido:'Vendido' };
+
+  // ── Ops list ──────────────────────────────────────────────────────────────
   async function loadOperations() {
-    const token = getToken();
-    if (!token) {
-      document.getElementById('ops-tbody').innerHTML = '<tr><td colspan="5" style="color:#888;padding:20px;text-align:center">Inicia sesión para ver las operaciones</td></tr>';
+    if (!getToken()) {
+      document.getElementById('ops-tbody').innerHTML =
+        '<tr><td colspan="7" style="color:#888;padding:20px;text-align:center">Inicia sesión para ver las operaciones</td></tr>';
       document.getElementById('ops-count').textContent = '';
       return;
     }
     try {
       const resp = await fetch('/api/operations/', { headers: authHeaders() });
       if (resp.status === 401) { doLogout(); loadOperations(); return; }
-      const ops = await resp.json();
-      renderOperations(ops);
+      renderOperations(await resp.json());
     } catch { console.error('Error loading operations'); }
   }
 
@@ -416,31 +589,272 @@
     document.getElementById('ops-count').textContent = `${ops.length} operaciones`;
     const tbody = document.getElementById('ops-tbody');
     if (!ops.length) {
-      tbody.innerHTML = '<tr><td colspan="5" style="color:#888;padding:20px;text-align:center">Sin operaciones todavía</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="color:#888;padding:20px;text-align:center">Sin operaciones todavía</td></tr>';
       return;
     }
-    tbody.innerHTML = ops.map(op => `
-      <tr>
+    tbody.innerHTML = '';
+    ops.forEach(op => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
         <td style="font-weight:600;color:#fff">${escHtml(op.name)}</td>
-        <td><span class="status-badge st-${op.status}">${STATUS_LABELS[op.status] || op.status}</span></td>
-        <td class="neighborhood">${escHtml(op.address || '—')}</td>
-        <td class="neighborhood">${escHtml(op.neighborhood || op.district || '—')}</td>
+        <td><span class="status-badge st-${op.status}">${STATUS_LABELS[op.status]||op.status}</span></td>
+        <td class="neighborhood">${escHtml(op.address||'—')}</td>
+        <td class="neighborhood">${escHtml(op.neighborhood||'—')}</td>
+        <td class="neighborhood">${escHtml(op.district||'—')}</td>
         <td class="neighborhood">${new Date(op.created_at).toLocaleDateString('es-ES')}</td>
-      </tr>`).join('');
+        <td><button class="btn btn-sm" onclick="event.stopPropagation();navigateTo('/operaciones/${op.id}')">Abrir →</button></td>`;
+      tr.addEventListener('click', () => navigateTo(`/operaciones/${op.id}`));
+      tbody.appendChild(tr);
+    });
   }
 
-  function escHtml(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // ── Operation detail page ─────────────────────────────────────────────────
+  async function loadOpDetail(id) {
+    if (!getToken()) { openLoginModal(); return; }
+    try {
+      const resp = await fetch(`/api/operations/${id}`, { headers: authHeaders() });
+      if (resp.status === 401) { openLoginModal(); return; }
+      if (!resp.ok) { navigateTo('/operaciones'); return; }
+      currentOp = await resp.json();
+      document.getElementById('op-detail-title').textContent = currentOp.name;
+      const sb = document.getElementById('op-detail-status');
+      sb.textContent = STATUS_LABELS[currentOp.status] || currentOp.status;
+      sb.className = `status-badge st-${currentOp.status}`;
+      switchDetailTab('ficha');
+    } catch { navigateTo('/operaciones'); }
   }
 
+  function switchDetailTab(name) {
+    ['ficha','gastos','financiero','docs'].forEach(t => {
+      document.getElementById(`dtab-${t}`).style.display = t === name ? 'block' : 'none';
+    });
+    document.querySelectorAll('.dtab-btn').forEach((b, i) => {
+      b.classList.toggle('active', ['ficha','gastos','financiero','docs'][i] === name);
+    });
+    if (name === 'ficha') renderFichaView();
+    if (name === 'financiero' && currentOp) loadFinancials(currentOp.id);
+  }
+
+  // ── Ficha tab ─────────────────────────────────────────────────────────────
+  function renderFichaView() {
+    if (!currentOp) return;
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      el.textContent = val || '—';
+      el.className = 'field-val' + (val ? '' : ' empty');
+    };
+    setVal('fv-address', currentOp.address);
+    setVal('fv-neighborhood', currentOp.neighborhood);
+    setVal('fv-district', currentOp.district);
+    setVal('fv-notes', currentOp.notes);
+  }
+
+  function enterEditMode() {
+    if (!currentOp) return;
+    document.getElementById('ficha-view').style.display = 'none';
+    document.getElementById('ficha-edit').style.display = 'block';
+    document.getElementById('fe-address').value      = currentOp.address      || '';
+    document.getElementById('fe-neighborhood').value = currentOp.neighborhood || '';
+    document.getElementById('fe-district').value     = currentOp.district     || '';
+    document.getElementById('fe-notes').value        = currentOp.notes        || '';
+    document.getElementById('ficha-error').textContent = '';
+  }
+
+  function cancelEditMode() {
+    document.getElementById('ficha-view').style.display = 'block';
+    document.getElementById('ficha-edit').style.display = 'none';
+  }
+
+  async function saveFicha() {
+    if (!currentOp) return;
+    const body = {
+      address:      document.getElementById('fe-address').value.trim()      || null,
+      neighborhood: document.getElementById('fe-neighborhood').value.trim() || null,
+      district:     document.getElementById('fe-district').value.trim()     || null,
+      notes:        document.getElementById('fe-notes').value.trim()        || null,
+    };
+    document.getElementById('ficha-error').textContent = '';
+    try {
+      const resp = await fetch(`/api/operations/${currentOp.id}`, {
+        method: 'PATCH', headers: authHeaders(), body: JSON.stringify(body),
+      });
+      if (!resp.ok) {
+        document.getElementById('ficha-error').textContent = (await resp.json()).detail || 'Error';
+        return;
+      }
+      currentOp = { ...currentOp, ...(await resp.json()) };
+      document.getElementById('op-detail-title').textContent = currentOp.name;
+      cancelEditMode();
+      renderFichaView();
+    } catch { document.getElementById('ficha-error').textContent = 'Error de conexión'; }
+  }
+
+  // ── Financiero tab ────────────────────────────────────────────────────────
+  let itpManuallyEdited = false;
+
+  async function loadFinancials(opId) {
+    itpManuallyEdited = false;
+    try {
+      const resp = await fetch(`/api/operations/${opId}/financials`, { headers: authHeaders() });
+      if (!resp.ok) return;
+      currentFinancialsData = await resp.json();
+      populateFinancials(currentFinancialsData);
+      calcFinancingCost();
+      calcPnl();
+    } catch { console.error('Error loading financials'); }
+  }
+
+  function populateFinancials(d) {
+    const set = (id, val) => { document.getElementById(id).value = val != null ? val : ''; };
+    set('fin-purchase-price',    d.purchase_price);
+    set('fin-purchase-taxes',    d.purchase_taxes);
+    set('fin-purchase-notary',   d.purchase_notary);
+    set('fin-buy-commission',    d.buy_commission);
+    set('fin-renovation-budget', d.renovation_budget);
+    set('fin-target-sale-price', d.target_sale_price);
+    set('fin-actual-sale-price', d.actual_sale_price);
+    set('fin-sale-agency-fee',   d.sale_agency_fee);
+    set('fin-sale-tax-estimate', d.sale_tax_estimate);
+    set('fin-own-capital',       d.financing_own_capital);
+    set('fin-borrowed',          d.financing_borrowed);
+    set('fin-interest-rate',     d.financing_interest_rate);
+    set('fin-loan-months',       d.financing_loan_months);
+    const regime = d.tax_regime || 'persona_fisica';
+    document.querySelector(`input[name="tax-regime"][value="${regime}"]`).checked = true;
+    updateTaxLabel();
+    if (d.purchase_taxes != null) itpManuallyEdited = true;
+  }
+
+  function calcFinancingCost() {
+    const capital = parseFloat(document.getElementById('fin-borrowed').value) || 0;
+    const rate    = parseFloat(document.getElementById('fin-interest-rate').value) || 0;
+    const months  = parseFloat(document.getElementById('fin-loan-months').value) || 0;
+    const cost = capital * (rate / 100) * (months / 12);
+    document.getElementById('fin-financing-cost').value = cost > 0 ? cost.toFixed(2) : '';
+    return cost;
+  }
+
+  function calcIRPF(g) {
+    if (g <= 0) return 0;
+    let tax = 0;
+    if (g > 200000) { tax += (g - 200000) * 0.27; g = 200000; }
+    if (g > 50000)  { tax += (g - 50000)  * 0.23; g = 50000; }
+    if (g > 6000)   { tax += (g - 6000)   * 0.21; g = 6000; }
+    tax += g * 0.19;
+    return tax;
+  }
+
+  function getTaxRegime() {
+    return document.querySelector('input[name="tax-regime"]:checked')?.value || 'persona_fisica';
+  }
+
+  function updateTaxLabel() {
+    document.getElementById('tax-label').textContent =
+      getTaxRegime() === 'sl' ? 'IS estimado (23%)' : 'IRPF estimado (tramos)';
+  }
+
+  function fmtEur(v) {
+    if (v == null || isNaN(v)) return '—';
+    return v.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + '€';
+  }
+
+  function calcPnl() {
+    const gv  = id => parseFloat(document.getElementById(id).value) || 0;
+    const pp  = gv('fin-purchase-price'), pt = gv('fin-purchase-taxes');
+    const pn  = gv('fin-purchase-notary'), bc = gv('fin-buy-commission');
+    const ref = gv('fin-renovation-budget');
+    const fc  = calcFinancingCost();
+    const saf = gv('fin-sale-agency-fee'), ste = gv('fin-sale-tax-estimate');
+    const foc = gv('fin-own-capital'),    fib = gv('fin-borrowed');
+    const asp = parseFloat(document.getElementById('fin-actual-sale-price').value);
+    const tsp = parseFloat(document.getElementById('fin-target-sale-price').value);
+
+    const totalPc = pp + pt + pn + bc;
+    const totalCostes = totalPc + ref + fc + ste + saf;
+    const pv = (!isNaN(asp) && asp > 0) ? asp : (!isNaN(tsp) && tsp > 0 ? tsp : null);
+
+    document.getElementById('pnl-total-pc').textContent       = fmtEur(totalPc);
+    document.getElementById('pnl-reforma').textContent        = fmtEur(ref);
+    document.getElementById('pnl-financiero').textContent     = fmtEur(fc);
+    document.getElementById('pnl-plusvalia').textContent      = fmtEur(ste);
+    document.getElementById('pnl-comision-venta').textContent = fmtEur(saf);
+    document.getElementById('pnl-total-costes').textContent   = fmtEur(totalCostes);
+    document.getElementById('pnl-precio-venta').textContent   = pv != null ? fmtEur(pv) : '—';
+
+    const sign = (id, val) => {
+      const el = document.getElementById(id);
+      el.textContent = val != null ? ((val >= 0 ? '+' : '') + fmtEur(val)) : '—';
+      el.className = 'pnl-row-val' + (val == null ? '' : val >= 0 ? ' pnl-pos' : ' pnl-neg');
+    };
+
+    if (pv != null) {
+      const gross  = pv - totalCostes;
+      const regime = getTaxRegime();
+      const taxes  = regime === 'sl' ? Math.max(0, gross * 0.23) : calcIRPF(Math.max(0, gross));
+      const net    = gross - taxes;
+      const denom  = foc + fib;
+      document.getElementById('fin-tax-amount').value = taxes > 0 ? taxes.toFixed(2) : '';
+      document.getElementById('pnl-taxes').textContent = fmtEur(taxes);
+      sign('pnl-gross', gross);
+      sign('pnl-net',   net);
+      const roiEl = document.getElementById('pnl-roi');
+      if (denom > 0) {
+        const roi = net / denom * 100;
+        roiEl.textContent = (roi >= 0 ? '+' : '') + roi.toFixed(1) + '%';
+        roiEl.className = 'pnl-row-val ' + (roi >= 0 ? 'pnl-pos' : 'pnl-neg');
+      } else { roiEl.textContent = '—'; roiEl.className = 'pnl-row-val'; }
+    } else {
+      ['pnl-gross','pnl-net'].forEach(id => sign(id, null));
+      document.getElementById('pnl-taxes').textContent = '—';
+      document.getElementById('pnl-roi').textContent = '—';
+      document.getElementById('pnl-roi').className = 'pnl-row-val';
+      document.getElementById('fin-tax-amount').value = '';
+    }
+  }
+
+  document.getElementById('fin-purchase-price').addEventListener('input', () => {
+    if (!itpManuallyEdited) {
+      const pp = parseFloat(document.getElementById('fin-purchase-price').value) || 0;
+      document.getElementById('fin-purchase-taxes').value = pp > 0 ? (pp * 0.06).toFixed(2) : '';
+    }
+    calcPnl();
+  });
+  document.getElementById('fin-purchase-taxes').addEventListener('input', () => { itpManuallyEdited = true; calcPnl(); });
+  ['fin-borrowed','fin-interest-rate','fin-loan-months'].forEach(id => document.getElementById(id).addEventListener('input', calcPnl));
+  document.querySelectorAll('input[name="tax-regime"]').forEach(el => el.addEventListener('change', () => { updateTaxLabel(); calcPnl(); }));
+  ['fin-purchase-notary','fin-buy-commission','fin-renovation-budget','fin-target-sale-price',
+   'fin-actual-sale-price','fin-sale-agency-fee','fin-sale-tax-estimate','fin-own-capital'].forEach(id => {
+    document.getElementById(id).addEventListener('input', calcPnl);
+  });
+
+  async function saveFinancials() {
+    if (!currentOp) return;
+    const nv = id => { const v = document.getElementById(id).value.trim(); return v === '' ? null : parseFloat(v); };
+    const body = {
+      purchase_price: nv('fin-purchase-price'), purchase_taxes: nv('fin-purchase-taxes'),
+      purchase_notary: nv('fin-purchase-notary'), buy_commission: nv('fin-buy-commission'),
+      renovation_budget: nv('fin-renovation-budget'), target_sale_price: nv('fin-target-sale-price'),
+      actual_sale_price: nv('fin-actual-sale-price'), sale_agency_fee: nv('fin-sale-agency-fee'),
+      sale_tax_estimate: nv('fin-sale-tax-estimate'), financing_own_capital: nv('fin-own-capital'),
+      financing_borrowed: nv('fin-borrowed'), financing_cost: nv('fin-financing-cost'),
+      financing_interest_rate: nv('fin-interest-rate'), financing_loan_months: nv('fin-loan-months'),
+      tax_regime: getTaxRegime(),
+    };
+    document.getElementById('fin-error').textContent = '';
+    try {
+      const resp = await fetch(`/api/operations/${currentOp.id}/financials`, {
+        method: 'PUT', headers: authHeaders(), body: JSON.stringify(body),
+      });
+      if (!resp.ok) { document.getElementById('fin-error').textContent = (await resp.json()).detail || 'Error'; return; }
+      currentFinancialsData = await resp.json();
+    } catch { document.getElementById('fin-error').textContent = 'Error de conexión'; }
+  }
+
+  // ── New operation modal ───────────────────────────────────────────────────
   function openNewOpModal() {
     if (!getToken()) { openLoginModal(); return; }
-    document.getElementById('op-name').value = '';
+    ['op-name','op-address','op-neighborhood','op-district','op-notes'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('op-status').value = 'prospecto';
-    document.getElementById('op-address').value = '';
-    document.getElementById('op-neighborhood').value = '';
-    document.getElementById('op-district').value = '';
-    document.getElementById('op-notes').value = '';
     document.getElementById('op-error').textContent = '';
     document.getElementById('modal-new-op').classList.add('open');
     setTimeout(() => document.getElementById('op-name').focus(), 50);
@@ -450,28 +864,25 @@
     const name = document.getElementById('op-name').value.trim();
     if (!name) { document.getElementById('op-error').textContent = 'El nombre es obligatorio'; return; }
     const body = {
-      name,
-      status: document.getElementById('op-status').value,
-      address: document.getElementById('op-address').value.trim() || null,
+      name, status: document.getElementById('op-status').value,
+      address:      document.getElementById('op-address').value.trim()      || null,
       neighborhood: document.getElementById('op-neighborhood').value.trim() || null,
-      district: document.getElementById('op-district').value.trim() || null,
-      notes: document.getElementById('op-notes').value.trim() || null,
+      district:     document.getElementById('op-district').value.trim()     || null,
+      notes:        document.getElementById('op-notes').value.trim()        || null,
     };
     document.getElementById('op-error').textContent = '';
     try {
-      const resp = await fetch('/api/operations/', {
-        method: 'POST', headers: authHeaders(), body: JSON.stringify(body),
-      });
+      const resp = await fetch('/api/operations/', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
       if (resp.status === 401) { closeModal('modal-new-op'); openLoginModal(); return; }
-      if (!resp.ok) {
-        const err = await resp.json();
-        document.getElementById('op-error').textContent = err.detail || 'Error al guardar';
-        return;
-      }
+      if (!resp.ok) { document.getElementById('op-error').textContent = (await resp.json()).detail || 'Error'; return; }
+      const created = await resp.json();
       closeModal('modal-new-op');
-      loadOperations();
+      navigateTo(`/operaciones/${created.id}`);
     } catch { document.getElementById('op-error').textContent = 'Error de conexión'; }
   }
+
+  // ── Utils ─────────────────────────────────────────────────────────────────
+  function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
   // ── Deal Finder ───────────────────────────────────────────────────────────
   const map = L.map('map').setView([40.416, -3.703], 13);
@@ -481,18 +892,18 @@
   function scoreBadgeClass(s) { return s >= 7 ? 'score-high' : s >= 4 ? 'score-mid' : 'score-low'; }
   function ppm2(l) { return l.price && l.size_m2 ? Math.round(l.price / l.size_m2) : null; }
   function sourceBadgeClass(src) {
-    return ({ wallapop:'src-wallapop', remax:'src-remax', redpiso:'src-redpiso', donpiso:'src-donpiso', tecnocasa:'src-tecnocasa' })[src] || 'src-default';
+    return ({wallapop:'src-wallapop',remax:'src-remax',redpiso:'src-redpiso',donpiso:'src-donpiso',tecnocasa:'src-tecnocasa'})[src] || 'src-default';
   }
   function vsMarketClass(pct) { return pct <= -10 ? 'vs-green' : pct >= 10 ? 'vs-red' : 'vs-yellow'; }
   function fmtPct(pct) { return pct == null ? '—' : (pct > 0 ? '+' : '') + pct.toFixed(1) + '%'; }
 
   const markers = {};
-  let allListings = [], selectedRow = null;
+  let allListings = [], _selectedRow = null;
 
   function makeMarker(l) {
     if (!l.lat || !l.lon) return null;
     return L.circleMarker([l.lat, l.lon], { radius: 8, fillColor: scoreColor(l.score), color: '#fff', weight: 1.5, opacity: 1, fillOpacity: 0.85 })
-      .bindTooltip(`<b>${l.score}/10</b> — ${l.neighborhood || ''}<br>${(l.price/1000).toFixed(0)}k€`);
+      .bindTooltip(`<b>${l.score}/10</b> — ${l.neighborhood||''}<br>${(l.price/1000).toFixed(0)}k€`);
   }
 
   function showDetail(l) {
@@ -505,22 +916,22 @@
         ? `<span class="market-diff green">→ ${Math.abs(vsPct).toFixed(1)}% bajo mercado</span>`
         : `<span class="market-diff red">→ ${vsPct.toFixed(1)}% sobre mercado</span>`;
       const margin = l.size_m2 ? Math.round((mkt - pp) * l.size_m2 * 0.7) : null;
-      const marginHtml = margin != null ? `<div class="margin-row">Margen potencial bruto estimado: <span class="${margin >= 0 ? 'margin-pos' : 'margin-neg'}">${margin >= 0 ? '~+' : '~'}${margin.toLocaleString('es-ES')}€</span></div>` : '';
+      const marginHtml = margin != null ? `<div class="margin-row">Margen potencial bruto estimado: <span class="${margin>=0?'margin-pos':'margin-neg'}">${margin>=0?'~+':'~'}${margin.toLocaleString('es-ES')}€</span></div>` : '';
       marketHtml = `<div class="market-row"><span class="market-ppm2">${pp.toLocaleString('es-ES')}€/m²</span><span class="market-sep">vs</span><span class="market-avg">${Math.round(mkt).toLocaleString('es-ES')}€/m² mercado</span>${diffLabel}</div>${marginHtml}`;
     }
     const d = document.getElementById('detail');
     d.style.display = 'block';
-    d.innerHTML = `<h3>${l.title}</h3>${marketHtml}<div class="reasoning">${l.score_reasoning || 'Sin razonamiento'}</div>
+    d.innerHTML = `<h3>${l.title}</h3>${marketHtml}<div class="reasoning">${l.score_reasoning||'Sin razonamiento'}</div>
       <div class="flags">
-        ${green.length ? `<div class="flag-group green"><h4>✅ Green flags</h4>${green.map(f=>`<div class="flag-item">· ${f}</div>`).join('')}</div>` : ''}
-        ${red.length   ? `<div class="flag-group red"><h4>⚠️ Red flags</h4>${red.map(f=>`<div class="flag-item">· ${f}</div>`).join('')}</div>` : ''}
+        ${green.length?`<div class="flag-group green"><h4>✅ Green flags</h4>${green.map(f=>`<div class="flag-item">· ${f}</div>`).join('')}</div>`:''}
+        ${red.length?`<div class="flag-group red"><h4>⚠️ Red flags</h4>${red.map(f=>`<div class="flag-item">· ${f}</div>`).join('')}</div>`:''}
       </div>`;
   }
 
   function highlightRow(id) {
-    if (selectedRow) selectedRow.classList.remove('selected');
-    selectedRow = document.getElementById(`row-${id}`);
-    if (selectedRow) { selectedRow.classList.add('selected'); selectedRow.scrollIntoView({block:'nearest'}); }
+    if (_selectedRow) _selectedRow.classList.remove('selected');
+    _selectedRow = document.getElementById(`row-${id}`);
+    if (_selectedRow) { _selectedRow.classList.add('selected'); _selectedRow.scrollIntoView({block:'nearest'}); }
   }
 
   function getFilters() {
@@ -542,7 +953,7 @@
     const best = filtered.reduce((a,b) => (a && a.score >= b.score) ? a : b, null);
     const bestEl = document.getElementById('kpi-best');
     if (best) {
-      const title = (best.title||'').substring(0,26) + ((best.title||'').length > 26 ? '…' : '');
+      const title = (best.title||'').substring(0,26)+((best.title||'').length>26?'…':'');
       bestEl.innerHTML = `<span style="color:#4ade80">${best.score}</span> — ${title}`;
     } else { bestEl.textContent = '—'; }
     document.getElementById('kpi-below').textContent = filtered.filter(l => l.vs_market_pct != null && l.vs_market_pct < -5).length;
@@ -563,10 +974,10 @@
     const [key, dir] = f.sort.split('-');
     list.sort((a,b) => {
       let av, bv;
-      if (key === 'score')      { av = a.score; bv = b.score; }
-      else if (key === 'price') { av = a.price; bv = b.price; }
-      else if (key === 'ppm2')  { av = ppm2(a)||99999; bv = ppm2(b)||99999; }
-      return dir === 'asc' ? av-bv : bv-av;
+      if (key==='score') { av=a.score; bv=b.score; }
+      else if (key==='price') { av=a.price; bv=b.price; }
+      else if (key==='ppm2') { av=ppm2(a)||99999; bv=ppm2(b)||99999; }
+      return dir==='asc' ? av-bv : bv-av;
     });
     updateKpis(list);
     renderTable(list);
@@ -583,15 +994,15 @@
       const tr = document.createElement('tr');
       tr.id = `row-${l.id}`;
       tr.innerHTML = `
-        <td><span class="score-badge ${scoreBadgeClass(l.score)}">${l.score ?? '—'}</span></td>
-        <td>${(l.title||'').substring(0,32)}${(l.title||'').length > 32 ? '…' : ''}</td>
-        <td class="price">${l.price ? (l.price/1000).toFixed(0)+'k€' : '—'}</td>
-        <td class="ppm2">${pp ? pp.toLocaleString('es-ES')+'€' : '—'}</td>
-        <td><span class="${vsPct != null ? vsMarketClass(vsPct) : ''}">${fmtPct(vsPct)}</span></td>
-        <td class="mkt-price">${l.market_price_m2 ? Math.round(l.market_price_m2).toLocaleString('es-ES')+'€' : '—'}</td>
-        <td class="neighborhood">${l.size_m2 ? l.size_m2+'m²' : '—'}</td>
-        <td class="neighborhood">${l.rooms ?? '—'}</td>
-        <td class="neighborhood">${l.neighborhood || l.district || '—'}</td>
+        <td><span class="score-badge ${scoreBadgeClass(l.score)}">${l.score??'—'}</span></td>
+        <td>${(l.title||'').substring(0,32)}${(l.title||'').length>32?'…':''}</td>
+        <td class="price">${l.price?(l.price/1000).toFixed(0)+'k€':'—'}</td>
+        <td class="ppm2">${pp?pp.toLocaleString('es-ES')+'€':'—'}</td>
+        <td><span class="${vsPct!=null?vsMarketClass(vsPct):''}">${fmtPct(vsPct)}</span></td>
+        <td class="mkt-price">${l.market_price_m2?Math.round(l.market_price_m2).toLocaleString('es-ES')+'€':'—'}</td>
+        <td class="neighborhood">${l.size_m2?l.size_m2+'m²':'—'}</td>
+        <td class="neighborhood">${l.rooms??'—'}</td>
+        <td class="neighborhood">${l.neighborhood||l.district||'—'}</td>
         <td><span class="source-badge ${sourceBadgeClass(l.source)}">${l.source||''}</span></td>
         <td><a class="link" href="${l.url}" target="_blank">ver →</a></td>`;
       tr.addEventListener('click', () => { highlightRow(l.id); showDetail(l); if (markers[l.id]) map.panTo(markers[l.id].getLatLng()); });
@@ -616,7 +1027,6 @@
 
   // ── Init ──────────────────────────────────────────────────────────────────
   updateAuthUI();
-
   fetch('/api/listings')
     .then(r => r.json())
     .then(listings => {
@@ -627,6 +1037,7 @@
       });
       applyFilters();
     });
+  router();
 </script>
 </body>
 </html>

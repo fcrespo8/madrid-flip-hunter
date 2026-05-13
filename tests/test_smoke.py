@@ -45,3 +45,12 @@ def test_operations_crud_schema():
     from backend.api.operations import OperationCreate
     op = OperationCreate(name="Test", status="prospecto")
     assert op.status == "prospecto"
+
+
+def test_financials_calculated_fields():
+    from backend.api.operations import FinancialsUpdate
+    f = FinancialsUpdate(purchase_price=100000, purchase_taxes=10000, purchase_notary=2000)
+    assert f is not None
+    assert f.purchase_price == 100000
+    assert f.purchase_taxes == 10000
+    assert f.purchase_notary == 2000

@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, date
 from decimal import Decimal
 from sqlalchemy import (
-    String, Float, Text, Boolean, Numeric, Date, DateTime,
+    String, Float, Integer, Text, Boolean, Numeric, Date, DateTime,
     ForeignKey, Enum as SAEnum,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -92,9 +92,14 @@ class OperationFinancials(Base):
     sale_agency_fee:   Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     sale_tax_estimate: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
 
-    financing_own_capital: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
-    financing_borrowed:    Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
-    financing_cost:        Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    financing_own_capital:    Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    financing_borrowed:       Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    financing_cost:           Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    financing_interest_rate:  Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    financing_loan_months:    Mapped[int | None]     = mapped_column(Integer, nullable=True)
+
+    buy_commission: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    tax_regime:     Mapped[str | None]     = mapped_column(String(20), nullable=True)
 
     operation: Mapped["Operation"] = relationship("Operation", back_populates="financials")
 
