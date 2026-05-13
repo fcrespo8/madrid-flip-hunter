@@ -225,6 +225,47 @@
                       border-bottom: 1px solid #1a1d2a; font-size: 0.79rem; }
     .pnl-row-indent:last-child { border-bottom: none; }
 
+    /* ── Sociedad tab (operation detail) ── */
+    .society-form { display: flex; gap: 6px; flex-wrap: wrap; align-items: flex-end;
+                    padding: 12px 0 16px; border-bottom: 1px solid #1e2130; margin-bottom: 12px; }
+    .society-form .sf { display: flex; flex-direction: column; }
+    .society-form .sf label { font-size: 0.65rem; color: #666; margin-bottom: 3px; }
+    .society-form input, .society-form select {
+      background: #12141e; color: #e0e0e0; border: 1px solid #2a2d3a;
+      border-radius: 5px; padding: 5px 8px; font-size: 0.78rem; }
+    .society-form input:focus { outline: none; border-color: #3b5bdb; }
+    .sf-name input { width: 140px; }
+    .sf-role input { width: 110px; }
+    .sf-pct input  { width: 70px; }
+    .sf-loan input { width: 100px; }
+
+    .pct-bar-wrap { height: 8px; background: #1e2130; border-radius: 4px; margin: 6px 0 14px; overflow: hidden; position: relative; }
+    .pct-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+    .pct-bar-label { font-size: 0.72rem; color: #888; margin-top: 4px; display: block; }
+
+    .dist-section { margin-top: 20px; }
+    .dist-section h4 { font-size: 0.75rem; color: #60a5fa; text-transform: uppercase;
+                       letter-spacing: 0.05em; margin-bottom: 10px; padding-bottom: 4px;
+                       border-bottom: 1px solid #1e2130; }
+    .dist-unavail { color: #555; font-size: 0.82rem; padding: 16px 0; }
+    .dist-total { text-align: right; font-size: 0.82rem; color: #e0e0e0;
+                  font-weight: 700; padding: 8px 0; border-top: 1px solid #2a2d3a; margin-top: 4px; }
+
+    /* ── Society global tab ── */
+    #tab-personas { display: none; flex-direction: column; height: calc(100vh - 46px); overflow-y: auto; }
+    #tab-personas.active { display: flex; }
+    .society-kpis { display: flex; background: #13151f; border-bottom: 1px solid #2a2d3a; flex-shrink: 0; }
+    .society-body { display: flex; gap: 24px; padding: 20px; flex: 1; align-items: flex-start; }
+    .society-table-wrap { flex: 1; min-width: 0; }
+    .society-chart-wrap { width: 280px; flex-shrink: 0; }
+    .society-chart-wrap h4 { font-size: 0.75rem; color: #60a5fa; text-transform: uppercase;
+                              letter-spacing: 0.05em; margin-bottom: 12px; }
+    #society-pie { display: block; }
+    .pie-legend { margin-top: 10px; }
+    .pie-legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.78rem;
+                       color: #ccc; margin-bottom: 5px; }
+    .pie-legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
     /* ── Modals ── */
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
                      z-index: 2000; align-items: center; justify-content: center; }
@@ -254,6 +295,7 @@
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('finder')">Deal Finder</button>
       <button class="tab-btn" onclick="switchTab('ops')">Operaciones</button>
+      <button class="tab-btn" onclick="switchTab('personas')">Personas</button>
     </div>
     <div class="header-right">
       <span id="auth-status"></span>
@@ -331,6 +373,56 @@
   </div>
 </div>
 
+<!-- ── Sociedad global tab ── -->
+<div id="tab-personas">
+  <div style="padding:16px 20px 0;flex-shrink:0">
+    <h2 style="font-size:1.1rem;color:#fff;font-weight:700">Personas</h2>
+    <p style="font-size:0.78rem;color:#666;margin-top:2px">Participación y ganancias por persona en todas las operaciones</p>
+  </div>
+  <div class="society-kpis" style="margin-top:12px">
+    <div class="kpi">
+      <div style="display:flex;align-items:center;gap:8px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+        <div class="kpi-val" id="soc-capital">—</div>
+      </div>
+      <div class="kpi-label">Capital invertido total</div>
+    </div>
+    <div class="kpi">
+      <div style="display:flex;align-items:center;gap:8px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <div class="kpi-val green" id="soc-beneficio">—</div>
+      </div>
+      <div class="kpi-label">Beneficio repartido total</div>
+    </div>
+    <div class="kpi">
+      <div style="display:flex;align-items:center;gap:8px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+        <div class="kpi-val" id="soc-ops">—</div>
+      </div>
+      <div class="kpi-label">Operaciones cerradas</div>
+    </div>
+  </div>
+  <div class="society-body">
+    <div class="society-table-wrap">
+      <table>
+        <thead><tr>
+          <th>Nombre</th>
+          <th style="text-align:right">Operaciones</th>
+          <th style="text-align:right">Capital prestado</th>
+          <th style="text-align:right">Beneficio ganado</th>
+          <th style="text-align:right">Total recibido</th>
+        </tr></thead>
+        <tbody id="society-tbody"></tbody>
+      </table>
+    </div>
+    <div class="society-chart-wrap" id="society-chart-section">
+      <h4>Reparto de beneficios</h4>
+      <svg id="society-pie" width="240" height="240" viewBox="0 0 240 240"></svg>
+      <div class="pie-legend" id="pie-legend"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════════════════════════════════════════════════
      OPERATION DETAIL PAGE (/operaciones/{id})
 ══════════════════════════════════════════════════════════ -->
@@ -348,6 +440,7 @@
     <button class="dtab-btn active" onclick="switchDetailTab('ficha')">Ficha</button>
     <button class="dtab-btn" onclick="switchDetailTab('gastos')">Gastos</button>
     <button class="dtab-btn" onclick="switchDetailTab('financiero')">Financiero</button>
+    <button class="dtab-btn" onclick="switchDetailTab('sociedad')">Sociedad</button>
     <button class="dtab-btn" onclick="switchDetailTab('docs')">Documentos</button>
   </div>
   <div id="op-detail-body">
@@ -546,6 +639,35 @@
         </div>
       </div>
 
+      <!-- Tab: Sociedad -->
+      <div id="dtab-sociedad" style="display:none">
+        <!-- Add partner form -->
+        <div class="society-form">
+          <div class="sf sf-name"><label>Nombre *</label><input type="text" id="sp-name" placeholder="Francisco"></div>
+          <div class="sf sf-role"><label>Rol</label><input type="text" id="sp-role" placeholder="Operativo..."></div>
+          <div class="sf sf-pct"><label>% beneficios *</label><input type="number" id="sp-pct" placeholder="50" step="0.01" min="0" max="100"></div>
+          <div class="sf sf-loan"><label>Préstamo (€)</label><input type="number" id="sp-loan" placeholder="0"></div>
+          <div class="sf sf-loan"><label>Interés anual %</label><input type="number" id="sp-rate" placeholder="5" step="0.1"></div>
+          <div class="sf sf-loan"><label>Meses plazo</label><input type="number" id="sp-months" placeholder="12" step="1"></div>
+          <div class="sf"><label>&nbsp;</label><button class="btn btn-primary" onclick="addPartner()">Añadir</button></div>
+        </div>
+        <div class="error-msg" id="sp-error"></div>
+        <div class="pct-bar-wrap"><div class="pct-bar-fill" id="sp-bar-fill" style="width:0;background:#4ade80"></div></div>
+        <span class="pct-bar-label" id="sp-bar-label">0% asignado</span>
+        <table style="margin-top:8px">
+          <thead><tr>
+            <th>Nombre</th><th>Rol</th><th style="text-align:right">%</th>
+            <th style="text-align:right">Préstamo</th><th style="text-align:right">Coste préstamo</th><th></th>
+          </tr></thead>
+          <tbody id="partners-tbody"></tbody>
+        </table>
+        <!-- Distribution section -->
+        <div class="dist-section">
+          <h4>Reparto al cierre</h4>
+          <div id="distribution-wrap"><div class="dist-unavail">Cargando...</div></div>
+        </div>
+      </div>
+
       <!-- Tab: Documentos -->
       <div id="dtab-docs" style="display:none"><div class="placeholder">Próximamente</div></div>
 
@@ -638,7 +760,9 @@
       updateAuthUI();
       // Refresh whichever view is active
       const m = window.location.pathname.match(/^\/operaciones\/([^/]+)$/);
-      if (m) loadOpDetail(m[1]); else loadOperations();
+      if (m) loadOpDetail(m[1]);
+      else if (window.location.pathname.startsWith('/personas')) loadPersonsData();
+      else loadOperations();
     } catch { document.getElementById('login-error').textContent = 'Error de conexión'; }
   }
 
@@ -673,6 +797,9 @@
       if (path.startsWith('/operaciones')) {
         _setActiveMainTab('ops');
         loadOperations();
+      } else if (path.startsWith('/personas')) {
+        _setActiveMainTab('personas');
+        loadPersonsData();
       } else {
         _setActiveMainTab('finder');
       }
@@ -684,13 +811,15 @@
   function _setActiveMainTab(name) {
     document.getElementById('tab-finder').style.display = name === 'finder' ? 'block' : 'none';
     document.getElementById('tab-ops').classList.toggle('active', name === 'ops');
+    document.getElementById('tab-personas').classList.toggle('active', name === 'personas');
     document.querySelectorAll('.tab-btn').forEach((b, i) => {
-      b.classList.toggle('active', (i === 0) === (name === 'finder'));
+      b.classList.toggle('active', ['finder','ops','society'][i] === name);
     });
   }
 
   function switchTab(name) {
-    navigateTo(name === 'finder' ? '/' : '/operaciones');
+    const paths = { finder: '/', ops: '/operaciones', personas: '/personas' };
+    navigateTo(paths[name] || '/');
   }
 
   // ── Ops state ─────────────────────────────────────────────────────────────
@@ -754,15 +883,16 @@
   }
 
   function switchDetailTab(name) {
-    ['ficha','gastos','financiero','docs'].forEach(t => {
+    ['ficha','gastos','financiero','sociedad','docs'].forEach(t => {
       document.getElementById(`dtab-${t}`).style.display = t === name ? 'block' : 'none';
     });
     document.querySelectorAll('.dtab-btn').forEach((b, i) => {
-      b.classList.toggle('active', ['ficha','gastos','financiero','docs'][i] === name);
+      b.classList.toggle('active', ['ficha','gastos','financiero','sociedad','docs'][i] === name);
     });
     if (name === 'ficha') renderFichaView();
-    if (name === 'gastos' && currentOp) loadExpenses(currentOp.id);
-    if (name === 'financiero' && currentOp) loadFinancials(currentOp.id);
+    if (name === 'gastos'    && currentOp) loadExpenses(currentOp.id);
+    if (name === 'financiero'&& currentOp) loadFinancials(currentOp.id);
+    if (name === 'sociedad'  && currentOp) loadPartners(currentOp.id);
   }
 
   // ── Ficha tab ─────────────────────────────────────────────────────────────
@@ -1129,6 +1259,177 @@
 
   // ── Utils ─────────────────────────────────────────────────────────────────
   function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // ── Sociedad (operation partners) ────────────────────────────────────────
+  const PIE_COLORS = ['#60a5fa','#f97316','#4ade80','#a78bfa','#facc15','#f87171','#2dd4bf','#fb923c'];
+
+  async function loadPartners(opId) {
+    if (!getToken()) return;
+    try {
+      const [pResp, dResp] = await Promise.all([
+        fetch(`/api/operations/${opId}/partners`, { headers: authHeaders() }),
+        fetch(`/api/operations/${opId}/distribution`, { headers: authHeaders() }),
+      ]);
+      const partners = pResp.ok ? await pResp.json() : [];
+      const dist     = dResp.ok ? await dResp.json() : null;
+      renderPartners(partners);
+      renderDistribution(dist);
+    } catch { console.error('Error loading partners'); }
+  }
+
+  function renderPartners(partners) {
+    const tbody = document.getElementById('partners-tbody');
+    const totalPct = partners.reduce((s, p) => s + p.participation_pct, 0);
+    const bar = document.getElementById('sp-bar-fill');
+    const label = document.getElementById('sp-bar-label');
+    if (bar) {
+      bar.style.width = Math.min(totalPct, 100) + '%';
+      bar.style.background = totalPct > 100 ? '#f87171' : totalPct === 100 ? '#4ade80' : '#60a5fa';
+    }
+    if (label) label.textContent = `${totalPct.toFixed(1)}% asignado`;
+
+    if (!partners.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="color:#888;padding:12px;text-align:center">Sin socios añadidos</td></tr>';
+      return;
+    }
+    tbody.innerHTML = partners.map(p => `
+      <tr>
+        <td style="font-weight:600;color:#fff">${escHtml(p.name)}</td>
+        <td class="neighborhood">${escHtml(p.role||'—')}</td>
+        <td style="text-align:right;font-weight:600">${p.participation_pct.toFixed(1)}%</td>
+        <td style="text-align:right" class="neighborhood">${p.loan_amount ? p.loan_amount.toLocaleString('es-ES')+'€' : '—'}</td>
+        <td style="text-align:right" class="neighborhood">${p.loan_cost != null ? p.loan_cost.toLocaleString('es-ES')+'€' : '—'}</td>
+        <td><button class="btn btn-sm" style="padding:2px 6px" onclick="deletePartner('${p.id}')">🗑</button></td>
+      </tr>`).join('');
+  }
+
+  function renderDistribution(dist) {
+    const wrap = document.getElementById('distribution-wrap');
+    if (!wrap) return;
+    if (!dist || !dist.available) {
+      wrap.innerHTML = `<div class="dist-unavail">${dist?.reason || 'No disponible'}</div>`;
+      return;
+    }
+    const rows = dist.items.map(item => `
+      <tr>
+        <td style="font-weight:600;color:#fff">${escHtml(item.name)}</td>
+        <td style="text-align:right">${item.participation_pct.toFixed(1)}%</td>
+        <td style="text-align:right;color:#4ade80">${item.amount.toLocaleString('es-ES')}€</td>
+        <td style="text-align:right" class="neighborhood">${item.loan_repayment > 0 ? item.loan_repayment.toLocaleString('es-ES')+'€' : '—'}</td>
+        <td style="text-align:right;font-weight:700;color:#fff">${item.total_received.toLocaleString('es-ES')}€</td>
+      </tr>`).join('');
+    wrap.innerHTML = `
+      <table>
+        <thead><tr>
+          <th>Socio</th><th style="text-align:right">%</th>
+          <th style="text-align:right">Beneficio</th>
+          <th style="text-align:right">Dev. préstamo</th>
+          <th style="text-align:right">Total a recibir</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="dist-total">Total neto repartido: ${dist.total_distributed.toLocaleString('es-ES')}€</div>`;
+  }
+
+  async function addPartner() {
+    if (!currentOp) return;
+    const name = document.getElementById('sp-name').value.trim();
+    const pct  = parseFloat(document.getElementById('sp-pct').value);
+    if (!name) { document.getElementById('sp-error').textContent = 'Nombre obligatorio'; return; }
+    if (!pct || pct <= 0) { document.getElementById('sp-error').textContent = 'Introduce un % válido'; return; }
+    const loan   = parseFloat(document.getElementById('sp-loan').value)   || null;
+    const rate   = parseFloat(document.getElementById('sp-rate').value)   || null;
+    const months = parseInt(document.getElementById('sp-months').value) || null;
+    document.getElementById('sp-error').textContent = '';
+    try {
+      const resp = await fetch(`/api/operations/${currentOp.id}/partners`, {
+        method: 'POST', headers: authHeaders(),
+        body: JSON.stringify({ name, role: document.getElementById('sp-role').value.trim()||null,
+          participation_pct: pct, loan_amount: loan, loan_interest_rate: rate, loan_months: months }),
+      });
+      if (!resp.ok) { document.getElementById('sp-error').textContent = (await resp.json()).detail||'Error'; return; }
+      ['sp-name','sp-role','sp-pct','sp-loan','sp-rate','sp-months'].forEach(id => document.getElementById(id).value = '');
+      await loadPartners(currentOp.id);
+    } catch { document.getElementById('sp-error').textContent = 'Error de conexión'; }
+  }
+
+  async function deletePartner(partnerId) {
+    if (!currentOp) return;
+    try {
+      await fetch(`/api/operations/${currentOp.id}/partners/${partnerId}`, {
+        method: 'DELETE', headers: authHeaders(),
+      });
+      await loadPartners(currentOp.id);
+    } catch { console.error('Error deleting partner'); }
+  }
+
+  // ── Personas global tab ───────────────────────────────────────────────────
+  async function loadPersonsData() {
+    if (!getToken()) {
+      document.getElementById('society-tbody').innerHTML =
+        '<tr><td colspan="5" style="color:#888;padding:20px;text-align:center">Inicia sesión para ver las personas</td></tr>';
+      return;
+    }
+    try {
+      const resp = await fetch('/api/persons/summary', { headers: authHeaders() });
+      if (!resp.ok) return;
+      renderSociety(await resp.json());
+    } catch { console.error('Error loading society'); }
+  }
+
+  function renderSociety(data) {
+    const kpis = data.kpis;
+    document.getElementById('soc-capital').textContent    = kpis.capital_total   ? kpis.capital_total.toLocaleString('es-ES')+'€' : '—';
+    document.getElementById('soc-beneficio').textContent  = kpis.beneficio_total ? kpis.beneficio_total.toLocaleString('es-ES')+'€' : '—';
+    document.getElementById('soc-ops').textContent        = kpis.ops_cerradas;
+
+    const partners = data.partners;
+    const tbody = document.getElementById('society-tbody');
+    const chartSection = document.getElementById('society-chart-section');
+    if (!partners.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="color:#888;padding:16px;text-align:center">Sin operaciones cerradas todavía</td></tr>';
+      if (chartSection) chartSection.style.display = 'none';
+      return;
+    }
+    if (chartSection) chartSection.style.display = '';
+    tbody.innerHTML = partners.map(p => `
+      <tr>
+        <td style="font-weight:600;color:#fff">${escHtml(p.name)}</td>
+        <td style="text-align:right" class="neighborhood">${p.ops}</td>
+        <td style="text-align:right" class="neighborhood">${p.loan_total > 0 ? p.loan_total.toLocaleString('es-ES')+'€' : '—'}</td>
+        <td style="text-align:right;color:#4ade80;font-weight:600">${p.total_ganado > 0 ? p.total_ganado.toLocaleString('es-ES')+'€' : '—'}</td>
+        <td style="text-align:right;font-weight:700;color:#fff">${(p.total_ganado + p.loan_total).toLocaleString('es-ES')}€</td>
+      </tr>`).join('');
+
+    // Pie chart
+    const total = partners.reduce((s, p) => s + p.total_ganado, 0);
+    const svgEl = document.getElementById('society-pie');
+    const legend = document.getElementById('pie-legend');
+    if (total === 0) {
+      svgEl.innerHTML = '<text x="120" y="125" text-anchor="middle" fill="#555" font-size="13">Sin ganancias</text>';
+      legend.innerHTML = ''; return;
+    }
+    let paths = [], legendHtml = [], angle = -Math.PI / 2;
+    const cx = 120, cy = 120, r = 95;
+    partners.forEach((p, i) => {
+      if (p.total_ganado <= 0) return;
+      const color = PIE_COLORS[i % PIE_COLORS.length];
+      const pct = p.total_ganado / total;
+      const endAngle = angle + pct * 2 * Math.PI;
+      const x1 = cx + r * Math.cos(angle), y1 = cy + r * Math.sin(angle);
+      const x2 = cx + r * Math.cos(endAngle), y2 = cy + r * Math.sin(endAngle);
+      const la = pct > 0.5 ? 1 : 0;
+      paths.push(`<path d="M ${cx} ${cy} L ${x1.toFixed(1)} ${y1.toFixed(1)} A ${r} ${r} 0 ${la} 1 ${x2.toFixed(1)} ${y2.toFixed(1)} Z" fill="${color}" stroke="#1a1d27" stroke-width="2"/>`);
+      if (pct >= 0.07) {
+        const ma = angle + pct * Math.PI;
+        paths.push(`<text x="${(cx + r*0.62*Math.cos(ma)).toFixed(1)}" y="${(cy + r*0.62*Math.sin(ma) + 4).toFixed(1)}" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">${(pct*100).toFixed(0)}%</text>`);
+      }
+      legendHtml.push(`<div class="pie-legend-item"><div class="pie-legend-dot" style="background:${color}"></div>${escHtml(p.name)} — ${(pct*100).toFixed(1)}%</div>`);
+      angle = endAngle;
+    });
+    svgEl.innerHTML = paths.join('');
+    legend.innerHTML = legendHtml.join('');
+  }
 
   // ── Deal Finder ───────────────────────────────────────────────────────────
   const map = L.map('map').setView([40.416, -3.703], 13);

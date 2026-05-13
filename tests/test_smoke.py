@@ -66,3 +66,9 @@ def test_expense_create_schema():
         paid_by="francisco",
     )
     assert expense.amount == 5000.0
+
+
+def test_partner_create_schema():
+    from backend.api.partners import PartnerCreate
+    p = PartnerCreate(name="Francisco", participation_pct=50.0)
+    assert p.participation_pct == 50.0

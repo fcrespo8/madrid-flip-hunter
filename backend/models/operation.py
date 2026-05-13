@@ -74,6 +74,7 @@ class Operation(Base):
     dates:      Mapped["OperationDates | None"]      = relationship("OperationDates",      back_populates="operation", uselist=False)
     expenses:   Mapped[list["OperationExpense"]]     = relationship("OperationExpense",    back_populates="operation")
     distributions: Mapped[list["PartnerDistribution"]] = relationship("PartnerDistribution", back_populates="operation")
+    op_partners: Mapped[list["OperationPartner"]]    = relationship("OperationPartner",    back_populates="operation")
 
 
 class OperationFinancials(Base):
@@ -137,6 +138,23 @@ class OperationExpense(Base):
     created_at:     Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
     operation: Mapped["Operation | None"] = relationship("Operation", back_populates="expenses")
+
+
+class OperationPartner(Base):
+    __tablename__ = "operation_partners"
+
+    id:           Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    operation_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("operations.id"), nullable=False)
+
+    name:              Mapped[str]            = mapped_column(String(200), nullable=False)
+    role:              Mapped[str | None]     = mapped_column(String(100), nullable=True)
+    participation_pct: Mapped[Decimal]        = mapped_column(Numeric(5, 2), nullable=False)
+    loan_amount:       Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    loan_interest_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    loan_months:       Mapped[int | None]     = mapped_column(Integer, nullable=True)
+    created_at:        Mapped[datetime]       = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+    operation: Mapped["Operation"] = relationship("Operation", back_populates="op_partners")
 
 
 class RecurringExpense(Base):
