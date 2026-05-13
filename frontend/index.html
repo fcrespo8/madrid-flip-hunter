@@ -5,8 +5,45 @@
   <title>Madrid Flip Hunter</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <style>
+    :root {
+      --bg-base:    #0f1117;
+      --bg-card:    #1a1d27;
+      --bg-input:   #12141e;
+      --bg-hover:   #22253a;
+      --border:     #2a2d3a;
+      --border-subtle: #1e2130;
+      --text:       #e0e0e0;
+      --text-muted: #888;
+      --text-dim:   #555;
+      --accent:     #60a5fa;
+      --green:      #4ade80;
+      --red:        #f87171;
+      --yellow:     #facc15;
+      --orange:     #f97316;
+      --purple:     #a78bfa;
+      --focus-ring: #3b5bdb;
+      --radius:     5px;
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, sans-serif; background: #0f1117; color: #e0e0e0; }
+    body { font-family: -apple-system, sans-serif; background: var(--bg-base); color: var(--text); }
+
+    /* ── Toast notifications ── */
+    #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+                       display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+    .toast { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+             padding: 10px 16px; font-size: 0.8rem; max-width: 320px;
+             animation: toastIn 0.2s ease, toastOut 0.3s ease 2.7s forwards; pointer-events: auto; }
+    .toast.success { border-left: 3px solid var(--green); color: var(--green); }
+    .toast.error   { border-left: 3px solid var(--red);   color: var(--red); }
+    .toast.info    { border-left: 3px solid var(--accent); color: var(--accent); }
+    @keyframes toastIn  { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes toastOut { from { opacity:1; } to { opacity:0; transform:translateY(10px); } }
+
+    /* ── Loading skeleton ── */
+    .skeleton-row td { background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-hover) 50%, var(--bg-card) 75%);
+                       background-size: 200% 100%; animation: shimmer 1.2s infinite; color: transparent !important;
+                       border-radius: 3px; user-select: none; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
     /* ── Shared header ── */
     .app-header { background: #1a1d27; padding: 0 20px; border-bottom: 1px solid #2a2d3a;
@@ -769,8 +806,28 @@
   </div>
 </div>
 
+<div id="toast-container"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+  // ── Toast notifications ───────────────────────────────────────────────────
+  function toast(msg, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.textContent = msg;
+    container.appendChild(el);
+    setTimeout(() => el.remove(), 3100);
+  }
+
+  // ── Loading skeleton ──────────────────────────────────────────────────────
+  function showTableSkeleton(tbodyId, cols, rows = 4) {
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+    tbody.innerHTML = Array.from({length: rows}, () =>
+      `<tr class="skeleton-row">${Array.from({length: cols}, () => '<td>Loading...</td>').join('')}</tr>`
+    ).join('');
+  }
+
   // ── Auth ──────────────────────────────────────────────────────────────────
   function getToken() { return localStorage.getItem('mfh_token'); }
   function authHeaders() {
@@ -891,6 +948,7 @@
       document.getElementById('ops-count').textContent = '';
       return;
     }
+    showTableSkeleton('ops-tbody', 8);
     try {
       const resp = await fetch('/api/operations/', { headers: authHeaders() });
       if (resp.status === 401) { doLogout(); loadOperations(); return; }
@@ -1032,6 +1090,7 @@
       document.getElementById('op-detail-title').textContent = currentOp.name;
       cancelEditMode();
       renderFichaView();
+      toast('Ficha guardada', 'success');
     } catch { document.getElementById('ficha-error').textContent = 'Error de conexión'; }
   }
 
@@ -1208,6 +1267,7 @@
       });
       if (!resp.ok) { document.getElementById('fin-error').textContent = (await resp.json()).detail || 'Error'; return; }
       currentFinancialsData = await resp.json();
+      toast('Financiero guardado', 'success');
     } catch { document.getElementById('fin-error').textContent = 'Error de conexión'; }
   }
 
