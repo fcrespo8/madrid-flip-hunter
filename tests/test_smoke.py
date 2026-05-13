@@ -54,3 +54,15 @@ def test_financials_calculated_fields():
     assert f.purchase_price == 100000
     assert f.purchase_taxes == 10000
     assert f.purchase_notary == 2000
+
+
+def test_expense_create_schema():
+    from backend.api.expenses import ExpenseCreate
+    expense = ExpenseCreate(
+        date="2026-01-01",
+        description="Reforma baño",
+        category="reforma",
+        amount=5000.0,
+        paid_by="francisco",
+    )
+    assert expense.amount == 5000.0

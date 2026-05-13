@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from backend.models.database import get_db
-from backend.models.operation import Operation, OperationStatus, OperationFinancials, OperationExpense
+from backend.models.operation import Operation, OperationStatus, OperationFinancials, OperationExpense, ExpenseCategory
 from backend.auth.dependencies import get_current_user, require_admin
 from backend.models.operation import User
 
@@ -85,7 +85,13 @@ def _f(v) -> float | None:
     return float(v) if v is not None else None
 
 
-def _build_financials_out(fin: OperationFinancials | None, total_expenses: float) -> dict:
+def _build_financials_out(
+    fin: OperationFinancials | None,
+    total_expenses: float,
+    expenses_by_category: dict | None = None,
+) -> dict:
+    ebc = expenses_by_category or {"obra": 0.0, "tramites": 0.0, "otros": 0.0,
+                                   "agencia_venta": 0.0, "financiacion": 0.0, "impuestos_gastos": 0.0}
     empty = {
         "purchase_price": None, "purchase_taxes": None, "purchase_notary": None,
         "buy_commission": None, "renovation_budget": None,
@@ -95,6 +101,7 @@ def _build_financials_out(fin: OperationFinancials | None, total_expenses: float
         "financing_interest_rate": None, "financing_loan_months": None,
         "tax_regime": None,
         "total_purchase_cost": None, "total_expenses": total_expenses,
+        "expenses_by_category": ebc,
         "gross_profit": None, "net_profit": None, "roi_pct": None,
     }
     if fin is None:
@@ -141,15 +148,37 @@ def _build_financials_out(fin: OperationFinancials | None, total_expenses: float
         "tax_regime": fin.tax_regime,
         "total_purchase_cost": round(total_pc, 2),
         "total_expenses":      round(total_expenses, 2),
+        "expenses_by_category": {k: round(v, 2) for k, v in ebc.items()},
         "gross_profit": round(gross_profit, 2) if gross_profit is not None else None,
         "net_profit":   round(net_profit,   2) if net_profit   is not None else None,
         "roi_pct":      roi_pct,
     }
 
 
-def _get_total_expenses(db: Session, op_id: uuid.UUID) -> float:
+def _get_expenses_data(db: Session, op_id: uuid.UUID) -> tuple[float, dict]:
     expenses = db.query(OperationExpense).filter_by(operation_id=op_id).all()
-    return float(sum(e.amount for e in expenses))
+    total = float(sum(e.amount for e in expenses))
+    by_cat: dict[str, float] = {
+        "obra": 0.0, "tramites": 0.0, "otros": 0.0,
+        "agencia_venta": 0.0, "financiacion": 0.0, "impuestos_gastos": 0.0,
+    }
+    obra_cats     = {ExpenseCategory.reforma, ExpenseCategory.reforma_extra}
+    otros_cats    = {ExpenseCategory.comunidad, ExpenseCategory.suministros, ExpenseCategory.otros}
+    for e in expenses:
+        cat = e.category
+        if cat in obra_cats:
+            by_cat["obra"] += float(e.amount)
+        elif cat == ExpenseCategory.honorarios:
+            by_cat["tramites"] += float(e.amount)
+        elif cat in otros_cats:
+            by_cat["otros"] += float(e.amount)
+        elif cat == ExpenseCategory.agencia:
+            by_cat["agencia_venta"] += float(e.amount)
+        elif cat == ExpenseCategory.financiacion:
+            by_cat["financiacion"] += float(e.amount)
+        elif cat == ExpenseCategory.impuestos:
+            by_cat["impuestos_gastos"] += float(e.amount)
+    return total, by_cat
 
 
 def _parse_status(value: str) -> OperationStatus:
@@ -235,8 +264,8 @@ def get_financials(
     op = db.query(Operation).filter_by(id=uid).first()
     if not op:
         raise HTTPException(status_code=404, detail="Operation not found")
-    total_exp = _get_total_expenses(db, uid)
-    return _build_financials_out(op.financials, total_exp)
+    total_exp, by_cat = _get_expenses_data(db, uid)
+    return _build_financials_out(op.financials, total_exp, by_cat)
 
 
 @router.put("/{op_id}/financials")
@@ -261,8 +290,8 @@ def upsert_financials(
     db.commit()
     db.refresh(fin)
 
-    total_exp = _get_total_expenses(db, uid)
-    return _build_financials_out(fin, total_exp)
+    total_exp, by_cat = _get_expenses_data(db, uid)
+    return _build_financials_out(fin, total_exp, by_cat)
 
 
 @router.delete("/{op_id}", status_code=204)

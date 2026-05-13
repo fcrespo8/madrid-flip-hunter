@@ -11,6 +11,7 @@ from backend.scrapers.run_scrapers import run_all
 from backend.agents.market_prices import get_market_price
 from backend.auth.router import router as auth_router
 from backend.api.operations import router as operations_router
+from backend.api.expenses import router as expenses_router
 
 scheduler = AsyncIOScheduler()
 
@@ -27,6 +28,7 @@ app = FastAPI(title="Madrid Flip Hunter", lifespan=lifespan)
 
 app.include_router(auth_router)
 app.include_router(operations_router)
+app.include_router(expenses_router)
 
 app.add_middleware(
     CORSMiddleware,

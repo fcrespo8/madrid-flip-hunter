@@ -182,6 +182,49 @@
     .placeholder { display: flex; align-items: center; justify-content: center;
                    height: 120px; color: #555; font-size: 0.82rem; }
 
+    /* ── Gastos tab ── */
+    .expense-form { display: flex; gap: 6px; flex-wrap: wrap; align-items: flex-end;
+                    padding: 12px 0 16px; border-bottom: 1px solid #1e2130; margin-bottom: 12px; }
+    .expense-form .ef { display: flex; flex-direction: column; }
+    .expense-form .ef label { font-size: 0.65rem; color: #666; margin-bottom: 3px; }
+    .expense-form input, .expense-form select {
+      background: #12141e; color: #e0e0e0; border: 1px solid #2a2d3a;
+      border-radius: 5px; padding: 5px 8px; font-size: 0.78rem; }
+    .expense-form input:focus, .expense-form select:focus { outline: none; border-color: #3b5bdb; }
+    .ef-desc { flex: 2; min-width: 160px; }
+    .ef-desc input { width: 100%; }
+    .ef-date input { width: 130px; }
+    .ef-amount input { width: 100px; }
+    .ef-method input { width: 120px; }
+
+    .cat-badge { padding: 2px 7px; border-radius: 10px; font-size: 0.68rem; font-weight: 600; }
+    .cat-compra       { background: #0c1a3a; color: #60a5fa; }
+    .cat-reforma      { background: #3a1a0a; color: #f97316; }
+    .cat-reforma_extra{ background: #3a1a0a; color: #fb923c; }
+    .cat-suministros  { background: #3a2e0a; color: #facc15; }
+    .cat-comunidad    { background: #1e2130; color: #888; }
+    .cat-honorarios   { background: #1e1b4b; color: #a78bfa; }
+    .cat-agencia      { background: #0c2a2a; color: #2dd4bf; }
+    .cat-financiacion { background: #052e16; color: #4ade80; }
+    .cat-impuestos    { background: #3a0a0a; color: #f87171; }
+    .cat-otros        { background: #1e2130; color: #9ca3af; }
+
+    .expenses-summary { margin-top: 16px; background: #12141e; border: 1px solid #2a2d3a;
+                        border-radius: 6px; overflow: hidden; }
+    .exp-sum-row { display: flex; justify-content: space-between; padding: 6px 12px;
+                   border-bottom: 1px solid #1e2130; font-size: 0.8rem; }
+    .exp-sum-row:last-child { border-bottom: none; font-weight: 700; color: #fff; }
+    .exp-sum-label { color: #888; }
+    .exp-sum-val { color: #e0e0e0; font-weight: 600; }
+
+    /* ── P&L detailed sections ── */
+    .pnl-section { margin-bottom: 2px; }
+    .pnl-section-title { font-size: 0.65rem; color: #60a5fa; text-transform: uppercase;
+                         letter-spacing: 0.06em; padding: 6px 12px 2px; font-weight: 700; }
+    .pnl-row-indent { display: flex; justify-content: space-between; padding: 4px 12px 4px 20px;
+                      border-bottom: 1px solid #1a1d2a; font-size: 0.79rem; }
+    .pnl-row-indent:last-child { border-bottom: none; }
+
     /* ── Modals ── */
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
                      z-index: 2000; align-items: center; justify-content: center; }
@@ -333,7 +376,61 @@
       </div>
 
       <!-- Tab: Gastos -->
-      <div id="dtab-gastos" style="display:none"><div class="placeholder">Próximamente</div></div>
+      <div id="dtab-gastos" style="display:none">
+        <!-- Quick-add form -->
+        <div class="expense-form">
+          <div class="ef ef-date"><label>Fecha</label><input type="date" id="exp-date"></div>
+          <div class="ef ef-desc"><label>Descripción</label><input type="text" id="exp-desc" placeholder="Reforma baño..."></div>
+          <div class="ef"><label>Categoría</label>
+            <select id="exp-cat">
+              <option value="compra">Compra</option>
+              <option value="reforma" selected>Reforma</option>
+              <option value="reforma_extra">Reforma extra</option>
+              <option value="suministros">Suministros</option>
+              <option value="comunidad">Comunidad</option>
+              <option value="honorarios">Honorarios</option>
+              <option value="agencia">Agencia</option>
+              <option value="financiacion">Financiación</option>
+              <option value="impuestos">Impuestos</option>
+              <option value="otros">Otros</option>
+            </select>
+          </div>
+          <div class="ef ef-amount"><label>Importe (€)</label><input type="number" id="exp-amount" placeholder="0" step="0.01"></div>
+          <div class="ef"><label>Pagado por</label>
+            <select id="exp-paid-by">
+              <option value="francisco">Francisco</option>
+              <option value="german">Germán</option>
+              <option value="sl">SL</option>
+              <option value="ambos">Ambos</option>
+            </select>
+          </div>
+          <div class="ef ef-method"><label>Método (opcional)</label><input type="text" id="exp-method" placeholder="Transferencia..."></div>
+          <div class="ef"><label>&nbsp;</label><button class="btn btn-primary" onclick="addExpense()">Añadir</button></div>
+        </div>
+        <div class="error-msg" id="exp-error"></div>
+
+        <!-- Expenses table -->
+        <table>
+          <thead><tr>
+            <th>Fecha</th><th>Descripción</th><th>Categoría</th>
+            <th style="text-align:right">Importe</th><th>Pagado por</th><th>Método</th><th></th>
+          </tr></thead>
+          <tbody id="expenses-tbody"></tbody>
+        </table>
+
+        <!-- Category summary -->
+        <div class="expenses-summary" id="expenses-summary" style="margin-top:16px">
+          <div class="exp-sum-row"><span class="exp-sum-label">🔨 Obra y reforma</span><span class="exp-sum-val" id="esum-obra">—</span></div>
+          <div class="exp-sum-row"><span class="exp-sum-label">📋 Trámites y honorarios</span><span class="exp-sum-val" id="esum-tramites">—</span></div>
+          <div class="exp-sum-row"><span class="exp-sum-label">🏠 Comunidad y otros</span><span class="exp-sum-val" id="esum-otros">—</span></div>
+          <div class="exp-sum-row"><span class="exp-sum-label">🏢 Agencia venta</span><span class="exp-sum-val" id="esum-agencia">—</span></div>
+          <div class="exp-sum-row"><span class="exp-sum-label">💰 Financiación</span><span class="exp-sum-val" id="esum-financiacion">—</span></div>
+          <div class="exp-sum-row"><span class="exp-sum-label">🧾 Impuestos gastos</span><span class="exp-sum-val" id="esum-impuestos">—</span></div>
+          <div class="exp-sum-row" style="border-top:1px solid #2a2d3a">
+            <span>Total gastos reales</span><span id="esum-total">—</span>
+          </div>
+        </div>
+      </div>
 
       <!-- Tab: Financiero -->
       <div id="dtab-financiero" style="display:none">
@@ -402,18 +499,50 @@
         <div class="error-msg" id="fin-error"></div>
         <button class="btn btn-primary fin-save-btn" onclick="saveFinancials()">Guardar financiero</button>
         <div class="pnl-card" style="margin-top:16px">
-          <div class="pnl-card-title">P&L estimado</div>
-          <div class="pnl-row"><span class="pnl-row-label">Coste total compra</span><span class="pnl-row-val" id="pnl-total-pc">—</span></div>
-          <div class="pnl-row"><span class="pnl-row-label">Coste reforma</span><span class="pnl-row-val" id="pnl-reforma">—</span></div>
-          <div class="pnl-row"><span class="pnl-row-label">Coste financiero</span><span class="pnl-row-val" id="pnl-financiero">—</span></div>
-          <div class="pnl-row"><span class="pnl-row-label">Plusvalía municipal</span><span class="pnl-row-val" id="pnl-plusvalia">—</span></div>
-          <div class="pnl-row"><span class="pnl-row-label">Comisión venta</span><span class="pnl-row-val" id="pnl-comision-venta">—</span></div>
-          <div class="pnl-row divider"><span class="pnl-row-label" style="font-weight:700">Total costes</span><span class="pnl-row-val" id="pnl-total-costes">—</span></div>
-          <div class="pnl-row"><span class="pnl-row-label">Precio venta</span><span class="pnl-row-val" id="pnl-precio-venta">—</span></div>
-          <div class="pnl-row divider"><span class="pnl-row-label" style="font-weight:700">Beneficio bruto</span><span class="pnl-row-val" id="pnl-gross">—</span></div>
-          <div class="pnl-row"><span class="pnl-row-label">Impuestos estimados</span><span class="pnl-row-val" id="pnl-taxes">—</span></div>
-          <div class="pnl-row"><span class="pnl-row-label" style="font-weight:700">Beneficio neto</span><span class="pnl-row-val" id="pnl-net">—</span></div>
-          <div class="pnl-row"><span class="pnl-row-label">ROI</span><span class="pnl-row-val" id="pnl-roi">—</span></div>
+          <div class="pnl-card-title">P&L detallado</div>
+          <div class="pnl-section">
+            <div class="pnl-section-title">Costes de compra</div>
+            <div class="pnl-row-indent"><span class="pnl-row-label">Precio compra</span><span class="pnl-row-val" id="pnl-pp">—</span></div>
+            <div class="pnl-row-indent"><span class="pnl-row-label">ITP (6%)</span><span class="pnl-row-val" id="pnl-itp">—</span></div>
+            <div class="pnl-row-indent"><span class="pnl-row-label">Notaría + registro</span><span class="pnl-row-val" id="pnl-notaria">—</span></div>
+            <div class="pnl-row-indent"><span class="pnl-row-label">Comisión compra</span><span class="pnl-row-val" id="pnl-buy-comm">—</span></div>
+          </div>
+          <div class="pnl-section">
+            <div class="pnl-section-title">Costes de obra</div>
+            <div class="pnl-row-indent"><span class="pnl-row-label">Reforma y materiales</span><span class="pnl-row-val" id="pnl-obra">—</span></div>
+          </div>
+          <div class="pnl-section">
+            <div class="pnl-section-title">Trámites</div>
+            <div class="pnl-row-indent"><span class="pnl-row-label">Honorarios</span><span class="pnl-row-val" id="pnl-tramites">—</span></div>
+          </div>
+          <div class="pnl-section">
+            <div class="pnl-section-title">Otros gastos</div>
+            <div class="pnl-row-indent"><span class="pnl-row-label">Comunidad y otros</span><span class="pnl-row-val" id="pnl-otros">—</span></div>
+          </div>
+          <div class="pnl-section">
+            <div class="pnl-section-title">Agencia venta</div>
+            <div class="pnl-row-indent"><span class="pnl-row-label">Comisión venta</span><span class="pnl-row-val" id="pnl-agencia">—</span></div>
+          </div>
+          <div class="pnl-section">
+            <div class="pnl-section-title">Financiación</div>
+            <div class="pnl-row-indent"><span class="pnl-row-label">Coste financiero</span><span class="pnl-row-val" id="pnl-financiero">—</span></div>
+          </div>
+          <div class="pnl-section">
+            <div class="pnl-section-title">Impuestos</div>
+            <div class="pnl-row-indent"><span class="pnl-row-label" id="pnl-irpf-label">IRPF / IS</span><span class="pnl-row-val" id="pnl-irpf">—</span></div>
+            <div class="pnl-row-indent"><span class="pnl-row-label">Plusvalía municipal</span><span class="pnl-row-val" id="pnl-plusvalia">—</span></div>
+          </div>
+          <div class="pnl-row divider">
+            <span class="pnl-row-label">Precio venta</span><span class="pnl-row-val" id="pnl-precio-venta">—</span>
+          </div>
+          <div class="pnl-row divider">
+            <span class="pnl-row-label" style="font-weight:700;color:#fff">Beneficio neto</span>
+            <span class="pnl-row-val" id="pnl-net">—</span>
+          </div>
+          <div class="pnl-row">
+            <span class="pnl-row-label" style="font-weight:700;color:#fff">ROI %</span>
+            <span class="pnl-row-val" id="pnl-roi">—</span>
+          </div>
         </div>
       </div>
 
@@ -632,6 +761,7 @@
       b.classList.toggle('active', ['ficha','gastos','financiero','docs'][i] === name);
     });
     if (name === 'ficha') renderFichaView();
+    if (name === 'gastos' && currentOp) loadExpenses(currentOp.id);
     if (name === 'financiero' && currentOp) loadFinancials(currentOp.id);
   }
 
@@ -701,6 +831,7 @@
       populateFinancials(currentFinancialsData);
       calcFinancingCost();
       calcPnl();
+      updateExpenseSummary();
     } catch { console.error('Error loading financials'); }
   }
 
@@ -762,24 +893,38 @@
     const gv  = id => parseFloat(document.getElementById(id).value) || 0;
     const pp  = gv('fin-purchase-price'), pt = gv('fin-purchase-taxes');
     const pn  = gv('fin-purchase-notary'), bc = gv('fin-buy-commission');
-    const ref = gv('fin-renovation-budget');
     const fc  = calcFinancingCost();
     const saf = gv('fin-sale-agency-fee'), ste = gv('fin-sale-tax-estimate');
     const foc = gv('fin-own-capital'),    fib = gv('fin-borrowed');
     const asp = parseFloat(document.getElementById('fin-actual-sale-price').value);
     const tsp = parseFloat(document.getElementById('fin-target-sale-price').value);
+    const ebc = currentFinancialsData?.expenses_by_category || {};
+    const obra    = ebc.obra          || 0;
+    const tramites= ebc.tramites      || 0;
+    const otros   = ebc.otros         || 0;
+    const agencia = ebc.agencia_venta || 0;
+    const fin_exp = ebc.financiacion  || 0;
+    const imp_exp = ebc.impuestos_gastos || 0;
 
-    const totalPc = pp + pt + pn + bc;
-    const totalCostes = totalPc + ref + fc + ste + saf;
+    const agencia_total    = saf + agencia;
+    const financiero_total = fc + fin_exp;
+    const plusvalia_total  = ste + imp_exp;
     const pv = (!isNaN(asp) && asp > 0) ? asp : (!isNaN(tsp) && tsp > 0 ? tsp : null);
 
-    document.getElementById('pnl-total-pc').textContent       = fmtEur(totalPc);
-    document.getElementById('pnl-reforma').textContent        = fmtEur(ref);
-    document.getElementById('pnl-financiero').textContent     = fmtEur(fc);
-    document.getElementById('pnl-plusvalia').textContent      = fmtEur(ste);
-    document.getElementById('pnl-comision-venta').textContent = fmtEur(saf);
-    document.getElementById('pnl-total-costes').textContent   = fmtEur(totalCostes);
-    document.getElementById('pnl-precio-venta').textContent   = pv != null ? fmtEur(pv) : '—';
+    // Update P&L rows
+    document.getElementById('pnl-pp').textContent       = fmtEur(pp);
+    document.getElementById('pnl-itp').textContent      = fmtEur(pt);
+    document.getElementById('pnl-notaria').textContent  = fmtEur(pn);
+    document.getElementById('pnl-buy-comm').textContent = fmtEur(bc);
+    document.getElementById('pnl-obra').textContent     = fmtEur(obra);
+    document.getElementById('pnl-tramites').textContent = fmtEur(tramites);
+    document.getElementById('pnl-otros').textContent    = fmtEur(otros);
+    document.getElementById('pnl-agencia').textContent  = fmtEur(agencia_total);
+    document.getElementById('pnl-financiero').textContent = fmtEur(financiero_total);
+    document.getElementById('pnl-plusvalia').textContent  = fmtEur(plusvalia_total);
+    document.getElementById('pnl-precio-venta').textContent = pv != null ? fmtEur(pv) : '—';
+    document.getElementById('pnl-irpf-label').textContent =
+      getTaxRegime() === 'sl' ? 'IS (23%)' : 'IRPF';
 
     const sign = (id, val) => {
       const el = document.getElementById(id);
@@ -788,15 +933,15 @@
     };
 
     if (pv != null) {
-      const gross  = pv - totalCostes;
+      const totalCostesPreTax = (pp + pt + pn + bc) + obra + tramites + otros + agencia_total + financiero_total + plusvalia_total;
+      const gross  = pv - totalCostesPreTax;
       const regime = getTaxRegime();
       const taxes  = regime === 'sl' ? Math.max(0, gross * 0.23) : calcIRPF(Math.max(0, gross));
       const net    = gross - taxes;
       const denom  = foc + fib;
       document.getElementById('fin-tax-amount').value = taxes > 0 ? taxes.toFixed(2) : '';
-      document.getElementById('pnl-taxes').textContent = fmtEur(taxes);
-      sign('pnl-gross', gross);
-      sign('pnl-net',   net);
+      document.getElementById('pnl-irpf').textContent = fmtEur(taxes);
+      sign('pnl-net', net);
       const roiEl = document.getElementById('pnl-roi');
       if (denom > 0) {
         const roi = net / denom * 100;
@@ -804,8 +949,8 @@
         roiEl.className = 'pnl-row-val ' + (roi >= 0 ? 'pnl-pos' : 'pnl-neg');
       } else { roiEl.textContent = '—'; roiEl.className = 'pnl-row-val'; }
     } else {
-      ['pnl-gross','pnl-net'].forEach(id => sign(id, null));
-      document.getElementById('pnl-taxes').textContent = '—';
+      sign('pnl-net', null);
+      document.getElementById('pnl-irpf').textContent = '—';
       document.getElementById('pnl-roi').textContent = '—';
       document.getElementById('pnl-roi').className = 'pnl-row-val';
       document.getElementById('fin-tax-amount').value = '';
@@ -848,6 +993,107 @@
       if (!resp.ok) { document.getElementById('fin-error').textContent = (await resp.json()).detail || 'Error'; return; }
       currentFinancialsData = await resp.json();
     } catch { document.getElementById('fin-error').textContent = 'Error de conexión'; }
+  }
+
+  // ── Gastos tab ────────────────────────────────────────────────────────────
+  const CAT_LABELS = {
+    compra:'Compra', reforma:'Reforma', reforma_extra:'Reforma extra',
+    suministros:'Suministros', comunidad:'Comunidad', honorarios:'Honorarios',
+    agencia:'Agencia', financiacion:'Financiación', impuestos:'Impuestos', otros:'Otros',
+  };
+  const PAID_LABELS = { francisco:'Francisco', german:'Germán', sl:'SL', ambos:'Ambos' };
+
+  function initExpenseDate() {
+    const el = document.getElementById('exp-date');
+    if (el && !el.value) el.value = new Date().toISOString().slice(0, 10);
+  }
+
+  async function loadExpenses(opId) {
+    initExpenseDate();
+    if (!getToken()) return;
+    try {
+      const resp = await fetch(`/api/operations/${opId}/expenses`, { headers: authHeaders() });
+      if (!resp.ok) return;
+      const expenses = await resp.json();
+      renderExpenses(expenses);
+      // Reload financials so P&L updates with new real expenses
+      await loadFinancials(opId);
+    } catch { console.error('Error loading expenses'); }
+  }
+
+  function renderExpenses(expenses) {
+    const tbody = document.getElementById('expenses-tbody');
+    if (!expenses.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="color:#888;padding:16px;text-align:center">Sin gastos registrados</td></tr>';
+    } else {
+      tbody.innerHTML = expenses.map(e => `
+        <tr>
+          <td class="neighborhood">${e.date}</td>
+          <td>${escHtml(e.description)}</td>
+          <td><span class="cat-badge cat-${e.category}">${CAT_LABELS[e.category]||e.category}</span></td>
+          <td style="text-align:right;font-weight:600;color:#fff">${parseFloat(e.amount).toLocaleString('es-ES',{minimumFractionDigits:0,maximumFractionDigits:2})}€</td>
+          <td class="neighborhood">${PAID_LABELS[e.paid_by]||e.paid_by}</td>
+          <td class="neighborhood">${escHtml(e.payment_method||'—')}</td>
+          <td><button class="btn btn-sm" style="padding:2px 6px" onclick="deleteExpense('${e.id}')">🗑</button></td>
+        </tr>`).join('');
+    }
+    // Update summary from currentFinancialsData (will be refreshed by loadFinancials)
+    updateExpenseSummary();
+  }
+
+  function updateExpenseSummary() {
+    const ebc = currentFinancialsData?.expenses_by_category || {};
+    const total = currentFinancialsData?.total_expenses ?? 0;
+    const set = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val > 0 ? val.toLocaleString('es-ES',{minimumFractionDigits:0,maximumFractionDigits:0})+'€' : '—';
+    };
+    set('esum-obra',        ebc.obra          || 0);
+    set('esum-tramites',    ebc.tramites       || 0);
+    set('esum-otros',       ebc.otros          || 0);
+    set('esum-agencia',     ebc.agencia_venta  || 0);
+    set('esum-financiacion',ebc.financiacion   || 0);
+    set('esum-impuestos',   ebc.impuestos_gastos || 0);
+    const totEl = document.getElementById('esum-total');
+    if (totEl) totEl.textContent = total > 0 ? total.toLocaleString('es-ES',{minimumFractionDigits:0,maximumFractionDigits:0})+'€' : '—';
+  }
+
+  async function addExpense() {
+    if (!currentOp) return;
+    const desc   = document.getElementById('exp-desc').value.trim();
+    const amount = parseFloat(document.getElementById('exp-amount').value);
+    if (!desc) { document.getElementById('exp-error').textContent = 'La descripción es obligatoria'; return; }
+    if (!amount || amount <= 0) { document.getElementById('exp-error').textContent = 'Introduce un importe válido'; return; }
+    document.getElementById('exp-error').textContent = '';
+    const body = {
+      date:           document.getElementById('exp-date').value,
+      description:    desc,
+      category:       document.getElementById('exp-cat').value,
+      amount,
+      paid_by:        document.getElementById('exp-paid-by').value,
+      payment_method: document.getElementById('exp-method').value.trim() || null,
+    };
+    try {
+      const resp = await fetch(`/api/operations/${currentOp.id}/expenses`, {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify(body),
+      });
+      if (!resp.ok) { document.getElementById('exp-error').textContent = (await resp.json()).detail || 'Error'; return; }
+      document.getElementById('exp-desc').value = '';
+      document.getElementById('exp-amount').value = '';
+      document.getElementById('exp-method').value = '';
+      await loadExpenses(currentOp.id);
+    } catch { document.getElementById('exp-error').textContent = 'Error de conexión'; }
+  }
+
+  async function deleteExpense(expenseId) {
+    if (!currentOp) return;
+    try {
+      const resp = await fetch(`/api/operations/${currentOp.id}/expenses/${expenseId}`, {
+        method: 'DELETE', headers: authHeaders(),
+      });
+      if (!resp.ok) return;
+      await loadExpenses(currentOp.id);
+    } catch { console.error('Error deleting expense'); }
   }
 
   // ── New operation modal ───────────────────────────────────────────────────
