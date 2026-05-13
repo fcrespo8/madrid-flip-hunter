@@ -373,16 +373,27 @@
   <!-- Operaciones tab (full-width table) -->
   <div id="tab-ops">
     <div class="ops-toolbar">
-      <span id="ops-count">—</span>
-      <button class="btn btn-primary" onclick="openNewOpModal()">+ Nueva Operación</button>
+      <span id="ops-count" style="font-size:0.8rem;color:#888">—</span>
+      <button class="btn btn-primary" onclick="openNewOpModal()">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="vertical-align:middle;margin-right:5px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Nueva Operación
+      </button>
     </div>
     <div id="ops-table-wrap">
       <table>
         <thead><tr>
-          <th>Nombre</th><th>Estado</th><th>Dirección</th><th>Barrio</th><th>Distrito</th><th>Creada</th><th></th>
+          <th>Nombre</th><th>Estado</th><th>Dirección</th><th>Barrio</th>
+          <th style="text-align:right" title="Beneficio neto calculado">Beneficio</th>
+          <th style="text-align:right" title="Retorno sobre inversión">ROI</th>
+          <th>Creada</th><th></th>
         </tr></thead>
         <tbody id="ops-tbody"></tbody>
       </table>
+    </div>
+    <!-- KPI summary -->
+    <div id="ops-kpis" style="display:flex;background:#13151f;border-top:1px solid #2a2d3a;flex-shrink:0">
+      <div class="kpi"><div class="kpi-val" id="opskpi-total">—</div><div class="kpi-label">Total operaciones</div></div>
+      <div class="kpi"><div class="kpi-val green" id="opskpi-beneficio">—</div><div class="kpi-label">Beneficio acumulado</div></div>
+      <div class="kpi"><div class="kpi-val" id="opskpi-roi">—</div><div class="kpi-label">ROI medio</div></div>
     </div>
   </div>
 </div>
@@ -876,14 +887,25 @@
   async function loadOperations() {
     if (!getToken()) {
       document.getElementById('ops-tbody').innerHTML =
-        '<tr><td colspan="7" style="color:#888;padding:20px;text-align:center">Inicia sesión para ver las operaciones</td></tr>';
+        '<tr><td colspan="8" style="color:#888;padding:20px;text-align:center">Inicia sesión para ver las operaciones</td></tr>';
       document.getElementById('ops-count').textContent = '';
       return;
     }
     try {
       const resp = await fetch('/api/operations/', { headers: authHeaders() });
       if (resp.status === 401) { doLogout(); loadOperations(); return; }
-      renderOperations(await resp.json());
+      const ops = await resp.json();
+      // Fetch financials for all ops in parallel
+      const finResults = await Promise.all(
+        ops.map(op => fetch(`/api/operations/${op.id}/financials`, { headers: authHeaders() })
+          .then(r => r.ok ? r.json() : null).catch(() => null))
+      );
+      ops.forEach((op, i) => {
+        const fin = finResults[i];
+        op._net_profit = fin?.net_profit ?? null;
+        op._roi_pct    = fin?.roi_pct    ?? null;
+      });
+      renderOperations(ops);
     } catch { console.error('Error loading operations'); }
   }
 
@@ -891,23 +913,41 @@
     document.getElementById('ops-count').textContent = `${ops.length} operaciones`;
     const tbody = document.getElementById('ops-tbody');
     if (!ops.length) {
-      tbody.innerHTML = '<tr><td colspan="7" style="color:#888;padding:20px;text-align:center">Sin operaciones todavía</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" style="color:#888;padding:20px;text-align:center">Sin operaciones todavía</td></tr>';
+      _updateOpsKpis([]);
       return;
     }
     tbody.innerHTML = '';
     ops.forEach(op => {
       const tr = document.createElement('tr');
+      const np  = op._net_profit;
+      const roi = op._roi_pct;
+      const npHtml  = np  != null ? `<span style="color:${np>=0?'#4ade80':'#f87171'};font-weight:600">${np>=0?'+':''}${np.toLocaleString('es-ES')}€</span>` : '<span style="color:#555">—</span>';
+      const roiHtml = roi != null ? `<span style="color:${roi>=0?'#4ade80':'#f87171'};font-weight:600">${roi>=0?'+':''}${roi.toFixed(1)}%</span>` : '<span style="color:#555">—</span>';
       tr.innerHTML = `
         <td style="font-weight:600;color:#fff">${escHtml(op.name)}</td>
         <td><span class="status-badge st-${op.status}">${STATUS_LABELS[op.status]||op.status}</span></td>
         <td class="neighborhood">${escHtml(op.address||'—')}</td>
-        <td class="neighborhood">${escHtml(op.neighborhood||'—')}</td>
-        <td class="neighborhood">${escHtml(op.district||'—')}</td>
+        <td class="neighborhood">${escHtml(op.neighborhood||op.district||'—')}</td>
+        <td style="text-align:right">${npHtml}</td>
+        <td style="text-align:right">${roiHtml}</td>
         <td class="neighborhood">${new Date(op.created_at).toLocaleDateString('es-ES')}</td>
         <td><button class="btn btn-sm" onclick="event.stopPropagation();navigateTo('/operaciones/${op.id}')">Abrir →</button></td>`;
       tr.addEventListener('click', () => navigateTo(`/operaciones/${op.id}`));
       tbody.appendChild(tr);
     });
+    _updateOpsKpis(ops);
+  }
+
+  function _updateOpsKpis(ops) {
+    document.getElementById('opskpi-total').textContent = ops.length;
+    const vendidas = ops.filter(o => o.status === 'vendido' && o._net_profit != null);
+    const totalBenef = vendidas.reduce((s, o) => s + o._net_profit, 0);
+    const avgRoi = vendidas.length ? vendidas.reduce((s, o) => s + (o._roi_pct || 0), 0) / vendidas.length : null;
+    document.getElementById('opskpi-beneficio').textContent =
+      vendidas.length ? (totalBenef >= 0 ? '+' : '') + totalBenef.toLocaleString('es-ES') + '€' : '—';
+    document.getElementById('opskpi-roi').textContent =
+      avgRoi != null ? (avgRoi >= 0 ? '+' : '') + avgRoi.toFixed(1) + '%' : '—';
   }
 
   // ── Operation detail page ─────────────────────────────────────────────────
