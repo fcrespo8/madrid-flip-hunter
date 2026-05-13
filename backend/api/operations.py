@@ -46,6 +46,8 @@ class OperationOut(BaseModel):
     listing_id: Optional[int]
     created_at: datetime
     updated_at: datetime
+    roi_pct:    Optional[float] = None
+    net_profit: Optional[float] = None
 
     @classmethod
     def from_orm(cls, op: Operation) -> "OperationOut":
@@ -197,7 +199,15 @@ def list_operations(
     _: User = Depends(get_current_user),
 ):
     ops = db.query(Operation).order_by(Operation.created_at.desc()).all()
-    return [OperationOut.from_orm(op) for op in ops]
+    result = []
+    for op in ops:
+        out = OperationOut.from_orm(op)
+        total_exp, by_cat = _get_expenses_data(db, op.id)
+        fin_data = _build_financials_out(op.financials, total_exp, by_cat)
+        out.roi_pct    = fin_data.get("roi_pct")
+        out.net_profit = fin_data.get("net_profit")
+        result.append(out)
+    return result
 
 
 @router.get("/{op_id}", response_model=OperationOut)
@@ -248,6 +258,26 @@ def update_operation(
         if field == "status" and value is not None:
             value = _parse_status(value)
         setattr(op, field, value)
+    op.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(op)
+    return OperationOut.from_orm(op)
+
+
+@router.patch("/{op_id}/status", response_model=OperationOut)
+def update_status(
+    op_id: str,
+    body: dict,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    op = db.query(Operation).filter_by(id=uuid.UUID(op_id)).first()
+    if not op:
+        raise HTTPException(status_code=404, detail="Operation not found")
+    status_value = body.get("status")
+    if not status_value:
+        raise HTTPException(status_code=400, detail="Field 'status' is required")
+    op.status = _parse_status(status_value)
     op.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(op)
