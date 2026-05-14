@@ -69,14 +69,13 @@ db.add(OperationFinancials(
     tax_regime="persona_fisica",
 ))
 
-# 5. Socios — capital_contributed = 160k cada uno (320k total / 2)
+# 5. Socios — capital se calcula automáticamente como pct/100 * total_costes
 for name, pct in [("Francisco", 50), ("Germán", 50)]:
     db.add(OperationPartner(
         operation_id=op.id,
         name=name,
         role="socio",
         participation_pct=Decimal(str(pct)),
-        capital_contributed=Decimal("160000"),
     ))
 
 # 6. Gastos
@@ -127,7 +126,7 @@ gastos = [
     (date(2026,4,30), "Comunidad Final",              ExpenseCategory.comunidad,     1370,   PaidBy.sl),
     # GASTOS PENDIENTES DE VENTA
     (date(2026,5,1),  "Derramas (7 meses)",          ExpenseCategory.comunidad,     1120,   PaidBy.sl),
-    (date(2026,5,20), "Notaría venta (estimado)",    ExpenseCategory.honorarios,    800,    PaidBy.sl),
+    (date(2026,5,20), "Notaría venta",               ExpenseCategory.honorarios,    800,    PaidBy.sl),
     (date(2026,5,20), "Comunidad pendiente",         ExpenseCategory.comunidad,     90,     PaidBy.sl),
     # HONORARIOS
     (date(2026,5,20), "Certificado Eficiencia Energética", ExpenseCategory.honorarios, 73,  PaidBy.sl),

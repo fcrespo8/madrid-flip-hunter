@@ -43,9 +43,8 @@ def get_summary(
             name = p.name
             pct  = float(p.participation_pct)
             ganado = round(net_profit * pct / 100, 2)
-            # capital_aportado: explicit if set, else proportional share of total_costes
-            cc  = (float(p.capital_contributed) if p.capital_contributed
-                   else round(pct / 100 * total_costes, 2))
+            # capital_aportado: always pct/100 * total_costes (capital_contributed is informational)
+            cc  = round(pct / 100 * total_costes, 2)
             la  = float(p.loan_amount)           if p.loan_amount          else 0
             lir = float(p.loan_interest_rate)    if p.loan_interest_rate   else 0
             lm  = p.loan_months or 0

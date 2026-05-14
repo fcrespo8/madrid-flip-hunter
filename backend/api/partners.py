@@ -148,9 +148,8 @@ def get_distribution(
     for p in op.op_partners:
         pct = float(p.participation_pct)
         amount = round(net_profit * pct / 100, 2)
-        # capital: explicit if > 0, else proportional share of total_costes
-        cc_raw = float(p.capital_contributed) if p.capital_contributed and float(p.capital_contributed) > 0 else None
-        cc = cc_raw if cc_raw is not None else (round(pct / 100 * total_costes, 2) if total_costes else None)
+        # capital: always pct/100 * total_costes (capital_contributed in DB is informational only)
+        cc = round(pct / 100 * total_costes, 2) if total_costes else None
         la = float(p.loan_amount) if p.loan_amount else 0
         lir = float(p.loan_interest_rate) if p.loan_interest_rate else 0
         lm = p.loan_months or 0

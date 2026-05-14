@@ -1665,7 +1665,7 @@
           <td class="neighborhood">${e.date}</td>
           <td>${escHtml(e.description)}</td>
           <td><span class="cat-badge cat-${e.category}">${CAT_LABELS[e.category]||e.category}</span></td>
-          <td style="text-align:right;font-weight:600;color:#fff">${parseFloat(e.amount).toLocaleString('es-ES',{minimumFractionDigits:0,maximumFractionDigits:2})}€</td>
+          <td style="text-align:right;font-weight:600;color:#fff">${formatEur(parseFloat(e.amount))}</td>
           <td class="neighborhood">${PAID_LABELS[e.paid_by]||e.paid_by}</td>
           <td class="neighborhood">${escHtml(e.payment_method||'—')}</td>
           <td><button class="btn btn-sm" style="padding:2px 6px" onclick="deleteExpense('${e.id}')">🗑</button></td>
@@ -1878,12 +1878,14 @@
   async function loadPartners(opId) {
     if (!getToken()) return;
     try {
-      const [pResp, dResp] = await Promise.all([
+      const [pResp, dResp, fResp] = await Promise.all([
         fetch(`/api/operations/${opId}/partners`, { headers: authHeaders() }),
         fetch(`/api/operations/${opId}/distribution`, { headers: authHeaders() }),
+        fetch(`/api/operations/${opId}/financials`, { headers: authHeaders() }),
       ]);
       const partners = pResp.ok ? await pResp.json() : [];
       const dist     = dResp.ok ? await dResp.json() : null;
+      if (fResp.ok) currentFinancialsData = await fResp.json();
       renderPartners(partners);
       renderDistribution(dist);
     } catch { console.error('Error loading partners'); }
@@ -1917,7 +1919,7 @@
         <td style="font-weight:600;color:#fff">${escHtml(p.name)}</td>
         <td class="neighborhood">${escHtml(p.role||'—')}</td>
         <td style="text-align:right;font-weight:600">${p.participation_pct.toFixed(1)}%</td>
-        <td style="text-align:right" class="neighborhood">${p.capital_contributed ? formatEur(p.capital_contributed) : '—'}</td>
+        <td style="text-align:right" class="neighborhood">${currentFinancialsData?.total_costes ? formatEur(p.participation_pct / 100 * currentFinancialsData.total_costes) : (p.capital_contributed ? formatEur(p.capital_contributed) : '—')}</td>
         <td style="text-align:right" class="neighborhood">${p.loan_amount ? formatEur(p.loan_amount) : '—'}</td>
         <td style="text-align:right" class="neighborhood">${p.loan_cost != null ? formatEur(p.loan_cost) : '—'}</td>
         <td><button class="btn btn-sm" style="padding:2px 6px" onclick="deletePartner('${p.id}')">🗑</button></td>
@@ -2222,8 +2224,8 @@
         ? `<span class="market-diff green">→ ${Math.abs(vsPct).toFixed(1)}% bajo mercado</span>`
         : `<span class="market-diff red">→ ${vsPct.toFixed(1)}% sobre mercado</span>`;
       const margin = l.size_m2 ? Math.round((mkt - pp) * l.size_m2 * 0.7) : null;
-      const marginHtml = margin != null ? `<div class="margin-row">Margen potencial bruto estimado: <span class="${margin>=0?'margin-pos':'margin-neg'}">${margin>=0?'~+':'~'}${margin.toLocaleString('es-ES')}€</span></div>` : '';
-      marketHtml = `<div class="market-row"><span class="market-ppm2">${pp.toLocaleString('es-ES')}€/m²</span><span class="market-sep">vs</span><span class="market-avg">${Math.round(mkt).toLocaleString('es-ES')}€/m² mercado</span>${diffLabel}</div>${marginHtml}`;
+      const marginHtml = margin != null ? `<div class="margin-row">Margen potencial bruto estimado: <span class="${margin>=0?'margin-pos':'margin-neg'}">${margin>=0?'~+':'~'}${formatEur(margin)}</span></div>` : '';
+      marketHtml = `<div class="market-row"><span class="market-ppm2">${formatEur(pp)}/m²</span><span class="market-sep">vs</span><span class="market-avg">${formatEur(Math.round(mkt))}/m² mercado</span>${diffLabel}</div>${marginHtml}`;
     }
     const d = document.getElementById('detail');
     d.style.display = 'block';
@@ -2303,9 +2305,9 @@
         <td><span class="score-badge ${scoreBadgeClass(l.score)}">${l.score??'—'}</span></td>
         <td>${(l.title||'').substring(0,32)}${(l.title||'').length>32?'…':''}</td>
         <td class="price">${l.price?(l.price/1000).toFixed(0)+'k€':'—'}</td>
-        <td class="ppm2">${pp?pp.toLocaleString('es-ES')+'€':'—'}</td>
+        <td class="ppm2">${pp?formatEur(pp):'—'}</td>
         <td><span class="${vsPct!=null?vsMarketClass(vsPct):''}">${fmtPct(vsPct)}</span></td>
-        <td class="mkt-price">${l.market_price_m2?Math.round(l.market_price_m2).toLocaleString('es-ES')+'€':'—'}</td>
+        <td class="mkt-price">${l.market_price_m2?formatEur(Math.round(l.market_price_m2)):'—'}</td>
         <td class="neighborhood">${l.size_m2?l.size_m2+'m²':'—'}</td>
         <td class="neighborhood">${l.rooms??'—'}</td>
         <td class="neighborhood">${l.neighborhood||l.district||'—'}</td>

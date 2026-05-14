@@ -78,9 +78,8 @@ def get_investor_summary(db: Session = Depends(get_db)):
             name = p.name
             pct  = float(p.participation_pct)
             ganado = round(net * pct / 100, 2)
-            # capital per investor: explicit contribution or proportional share of total_costes
-            cc = (float(p.capital_contributed) if p.capital_contributed
-                  else round(pct / 100 * cap, 2))
+            # capital per investor: always pct/100 * total_costes (capital_contributed is informational)
+            cc = round(pct / 100 * cap, 2)
             if name not in investors_map:
                 investors_map[name] = {
                     "name": name, "role": p.role or "Socio",
