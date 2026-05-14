@@ -399,6 +399,43 @@
     .soc-empty-title { font-size: 0.9rem; color: #666; font-weight: 600; }
     .soc-empty-sub   { font-size: 0.78rem; color: #444; }
 
+    /* ── Inversores tab ── */
+    #tab-inversores { display: none; flex-direction: column; height: calc(100vh - 46px); overflow-y: auto; background: #0b0d14; }
+    #tab-inversores.active { display: flex; }
+    .inv-hero { padding: 36px 40px 28px; background: linear-gradient(135deg, #0f1117 0%, #12141e 100%); border-bottom: 1px solid #1e2130; }
+    .inv-hero-title { font-size: 1.6rem; font-weight: 800; color: #fff; letter-spacing: -0.02em; }
+    .inv-hero-sub { font-size: 0.85rem; color: #666; margin-top: 4px; letter-spacing: 0.04em; text-transform: uppercase; }
+    .inv-kpi-row { display: flex; gap: 16px; margin-top: 24px; flex-wrap: wrap; }
+    .inv-kpi { background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 10px; padding: 18px 22px; min-width: 160px; flex: 1; }
+    .inv-kpi-num { font-size: 2rem; font-weight: 900; color: #fff; line-height: 1; margin-bottom: 6px; }
+    .inv-kpi-num.green { color: #10b981; }
+    .inv-kpi-num.indigo { color: #6366f1; }
+    .inv-kpi-label { font-size: 0.72rem; color: #555; text-transform: uppercase; letter-spacing: 0.06em; }
+    .inv-section { padding: 28px 40px; }
+    .inv-section-title { font-size: 0.8rem; color: #6366f1; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 16px; padding-bottom: 6px; border-bottom: 1px solid #1e2130; }
+    .inv-table { width: 100%; border-collapse: collapse; }
+    .inv-table th { font-size: 0.68rem; color: #555; text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 12px; text-align: left; font-weight: 600; }
+    .inv-table th.r { text-align: right; }
+    .inv-table td { padding: 12px 12px; border-top: 1px solid #1a1d27; font-size: 0.82rem; color: #ccc; }
+    .inv-table td.r { text-align: right; }
+    .inv-table tr:hover td { background: #12141e; }
+    .inv-roi { color: #10b981; font-weight: 700; }
+    .inv-investor-cards { display: flex; gap: 16px; flex-wrap: wrap; }
+    .inv-investor-card { background: #12141e; border: 1px solid #2a2d3a; border-radius: 10px; padding: 20px 24px; min-width: 180px; flex: 1; }
+    .inv-inv-name { font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 2px; }
+    .inv-inv-role { font-size: 0.72rem; color: #555; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .inv-inv-metric { margin-bottom: 6px; }
+    .inv-inv-metric-val { font-size: 1.2rem; font-weight: 800; color: #10b981; }
+    .inv-inv-metric-label { font-size: 0.68rem; color: #555; }
+    .inv-inv-ops { display: inline-block; background: #1e293b; color: #6366f1; border-radius: 12px; padding: 2px 9px; font-size: 0.7rem; font-weight: 700; margin-top: 8px; }
+    .inv-oport-row { background: #12141e; border: 1px solid #1e2130; border-radius: 8px; padding: 14px 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .inv-oport-name { font-weight: 600; color: #fff; font-size: 0.88rem; }
+    .inv-oport-addr { font-size: 0.72rem; color: #555; margin-top: 2px; }
+    .inv-oport-price { font-size: 0.88rem; color: #f59e0b; font-weight: 700; }
+    .inv-oport-badge { background: #1e2130; color: #888; font-size: 0.68rem; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; }
+    .inv-cta { text-align: center; padding: 24px 40px 40px; color: #444; font-size: 0.82rem; }
+    .inv-cta a { color: #6366f1; text-decoration: none; }
+
     /* ── Modals ── */
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
                      z-index: 2000; align-items: center; justify-content: center; }
@@ -429,6 +466,7 @@
       <button class="tab-btn active" onclick="switchTab('finder')">Deal Finder</button>
       <button class="tab-btn" onclick="switchTab('ops')">Operaciones</button>
       <button class="tab-btn" onclick="switchTab('personas')">Personas</button>
+      <button class="tab-btn" onclick="switchTab('inversores')">Inversores</button>
     </div>
     <div class="header-right">
       <span id="auth-status"></span>
@@ -571,6 +609,60 @@
       <div class="pie-legend" id="pie-legend"></div>
     </div>
   </div>
+</div>
+
+<!-- ── Inversores tab ── -->
+<div id="tab-inversores">
+  <div class="inv-hero">
+    <div class="inv-hero-title">Track Record</div>
+    <div class="inv-hero-sub">Madrid · Fix &amp; Flip</div>
+    <div class="inv-kpi-row">
+      <div class="inv-kpi">
+        <div class="inv-kpi-num indigo" id="inv-ops">—</div>
+        <div class="inv-kpi-label">Operaciones cerradas</div>
+      </div>
+      <div class="inv-kpi">
+        <div class="inv-kpi-num" id="inv-capital">—</div>
+        <div class="inv-kpi-label">Capital desplegado</div>
+      </div>
+      <div class="inv-kpi">
+        <div class="inv-kpi-num green" id="inv-beneficio">—</div>
+        <div class="inv-kpi-label">Beneficio generado</div>
+      </div>
+      <div class="inv-kpi">
+        <div class="inv-kpi-num green" id="inv-roi-anual">—</div>
+        <div class="inv-kpi-label">ROI anualizado medio</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="inv-section" id="inv-deals-section" style="display:none">
+    <div class="inv-section-title">Operaciones cerradas</div>
+    <table class="inv-table">
+      <thead><tr>
+        <th>Propiedad</th><th>Ubicación</th>
+        <th>Compra</th><th>Venta</th><th>Hold</th>
+        <th class="r">Capital</th><th class="r">Beneficio</th>
+        <th class="r">ROI</th><th class="r">ROI anual</th>
+      </tr></thead>
+      <tbody id="inv-deals-tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="inv-section" id="inv-investors-section" style="display:none">
+    <div class="inv-section-title">Retorno por inversor</div>
+    <div class="inv-investor-cards" id="inv-investor-cards"></div>
+  </div>
+
+  <div class="inv-section" id="inv-oport-section" style="display:none">
+    <div class="inv-section-title">Próximas oportunidades</div>
+    <div id="inv-oport-list"></div>
+    <p style="font-size:0.78rem;color:#555;margin-top:16px;text-align:center">
+      ¿Te interesa participar? <a href="mailto:info@madridfliphunter.com" style="color:#6366f1">Contacta con nosotros</a>
+    </p>
+  </div>
+
+  <div class="inv-cta">Madrid Flip Hunter — Inversiones inmobiliarias de valor añadido</div>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
@@ -1018,6 +1110,7 @@
       const m = window.location.pathname.match(/^\/operaciones\/([^/]+)$/);
       if (m) loadOpDetail(m[1]);
       else if (window.location.pathname.startsWith('/personas')) loadPersonsData();
+      else if (window.location.pathname.startsWith('/inversores')) loadInvestorData();
       else loadOperations();
     } catch { document.getElementById('login-error').textContent = 'Error de conexión'; }
   }
@@ -1056,6 +1149,9 @@
       } else if (path.startsWith('/personas')) {
         _setActiveMainTab('personas');
         loadPersonsData();
+      } else if (path.startsWith('/inversores')) {
+        _setActiveMainTab('inversores');
+        loadInvestorData();
       } else {
         _setActiveMainTab('finder');
       }
@@ -1068,13 +1164,14 @@
     document.getElementById('tab-finder').style.display = name === 'finder' ? 'block' : 'none';
     document.getElementById('tab-ops').classList.toggle('active', name === 'ops');
     document.getElementById('tab-personas').classList.toggle('active', name === 'personas');
+    document.getElementById('tab-inversores').classList.toggle('active', name === 'inversores');
     document.querySelectorAll('.tab-btn').forEach((b, i) => {
-      b.classList.toggle('active', ['finder','ops','society'][i] === name);
+      b.classList.toggle('active', ['finder','ops','personas','inversores'][i] === name);
     });
   }
 
   function switchTab(name) {
-    const paths = { finder: '/', ops: '/operaciones', personas: '/personas' };
+    const paths = { finder: '/', ops: '/operaciones', personas: '/personas', inversores: '/inversores' };
     navigateTo(paths[name] || '/');
   }
 
@@ -2005,6 +2102,89 @@
     paths.push(`<text x="150" y="165" text-anchor="middle" fill="#fff" font-size="17" font-weight="800" font-family="inherit">${formatEur(total)}</text>`);
     svgEl.innerHTML = paths.join('');
     legend.innerHTML = legendHtml.join('');
+  }
+
+  // ── Inversores tab ───────────────────────────────────────────────────────
+  async function loadInvestorData() {
+    try {
+      const resp = await fetch('/api/investor/summary');
+      if (!resp.ok) return;
+      renderInvestorData(await resp.json());
+    } catch { console.error('Error loading investor data'); }
+  }
+
+  function _fmtDate(iso) {
+    if (!iso) return '—';
+    const p = iso.split('-');
+    return `${p[2]}/${p[1]}/${p[0]}`;
+  }
+
+  function renderInvestorData(data) {
+    const tr = data.track_record;
+    document.getElementById('inv-ops').textContent      = tr.ops_cerradas || '0';
+    document.getElementById('inv-capital').textContent  = tr.capital_total   > 0 ? formatEur(tr.capital_total)   : '—';
+    document.getElementById('inv-beneficio').textContent= tr.beneficio_total > 0 ? '+' + formatEur(tr.beneficio_total) : '—';
+    document.getElementById('inv-roi-anual').textContent= tr.roi_anual_medio != null ? '+' + tr.roi_anual_medio.toFixed(1) + '%' : '—';
+
+    // Closed deals
+    const dealsSection = document.getElementById('inv-deals-section');
+    const dealsTbody   = document.getElementById('inv-deals-tbody');
+    if (data.closed_deals.length) {
+      dealsSection.style.display = '';
+      dealsTbody.innerHTML = data.closed_deals.map(d => `
+        <tr>
+          <td style="font-weight:600;color:#fff">${escHtml(d.name)}</td>
+          <td style="color:#666">${escHtml(d.neighborhood || d.address)}</td>
+          <td>${_fmtDate(d.escritura_date)}</td>
+          <td>${_fmtDate(d.sale_date)}</td>
+          <td>${d.hold_months != null ? d.hold_months + ' m' : '—'}</td>
+          <td class="r">${d.capital > 0 ? formatEur(d.capital) : '—'}</td>
+          <td class="r" style="color:#10b981;font-weight:600">${d.net_profit != null ? '+' + formatEur(d.net_profit) : '—'}</td>
+          <td class="r inv-roi">${d.roi_pct != null ? '+' + d.roi_pct.toFixed(1) + '%' : '—'}</td>
+          <td class="r inv-roi">${d.roi_anual_pct != null ? '+' + d.roi_anual_pct.toFixed(1) + '%' : '—'}</td>
+        </tr>`).join('');
+    }
+
+    // Investors
+    const invSection = document.getElementById('inv-investors-section');
+    const invCards   = document.getElementById('inv-investor-cards');
+    if (data.investors.length) {
+      invSection.style.display = '';
+      invCards.innerHTML = data.investors.map((inv, i) => {
+        const col = PIE_COLORS[i % PIE_COLORS.length];
+        return `<div class="inv-investor-card" style="border-top:3px solid ${col}">
+          <div class="inv-inv-name">${escHtml(inv.name)}</div>
+          <div class="inv-inv-role">${escHtml(inv.role)}</div>
+          <div class="inv-inv-metric">
+            <div class="inv-inv-metric-val">${inv.beneficio > 0 ? '+' + formatEur(inv.beneficio) : '—'}</div>
+            <div class="inv-inv-metric-label">Beneficio recibido</div>
+          </div>
+          <div style="display:flex;gap:16px;margin-top:8px">
+            <div><div style="font-size:0.85rem;font-weight:700;color:#6366f1">${inv.roi_pct != null ? '+' + inv.roi_pct.toFixed(1) + '%' : '—'}</div><div class="inv-inv-metric-label">ROI</div></div>
+            <div><div style="font-size:0.85rem;font-weight:700;color:#ccc">${inv.capital > 0 ? formatEur(inv.capital) : '—'}</div><div class="inv-inv-metric-label">Capital aportado</div></div>
+          </div>
+          <div class="inv-inv-ops">${inv.ops} operación${inv.ops !== 1 ? 'es' : ''}</div>
+        </div>`;
+      }).join('');
+    }
+
+    // Oportunidades
+    const oSection = document.getElementById('inv-oport-section');
+    const oList    = document.getElementById('inv-oport-list');
+    if (data.oportunidades.length) {
+      oSection.style.display = '';
+      oList.innerHTML = data.oportunidades.map(op => `
+        <div class="inv-oport-row">
+          <div>
+            <div class="inv-oport-name">${escHtml(op.name)}</div>
+            <div class="inv-oport-addr">${escHtml(op.address || op.neighborhood)}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            ${op.purchase_price ? `<div class="inv-oport-price">${formatEur(op.purchase_price)}</div>` : ''}
+            <div class="inv-oport-badge">${op.status === 'negociacion' ? 'Negociación' : 'Prospecto'}</div>
+          </div>
+        </div>`).join('');
+    }
   }
 
   // ── Deal Finder ───────────────────────────────────────────────────────────

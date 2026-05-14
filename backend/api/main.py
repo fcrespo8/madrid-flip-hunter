@@ -14,6 +14,7 @@ from backend.api.operations import router as operations_router
 from backend.api.expenses import router as expenses_router
 from backend.api.partners import router as partners_router
 from backend.api.persons import router as persons_router
+from backend.api.investor import router as investor_router
 
 scheduler = AsyncIOScheduler()
 
@@ -33,6 +34,7 @@ app.include_router(operations_router)
 app.include_router(expenses_router)
 app.include_router(partners_router)
 app.include_router(persons_router)
+app.include_router(investor_router)
 
 app.add_middleware(
     CORSMiddleware,
