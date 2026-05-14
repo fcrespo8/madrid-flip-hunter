@@ -217,17 +217,17 @@
     .fin-save-btn { margin-top: 4px; width: 100%; }
 
     /* ── P&L card ── */
-    .pnl-card { margin-top: 16px; background: #12141e; border: 1px solid #2a2d3a; border-radius: 6px; overflow: hidden; }
-    .pnl-card-title { font-size: 0.72rem; font-weight: 700; color: #60a5fa; padding: 8px 12px;
-                      border-bottom: 1px solid #1e2130; text-transform: uppercase; letter-spacing: 0.05em; }
+    .pnl-card { margin-top: 16px; background: #0d1117; border: 1px solid #1e293b; border-radius: 8px; overflow: hidden; }
+    .pnl-card-title { font-size: 0.72rem; font-weight: 700; color: #6366f1; padding: 10px 14px;
+                      border-bottom: 1px solid #1e293b; text-transform: uppercase; letter-spacing: 0.08em; }
     .pnl-row { display: flex; justify-content: space-between; align-items: center;
-               padding: 6px 12px; border-bottom: 1px solid #1e2130; font-size: 0.8rem; }
+               padding: 6px 14px; border-bottom: 1px solid #1e293b; font-size: 0.875rem; }
     .pnl-row:last-child { border-bottom: none; }
-    .pnl-row.divider { border-top: 1px solid #2a2d3a; background: #0f1117; }
-    .pnl-row-label { color: #888; }
-    .pnl-row-val { font-weight: 600; color: #fff; }
-    .pnl-pos { color: #4ade80 !important; }
-    .pnl-neg { color: #f87171 !important; }
+    .pnl-row.divider { border-top: 1px solid #1e293b; background: #080b10; }
+    .pnl-row-label { color: #94a3b8; }
+    .pnl-row-val { font-weight: 600; color: #e2e8f0; }
+    .pnl-pos { color: #10b981 !important; }
+    .pnl-neg { color: #ef4444 !important; }
 
     /* ── Placeholders ── */
     .placeholder { display: flex; align-items: center; justify-content: center;
@@ -269,18 +269,19 @@
     .exp-sum-val { color: #e0e0e0; font-weight: 600; }
 
     /* ── P&L detailed sections ── */
-    .pnl-section-header { font-size: 0.62rem; color: #60a5fa; text-transform: uppercase;
-                          letter-spacing: 0.08em; padding: 7px 12px 3px; font-weight: 800;
-                          border-top: 1px solid #2a2d3a; background: #0d1020; }
-    .pnl-section-header:first-child { border-top: none; }
-    .pnl-sub-header { font-size: 0.59rem; color: #888; text-transform: uppercase;
-                      letter-spacing: 0.05em; padding: 5px 12px 2px 16px; }
-    .pnl-row-indent { display: flex; justify-content: space-between; padding: 4px 12px 4px 20px;
-                      border-bottom: 1px solid #1a1d2a; font-size: 0.79rem; }
+    .pnl-section-header { font-size: 0.7rem; color: #6366f1; text-transform: uppercase;
+                          letter-spacing: 0.1em; padding: 10px 14px 4px; font-weight: 700;
+                          border-top: 1px solid #1e293b; background: #0a0d14; margin-top: 1rem; }
+    .pnl-section-header:first-child { border-top: none; margin-top: 0; }
+    .pnl-sub-header { font-size: 0.62rem; color: #475569; text-transform: uppercase;
+                      letter-spacing: 0.06em; padding: 5px 14px 2px 18px; }
+    .pnl-row-indent { display: flex; justify-content: space-between; padding: 5px 14px 5px 22px;
+                      border-bottom: 1px solid #111827; font-size: 0.875rem; color: #94a3b8; }
+    .pnl-row-indent .pnl-row-val { color: #e2e8f0; font-weight: 500; }
     .pnl-row-indent:last-child { border-bottom: none; }
-    .pnl-subtotal { display: flex; justify-content: space-between; padding: 4px 12px;
-                    background: #12141e; font-size: 0.78rem; color: #ccc; font-weight: 600;
-                    border-top: 1px solid #1e2130; border-bottom: 1px solid #2a2d3a; }
+    .pnl-subtotal { display: flex; justify-content: space-between; padding: 5px 14px;
+                    background: #0d1117; font-size: 0.875rem; color: #cbd5e1; font-weight: 600;
+                    border-top: 1px solid #1e293b; border-bottom: 1px solid #1e293b; }
 
     /* ── Timeline (Ficha tab) ── */
     .timeline-wrap { padding: 12px 0 8px; }
@@ -924,7 +925,7 @@
           <div class="pnl-row-indent"><span class="pnl-row-label">Gastos corrientes</span><span class="pnl-row-val" id="pnl-gastos-corrientes">—</span></div>
           <div class="pnl-row-indent"><span class="pnl-row-label">Otros gastos</span><span class="pnl-row-val" id="pnl-otros">—</span></div>
           <div class="pnl-subtotal"><span>Subtotal obra</span><span id="pnl-sub-obra">—</span></div>
-          <div class="pnl-row divider"><span class="pnl-row-label" style="font-weight:700">Total inversión</span><span class="pnl-row-val" id="pnl-total-inversion">—</span></div>
+          <div class="pnl-row divider"><span class="pnl-row-label" style="font-weight:700;color:#cbd5e1">Total inversión</span><span class="pnl-row-val" id="pnl-total-inversion">—</span></div>
 
           <!-- GASTOS DE VENTA -->
           <div class="pnl-section-header">Gastos de venta</div>
@@ -941,20 +942,20 @@
           <!-- RESULTADO -->
           <div class="pnl-section-header">Resultado</div>
           <div class="pnl-row divider">
-            <span class="pnl-row-label" style="font-weight:700;color:#fff">Beneficio neto</span>
-            <span class="pnl-row-val" id="pnl-net">—</span>
+            <span class="pnl-row-label" style="font-weight:700;font-size:1rem;color:#e2e8f0">Beneficio neto</span>
+            <span class="pnl-row-val" id="pnl-net" style="font-size:1.1rem;font-weight:700">—</span>
           </div>
           <div class="pnl-row">
-            <span class="pnl-row-label" style="font-weight:700;color:#fff">ROI % (sobre costes)</span>
-            <span class="pnl-row-val" id="pnl-roi">—</span>
+            <span class="pnl-row-label" style="font-weight:600;font-size:0.95rem;color:#cbd5e1">ROI % (sobre costes)</span>
+            <span class="pnl-row-val" id="pnl-roi" style="font-size:0.95rem;font-weight:600">—</span>
           </div>
           <div class="pnl-row" id="pnl-roi-anual-row" style="display:none">
-            <span class="pnl-row-label" style="color:#60a5fa">ROI anualizado</span>
-            <span class="pnl-row-val" id="pnl-roi-anual">—</span>
+            <span class="pnl-row-label" style="font-size:0.95rem;font-weight:600;color:#cbd5e1">ROI anualizado</span>
+            <span class="pnl-row-val" id="pnl-roi-anual" style="font-size:0.95rem;font-weight:600">—</span>
           </div>
           <div class="pnl-row" id="pnl-hold-row" style="display:none">
-            <span class="pnl-row-label" style="color:#888">Hold</span>
-            <span class="pnl-row-val" id="pnl-hold" style="color:#e0e0e0">—</span>
+            <span class="pnl-row-label" style="color:#64748b;font-size:0.875rem">Hold</span>
+            <span class="pnl-row-val" id="pnl-hold" style="color:#64748b;font-size:0.875rem;font-weight:400">—</span>
           </div>
 
           <!-- REPARTO POR SOCIO -->
@@ -985,6 +986,7 @@
         <table style="margin-top:8px">
           <thead><tr>
             <th>Nombre</th><th>Rol</th><th style="text-align:right">%</th>
+            <th style="text-align:right">Capital aportado</th>
             <th style="text-align:right">Préstamo</th><th style="text-align:right">Coste préstamo</th><th></th>
           </tr></thead>
           <tbody id="partners-tbody"></tbody>
@@ -1907,7 +1909,7 @@
     }
 
     if (!partners.length) {
-      tbody.innerHTML = '<tr><td colspan="6" style="color:#888;padding:12px;text-align:center">Sin socios añadidos</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="color:#888;padding:12px;text-align:center">Sin socios añadidos</td></tr>';
       return;
     }
     tbody.innerHTML = partners.map(p => `
@@ -1915,6 +1917,7 @@
         <td style="font-weight:600;color:#fff">${escHtml(p.name)}</td>
         <td class="neighborhood">${escHtml(p.role||'—')}</td>
         <td style="text-align:right;font-weight:600">${p.participation_pct.toFixed(1)}%</td>
+        <td style="text-align:right" class="neighborhood">${p.capital_contributed ? formatEur(p.capital_contributed) : '—'}</td>
         <td style="text-align:right" class="neighborhood">${p.loan_amount ? formatEur(p.loan_amount) : '—'}</td>
         <td style="text-align:right" class="neighborhood">${p.loan_cost != null ? formatEur(p.loan_cost) : '—'}</td>
         <td><button class="btn btn-sm" style="padding:2px 6px" onclick="deletePartner('${p.id}')">🗑</button></td>

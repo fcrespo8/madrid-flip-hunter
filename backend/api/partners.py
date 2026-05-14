@@ -148,16 +148,16 @@ def get_distribution(
     for p in op.op_partners:
         pct = float(p.participation_pct)
         amount = round(net_profit * pct / 100, 2)
-        # capital_contributed: explicit if set, else proportional share of total_costes
-        cc = (float(p.capital_contributed) if p.capital_contributed
-              else (round(pct / 100 * total_costes, 2) if total_costes else None))
+        # capital: explicit if > 0, else proportional share of total_costes
+        cc_raw = float(p.capital_contributed) if p.capital_contributed and float(p.capital_contributed) > 0 else None
+        cc = cc_raw if cc_raw is not None else (round(pct / 100 * total_costes, 2) if total_costes else None)
         la = float(p.loan_amount) if p.loan_amount else 0
         lir = float(p.loan_interest_rate) if p.loan_interest_rate else 0
         lm = p.loan_months or 0
         loan_cost = round(la * (lir / 100) * (lm / 12), 2) if la and lir and lm else 0
         loan_repayment = round(la + loan_cost, 2)
         total_received = round(amount + loan_repayment, 2)
-        roi_pct = round(total_received / cc * 100, 2) if cc and cc > 0 else None
+        roi_pct = round(amount / cc * 100, 2) if cc and cc > 0 else None
         items.append({
             "name": p.name,
             "role": p.role or "",
