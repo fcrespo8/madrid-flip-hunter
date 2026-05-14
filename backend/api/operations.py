@@ -101,12 +101,30 @@ def _f(v) -> float | None:
     return float(v) if v is not None else None
 
 
+def _calc_irpf(g: float) -> float:
+    if g <= 0:
+        return 0.0
+    tax = 0.0
+    if g > 200000:
+        tax += (g - 200000) * 0.27
+        g = 200000
+    if g > 50000:
+        tax += (g - 50000) * 0.23
+        g = 50000
+    if g > 6000:
+        tax += (g - 6000) * 0.21
+        g = 6000
+    tax += g * 0.19
+    return tax
+
+
 def _build_financials_out(
     fin: OperationFinancials | None,
     total_expenses: float,
     expenses_by_category: dict | None = None,
 ) -> dict:
     ebc = expenses_by_category or {
+        "compra": 0.0, "buy_agency": 0.0, "sell_agency": 0.0,
         "obra": 0.0, "reforma": 0.0, "reforma_extra": 0.0,
         "tramites": 0.0, "gastos_corrientes": 0.0, "otros": 0.0,
         "agencia_venta": 0.0, "financiacion": 0.0, "impuestos_gastos": 0.0,
@@ -126,25 +144,40 @@ def _build_financials_out(
     if fin is None:
         return empty
 
-    pp  = _f(fin.purchase_price)  or 0
-    pt  = _f(fin.purchase_taxes)  or 0
-    pn  = _f(fin.purchase_notary) or 0
-    bc  = _f(fin.buy_commission)  or 0
-    asp = _f(fin.actual_sale_price)
-    saf = _f(fin.sale_agency_fee)  or 0
+    pp  = _f(fin.purchase_price) or 0
+    asp = _f(fin.actual_sale_price) or _f(fin.target_sale_price) or 0
     ste = _f(fin.sale_tax_estimate) or 0
-    fc  = _f(fin.financing_cost)   or 0
     foc = _f(fin.financing_own_capital) or 0
     fib = _f(fin.financing_borrowed)    or 0
+    fir = _f(fin.financing_interest_rate) or 0
+    fim = fin.financing_loan_months or 0
 
-    total_pc = pp + pt + pn + bc
+    buy_costs     = ebc.get("compra", 0.0)
+    buy_agency    = ebc.get("buy_agency", 0.0)
+    sell_agency   = ebc.get("sell_agency", 0.0)
+    reforma       = ebc.get("reforma", 0.0)
+    reforma_extra = ebc.get("reforma_extra", 0.0)
+    tramites      = ebc.get("tramites", 0.0)
+    gastos_corr   = ebc.get("gastos_corrientes", 0.0)
+    otros         = ebc.get("otros", 0.0)
+    financiacion  = ebc.get("financiacion", 0.0)
+
+    loan_cost    = fib * (fir / 100) * (fim / 12) if fir and fim else 0.0
+    total_compra = pp + buy_costs + buy_agency
+    total_obra   = reforma + reforma_extra
+    total_costes = (total_compra + total_obra + tramites + gastos_corr
+                    + otros + sell_agency + financiacion + loan_cost)
 
     gross_profit: float | None = None
     net_profit:   float | None = None
     roi_pct:      float | None = None
-    if asp is not None:
-        gross_profit = asp - total_pc - total_expenses - saf - ste - fc
-        net_profit   = gross_profit
+    if asp > 0:
+        beneficio_bruto = asp - total_costes - ste
+        regime = fin.tax_regime or "persona_fisica"
+        taxes  = (max(0.0, beneficio_bruto * 0.23) if regime == "sl"
+                  else _calc_irpf(max(0.0, beneficio_bruto)))
+        gross_profit = beneficio_bruto
+        net_profit   = beneficio_bruto - taxes
         denom = foc + fib
         if denom > 0:
             roi_pct = round(net_profit / denom * 100, 2)
@@ -159,13 +192,13 @@ def _build_financials_out(
         "actual_sale_price": _f(fin.actual_sale_price),
         "sale_agency_fee":   _f(fin.sale_agency_fee),
         "sale_tax_estimate": _f(fin.sale_tax_estimate),
-        "financing_own_capital":   _f(fin.financing_own_capital),
-        "financing_borrowed":      _f(fin.financing_borrowed),
-        "financing_cost":          _f(fin.financing_cost),
+        "financing_own_capital":   foc,
+        "financing_borrowed":      fib,
+        "financing_cost":          round(loan_cost, 2),
         "financing_interest_rate": _f(fin.financing_interest_rate),
         "financing_loan_months":   fin.financing_loan_months,
         "tax_regime": fin.tax_regime,
-        "total_purchase_cost": round(total_pc, 2),
+        "total_purchase_cost": round(total_compra, 2),
         "total_expenses":      round(total_expenses, 2),
         "expenses_by_category": {k: round(v, 2) for k, v in ebc.items()},
         "gross_profit": round(gross_profit, 2) if gross_profit is not None else None,
@@ -178,30 +211,39 @@ def _get_expenses_data(db: Session, op_id: uuid.UUID) -> tuple[float, dict]:
     expenses = db.query(OperationExpense).filter_by(operation_id=op_id).all()
     total = float(sum(e.amount for e in expenses))
     by_cat: dict[str, float] = {
+        "compra": 0.0, "buy_agency": 0.0, "sell_agency": 0.0,
         "obra": 0.0, "reforma": 0.0, "reforma_extra": 0.0,
         "tramites": 0.0, "gastos_corrientes": 0.0, "otros": 0.0,
         "agencia_venta": 0.0, "financiacion": 0.0, "impuestos_gastos": 0.0,
     }
     for e in expenses:
-        cat = e.category
-        if cat == ExpenseCategory.reforma:
-            by_cat["obra"]    += float(e.amount)
-            by_cat["reforma"] += float(e.amount)
+        cat    = e.category
+        amt    = float(e.amount)
+        desc   = (e.description or "").lower()
+        if cat == ExpenseCategory.compra:
+            by_cat["compra"] += amt
+        elif cat == ExpenseCategory.reforma:
+            by_cat["obra"]    += amt
+            by_cat["reforma"] += amt
         elif cat == ExpenseCategory.reforma_extra:
-            by_cat["obra"]         += float(e.amount)
-            by_cat["reforma_extra"] += float(e.amount)
+            by_cat["obra"]          += amt
+            by_cat["reforma_extra"] += amt
         elif cat == ExpenseCategory.honorarios:
-            by_cat["tramites"] += float(e.amount)
+            by_cat["tramites"] += amt
         elif cat in {ExpenseCategory.comunidad, ExpenseCategory.suministros}:
-            by_cat["gastos_corrientes"] += float(e.amount)
+            by_cat["gastos_corrientes"] += amt
         elif cat == ExpenseCategory.otros:
-            by_cat["otros"] += float(e.amount)
+            by_cat["otros"] += amt
         elif cat == ExpenseCategory.agencia:
-            by_cat["agencia_venta"] += float(e.amount)
+            by_cat["agencia_venta"] += amt
+            if any(kw in desc for kw in ("compra", "inmobiliaria")):
+                by_cat["buy_agency"] += amt
+            else:
+                by_cat["sell_agency"] += amt
         elif cat == ExpenseCategory.financiacion:
-            by_cat["financiacion"] += float(e.amount)
+            by_cat["financiacion"] += amt
         elif cat == ExpenseCategory.impuestos:
-            by_cat["impuestos_gastos"] += float(e.amount)
+            by_cat["impuestos_gastos"] += amt
     return total, by_cat
 
 

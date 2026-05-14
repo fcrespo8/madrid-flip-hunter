@@ -54,18 +54,16 @@ db.add(OperationDates(
     sale_date=date(2026, 5, 20),
 ))
 
-# 4. Financiero
+# 4. Financiero — solo precio escritura, precio venta, reforma estimada, financiación e impuestos
+# ITP, notaría, comisiones se calculan desde OperationExpense
 db.add(OperationFinancials(
     operation_id=op.id,
-    purchase_price=Decimal("310000"),
-    purchase_taxes=Decimal("19200"),
-    purchase_notary=Decimal("979"),
+    purchase_price=Decimal("320000"),   # precio total escritura (incluye arras)
     renovation_budget=Decimal("70000"),
     target_sale_price=Decimal("490000"),
     actual_sale_price=Decimal("505000"),
-    sale_agency_fee=Decimal("2500"),
-    sale_tax_estimate=Decimal("2000"),
-    financing_own_capital=Decimal("444376"),
+    sale_tax_estimate=Decimal("2000"),  # plusvalía municipal (campo manual)
+    financing_own_capital=Decimal("320000"),
     financing_borrowed=Decimal("0"),
     financing_cost=Decimal("0"),
     tax_regime="persona_fisica",
@@ -82,16 +80,15 @@ for name, pct in [("Francisco", 50), ("Germán", 50)]:
 
 # 6. Gastos
 gastos = [
-    # COMPRA
-    (date(2025,8,1),  "Reserva piso",              ExpenseCategory.compra,        6000,   PaidBy.sl),
-    (date(2025,8,8),  "Arras",                      ExpenseCategory.compra,        4000,   PaidBy.sl),
-    (date(2025,8,8),  "Inmobiliaria compra",         ExpenseCategory.agencia,       14144,  PaidBy.sl),
-    (date(2025,10,20),"Pago piso",                  ExpenseCategory.compra,        310000, PaidBy.sl),
+    # COMPRA — solo gastos auxiliares (el precio del piso está en purchase_price)
     (date(2025,10,20),"Notario",                    ExpenseCategory.compra,        979,    PaidBy.sl),
     (date(2025,10,20),"Tasas Ayuntamiento",          ExpenseCategory.compra,        1010,   PaidBy.sl),
     (date(2025,10,20),"ITP",                        ExpenseCategory.compra,        19200,  PaidBy.sl),
     (date(2025,10,20),"Registro Propiedad",          ExpenseCategory.compra,        521,    PaidBy.sl),
-    (date(2025,10,20),"Mario ITP (gestoría)",        ExpenseCategory.honorarios,    605,    PaidBy.sl),
+    (date(2025,10,20),"Mario ITP (gestoría)",        ExpenseCategory.compra,        605,    PaidBy.sl),
+    # AGENCIA
+    (date(2025,8,8),  "Inmobiliaria compra",         ExpenseCategory.agencia,       14144,  PaidBy.sl),
+    (date(2026,5,20), "Tecnocasa comisión venta",    ExpenseCategory.agencia,       2500,   PaidBy.sl),
     # HONORARIOS
     (date(2025,11,1), "1er Pago Arquitecto",         ExpenseCategory.honorarios,    600,    PaidBy.sl),
     # REFORMA
@@ -137,8 +134,6 @@ gastos = [
     (date(2026,5,20), "Abril secretaria",            ExpenseCategory.honorarios,    100,    PaidBy.sl),
     # OTROS
     (date(2026,5,20), "A mano Ger (deuda saldada - anticipo Martín)", ExpenseCategory.otros, 1350, PaidBy.sl),
-    # AGENCIA VENTA
-    (date(2026,5,20), "Tecnocasa comisión venta",    ExpenseCategory.agencia,       2500,   PaidBy.sl),
 ]
 
 for fecha, desc, cat, amount, paid in gastos:

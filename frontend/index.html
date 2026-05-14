@@ -718,12 +718,7 @@
           <summary>Compra</summary>
           <div class="collapsible-body">
             <div class="fin-row">
-              <div class="fin-field"><label>Precio compra</label><input type="number" id="fin-purchase-price" placeholder="0"></div>
-              <div class="fin-field"><label>ITP (auto 6%, editable)</label><input type="number" id="fin-purchase-taxes" placeholder="0"></div>
-            </div>
-            <div class="fin-row">
-              <div class="fin-field"><label>Notaría + registro</label><input type="number" id="fin-purchase-notary" placeholder="0"></div>
-              <div class="fin-field"><label>Comisión inmob. compra</label><input type="number" id="fin-buy-commission" placeholder="0"></div>
+              <div class="fin-field"><label>Precio escritura</label><input type="number" id="fin-purchase-price" placeholder="0"></div>
             </div>
           </div>
         </details>
@@ -737,12 +732,8 @@
           <summary>Venta</summary>
           <div class="collapsible-body">
             <div class="fin-row">
-              <div class="fin-field"><label>Precio objetivo</label><input type="number" id="fin-target-sale-price" placeholder="0"></div>
+              <div class="fin-field"><label>Precio objetivo venta</label><input type="number" id="fin-target-sale-price" placeholder="0"></div>
               <div class="fin-field"><label>Precio venta real</label><input type="number" id="fin-actual-sale-price" placeholder="0"></div>
-            </div>
-            <div class="fin-row">
-              <div class="fin-field"><label>Comisión inmob. venta</label><input type="number" id="fin-sale-agency-fee" placeholder="0"></div>
-              <div class="fin-field"><label>Plusvalía municipal</label><input type="number" id="fin-sale-tax-estimate" placeholder="0"></div>
             </div>
           </div>
         </details>
@@ -775,13 +766,15 @@
               </label>
             </div>
             <div class="fin-row">
-              <div class="fin-field" style="flex:1"><label id="tax-label">IRPF estimado (tramos)</label>
+              <div class="fin-field"><label>Plusvalía municipal</label><input type="number" id="fin-sale-tax-estimate" placeholder="0"></div>
+              <div class="fin-field"><label id="tax-label">IRPF estimado (tramos)</label>
                 <input type="number" id="fin-tax-amount" readonly style="color:#555;background:#0f1117"></div>
             </div>
           </div>
         </details>
         <div class="error-msg" id="fin-error"></div>
         <button class="btn btn-primary fin-save-btn" onclick="saveFinancials()">Guardar financiero</button>
+        <p style="font-size:0.72rem;color:#888;margin:8px 0 0;text-align:center">ITP, notaría, comisiones, reforma y honorarios se calculan automáticamente desde la tab Gastos.</p>
         <div class="pnl-card" style="margin-top:16px">
           <div class="pnl-card-title">P&amp;L detallado</div>
 
@@ -792,10 +785,9 @@
           <!-- INVERSIÓN REALIZADA -->
           <div class="pnl-section-header">Inversión realizada</div>
           <div class="pnl-sub-header">Compra</div>
-          <div class="pnl-row-indent"><span class="pnl-row-label">Precio compra</span><span class="pnl-row-val" id="pnl-pp">—</span></div>
-          <div class="pnl-row-indent"><span class="pnl-row-label">ITP</span><span class="pnl-row-val" id="pnl-itp">—</span></div>
-          <div class="pnl-row-indent"><span class="pnl-row-label">Notaría + registro</span><span class="pnl-row-val" id="pnl-notaria">—</span></div>
-          <div class="pnl-row-indent"><span class="pnl-row-label">Comisión compra</span><span class="pnl-row-val" id="pnl-buy-comm">—</span></div>
+          <div class="pnl-row-indent"><span class="pnl-row-label">Precio escritura</span><span class="pnl-row-val" id="pnl-pp">—</span></div>
+          <div class="pnl-row-indent"><span class="pnl-row-label">Gastos compra (ITP, notaría, tasas)</span><span class="pnl-row-val" id="pnl-buy-costs">—</span></div>
+          <div class="pnl-row-indent"><span class="pnl-row-label">Comisión inmob. compra</span><span class="pnl-row-val" id="pnl-buy-agency">—</span></div>
           <div class="pnl-subtotal"><span>Subtotal compra</span><span id="pnl-sub-compra">—</span></div>
           <div class="pnl-sub-header" style="margin-top:2px">Obra y gestión</div>
           <div class="pnl-row-indent"><span class="pnl-row-label">Reforma</span><span class="pnl-row-val" id="pnl-reforma">—</span></div>
@@ -1207,7 +1199,7 @@
       const dot   = document.createElement('div'); dot.className = 'milestone-dot' + (d?.[m.key] ? ' done' : '');
       const lbl   = document.createElement('div'); lbl.className = 'milestone-label'; lbl.textContent = m.label;
       const dateEl = document.createElement('div'); dateEl.className = 'milestone-date';
-      dateEl.textContent = d?.[m.key] ? d[m.key].slice(5) : ''; // MM-DD only
+      if (d?.[m.key]) { const p = d[m.key].split('-'); dateEl.textContent = `${p[2]}/${p[1]}/${p[0]}`; } else { dateEl.textContent = ''; }
       ms.appendChild(dot); ms.appendChild(lbl); ms.appendChild(dateEl);
       track.appendChild(ms);
     });
@@ -1261,10 +1253,8 @@
   }
 
   // ── Financiero tab ────────────────────────────────────────────────────────
-  let itpManuallyEdited = false;
 
   async function loadFinancials(opId) {
-    itpManuallyEdited = false;
     try {
       const resp = await fetch(`/api/operations/${opId}/financials`, { headers: authHeaders() });
       if (!resp.ok) return;
@@ -1279,13 +1269,9 @@
   function populateFinancials(d) {
     const set = (id, val) => { document.getElementById(id).value = val != null ? val : ''; };
     set('fin-purchase-price',    d.purchase_price);
-    set('fin-purchase-taxes',    d.purchase_taxes);
-    set('fin-purchase-notary',   d.purchase_notary);
-    set('fin-buy-commission',    d.buy_commission);
     set('fin-renovation-budget', d.renovation_budget);
     set('fin-target-sale-price', d.target_sale_price);
     set('fin-actual-sale-price', d.actual_sale_price);
-    set('fin-sale-agency-fee',   d.sale_agency_fee);
     set('fin-sale-tax-estimate', d.sale_tax_estimate);
     set('fin-own-capital',       d.financing_own_capital);
     set('fin-borrowed',          d.financing_borrowed);
@@ -1294,7 +1280,6 @@
     const regime = d.tax_regime || 'persona_fisica';
     document.querySelector(`input[name="tax-regime"][value="${regime}"]`).checked = true;
     updateTaxLabel();
-    if (d.purchase_taxes != null) itpManuallyEdited = true;
   }
 
   function calcFinancingCost() {
@@ -1341,30 +1326,31 @@
 
   function calcPnl() {
     const gv  = id => parseFloat(document.getElementById(id).value) || 0;
-    const pp  = gv('fin-purchase-price'), pt = gv('fin-purchase-taxes');
-    const pn  = gv('fin-purchase-notary'), bc = gv('fin-buy-commission');
+    const pp  = gv('fin-purchase-price');
     const fc  = calcFinancingCost();
-    const saf = gv('fin-sale-agency-fee'), ste = gv('fin-sale-tax-estimate');
-    const foc = gv('fin-own-capital'),    fib = gv('fin-borrowed');
+    const ste = gv('fin-sale-tax-estimate');
+    const foc = gv('fin-own-capital'), fib = gv('fin-borrowed');
     const asp = parseFloat(document.getElementById('fin-actual-sale-price').value);
     const tsp = parseFloat(document.getElementById('fin-target-sale-price').value);
     const ebc = currentFinancialsData?.expenses_by_category || {};
 
-    const reforma       = ebc.reforma           || 0;
-    const reformaExtra  = ebc.reforma_extra      || 0;
-    const tramites      = ebc.tramites           || 0;
+    const buyExpenses     = ebc.compra             || 0;
+    const buyAgency       = ebc.buy_agency         || 0;
+    const sellAgency      = ebc.sell_agency        || 0;
+    const reforma         = ebc.reforma            || 0;
+    const reformaExtra    = ebc.reforma_extra      || 0;
+    const tramites        = ebc.tramites           || 0;
     const gastosCorrientes = ebc.gastos_corrientes || 0;
-    const otros         = ebc.otros              || 0;
-    const agenciaExp    = ebc.agencia_venta      || 0;
-    const financiacionExp = ebc.financiacion     || 0;
-    const impuestosExp  = ebc.impuestos_gastos   || 0;
+    const otros           = ebc.otros              || 0;
+    const financiacionExp = ebc.financiacion       || 0;
+    const impuestosExp    = ebc.impuestos_gastos   || 0;
 
     const pv = (!isNaN(asp) && asp > 0) ? asp : (!isNaN(tsp) && tsp > 0 ? tsp : null);
 
-    const subCompra     = pp + pt + pn + bc;
-    const subObra       = reforma + reformaExtra + tramites + gastosCorrientes + otros;
+    const subCompra      = pp + buyExpenses + buyAgency;
+    const subObra        = reforma + reformaExtra + tramites + gastosCorrientes + otros;
     const totalInversion = subCompra + subObra;
-    const agenciaTotal   = saf + agenciaExp;
+    const agenciaTotal   = sellAgency;
     const financieroTotal = fc + financiacionExp;
     const subVenta       = agenciaTotal + financieroTotal;
     const plusvaliaTotal = ste + impuestosExp;
@@ -1372,9 +1358,8 @@
     const set = (id, val) => { document.getElementById(id).textContent = fmtEur(val); };
     document.getElementById('pnl-precio-venta').textContent = pv != null ? fmtEur(pv) : '—';
     set('pnl-pp',                 pp);
-    set('pnl-itp',                pt);
-    set('pnl-notaria',            pn);
-    set('pnl-buy-comm',           bc);
+    set('pnl-buy-costs',          buyExpenses);
+    set('pnl-buy-agency',         buyAgency);
     set('pnl-sub-compra',         subCompra);
     set('pnl-reforma',            reforma);
     set('pnl-reforma-extra',      reformaExtra);
@@ -1444,18 +1429,11 @@
     }
   }
 
-  document.getElementById('fin-purchase-price').addEventListener('input', () => {
-    if (!itpManuallyEdited) {
-      const pp = parseFloat(document.getElementById('fin-purchase-price').value) || 0;
-      document.getElementById('fin-purchase-taxes').value = pp > 0 ? (pp * 0.06).toFixed(2) : '';
-    }
-    calcPnl();
-  });
-  document.getElementById('fin-purchase-taxes').addEventListener('input', () => { itpManuallyEdited = true; calcPnl(); });
+  document.getElementById('fin-purchase-price').addEventListener('input', calcPnl);
   ['fin-borrowed','fin-interest-rate','fin-loan-months'].forEach(id => document.getElementById(id).addEventListener('input', calcPnl));
   document.querySelectorAll('input[name="tax-regime"]').forEach(el => el.addEventListener('change', () => { updateTaxLabel(); calcPnl(); }));
-  ['fin-purchase-notary','fin-buy-commission','fin-renovation-budget','fin-target-sale-price',
-   'fin-actual-sale-price','fin-sale-agency-fee','fin-sale-tax-estimate','fin-own-capital'].forEach(id => {
+  ['fin-renovation-budget','fin-target-sale-price','fin-actual-sale-price',
+   'fin-sale-tax-estimate','fin-own-capital'].forEach(id => {
     document.getElementById(id).addEventListener('input', calcPnl);
   });
 
@@ -1463,13 +1441,16 @@
     if (!currentOp) return;
     const nv = id => { const v = document.getElementById(id).value.trim(); return v === '' ? null : parseFloat(v); };
     const body = {
-      purchase_price: nv('fin-purchase-price'), purchase_taxes: nv('fin-purchase-taxes'),
-      purchase_notary: nv('fin-purchase-notary'), buy_commission: nv('fin-buy-commission'),
-      renovation_budget: nv('fin-renovation-budget'), target_sale_price: nv('fin-target-sale-price'),
-      actual_sale_price: nv('fin-actual-sale-price'), sale_agency_fee: nv('fin-sale-agency-fee'),
-      sale_tax_estimate: nv('fin-sale-tax-estimate'), financing_own_capital: nv('fin-own-capital'),
-      financing_borrowed: nv('fin-borrowed'), financing_cost: nv('fin-financing-cost'),
-      financing_interest_rate: nv('fin-interest-rate'), financing_loan_months: nv('fin-loan-months'),
+      purchase_price: nv('fin-purchase-price'),
+      renovation_budget: nv('fin-renovation-budget'),
+      target_sale_price: nv('fin-target-sale-price'),
+      actual_sale_price: nv('fin-actual-sale-price'),
+      sale_tax_estimate: nv('fin-sale-tax-estimate'),
+      financing_own_capital: nv('fin-own-capital'),
+      financing_borrowed: nv('fin-borrowed'),
+      financing_cost: nv('fin-financing-cost'),
+      financing_interest_rate: nv('fin-interest-rate'),
+      financing_loan_months: nv('fin-loan-months'),
       tax_regime: getTaxRegime(),
     };
     document.getElementById('fin-error').textContent = '';
