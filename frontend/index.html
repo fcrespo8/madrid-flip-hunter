@@ -1774,7 +1774,7 @@
   function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
   // ── Sociedad (operation partners) ────────────────────────────────────────
-  const PIE_COLORS = ['#60a5fa','#f97316','#4ade80','#a78bfa','#facc15','#f87171','#2dd4bf','#fb923c'];
+  const PIE_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#8b5cf6','#06b6d4','#f97316','#4ade80'];
 
   async function loadPartners(opId) {
     if (!getToken()) return;
@@ -1835,52 +1835,53 @@
     const isVendido = currentOp?.status === 'vendido';
     const total = dist.total_distributed;
 
-    // Partner cards
+    const hold = getHoldMonths();
+
+    // Partner cards with ROI metrics
     const cards = dist.items.map((item, i) => {
       const col = PIE_COLORS[i % PIE_COLORS.length];
       const amtCls = item.amount >= 0 ? 'pnl-pos' : 'pnl-neg';
       const loanLine = item.loan_repayment > 0
-        ? `<div class="partner-card-loan">Dev. préstamo: ${formatEur(item.loan_repayment)}</div>`
-        : '';
-      return `<div class="partner-card" style="border-left:3px solid ${col}">
+        ? `<div class="partner-card-loan">Dev. préstamo: ${formatEur(item.loan_repayment)}</div>` : '';
+      const capLine = item.capital_contributed
+        ? `<div class="partner-card-loan" style="color:#aaa">Capital: ${formatEur(item.capital_contributed)}</div>` : '';
+      const roiLine = item.roi_pct != null
+        ? `<div class="partner-card-loan" style="color:#60a5fa;font-weight:600">ROI: +${item.roi_pct.toFixed(1)}%${hold ? ' · ' + (item.roi_pct / hold * 12).toFixed(1) + '% anual' : ''}</div>` : '';
+      return `<div class="partner-card" style="border-left:3px solid ${col};background:#1e293b">
         <div class="partner-card-name">${escHtml(item.name)}</div>
-        <div class="partner-card-role">${escHtml(item.role || 'Socio')}</div>
-        <div class="partner-card-pct">${item.participation_pct.toFixed(0)}%</div>
+        <div class="partner-card-role" style="color:#64748b">${escHtml(item.role || 'Socio')}</div>
+        <div class="partner-card-pct" style="background:${col}22;color:${col}">${item.participation_pct.toFixed(0)}%</div>
         <div class="partner-card-amount ${amtCls}">${item.amount >= 0 ? '+' : ''}${formatEur(item.amount)}</div>
-        ${loanLine}
+        ${capLine}${loanLine}${roiLine}
       </div>`;
     }).join('');
 
-    // SVG pie chart (only if vendido and positive total)
-    let pieHtml = '';
-    if (isVendido && total > 0) {
-      const cx = 80, cy = 80, r = 65;
-      let paths = [], legendItems = [], angle = -Math.PI / 2;
-      dist.items.forEach((item, i) => {
-        if (item.amount <= 0) return;
-        const color = PIE_COLORS[i % PIE_COLORS.length];
-        const pct   = item.amount / total;
-        const end   = angle + pct * 2 * Math.PI;
-        const x1 = cx + r * Math.cos(angle), y1 = cy + r * Math.sin(angle);
-        const x2 = cx + r * Math.cos(end),   y2 = cy + r * Math.sin(end);
-        const la = pct > 0.5 ? 1 : 0;
-        paths.push(`<path d="M ${cx} ${cy} L ${x1.toFixed(1)} ${y1.toFixed(1)} A ${r} ${r} 0 ${la} 1 ${x2.toFixed(1)} ${y2.toFixed(1)} Z" fill="${color}" stroke="#1a1d27" stroke-width="2"/>`);
-        if (pct >= 0.08) {
-          const ma = angle + pct * Math.PI;
-          paths.push(`<text x="${(cx + r*0.6*Math.cos(ma)).toFixed(1)}" y="${(cy + r*0.6*Math.sin(ma)+4).toFixed(1)}" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">${(pct*100).toFixed(0)}%</text>`);
-        }
-        legendItems.push(`<div class="dist-pie-legend-item"><div class="dist-pie-dot" style="background:${color}"></div><span>${escHtml(item.name)} — ${formatEur(item.amount)}</span></div>`);
-        angle = end;
-      });
-      pieHtml = `<div class="dist-pie-wrap">
-        <svg width="160" height="160" viewBox="0 0 160 160">${paths.join('')}</svg>
-        <div class="dist-pie-legend">${legendItems.join('')}</div>
+    // Horizontal bar chart: capital vs beneficio
+    let barHtml = '';
+    if (isVendido && dist.items.some(it => it.capital_contributed)) {
+      const maxVal = Math.max(...dist.items.flatMap(it => [it.capital_contributed || 0, it.amount || 0]));
+      const barRows = dist.items.map((item, i) => {
+        const col = PIE_COLORS[i % PIE_COLORS.length];
+        const capW = maxVal > 0 ? Math.round((item.capital_contributed || 0) / maxVal * 200) : 0;
+        const benW = maxVal > 0 ? Math.round(Math.abs(item.amount || 0) / maxVal * 200) : 0;
+        return `<g transform="translate(0,${i * 44})">
+          <text x="0" y="12" fill="#ccc" font-size="11" font-family="inherit">${escHtml(item.name)}</text>
+          <rect x="0" y="16" width="${capW}" height="10" rx="3" fill="${col}55"/>
+          <text x="${capW + 4}" y="25" fill="#888" font-size="10" font-family="inherit">${formatEur(item.capital_contributed || 0)}</text>
+          <rect x="0" y="30" width="${benW}" height="10" rx="3" fill="${col}"/>
+          <text x="${benW + 4}" y="39" fill="#ccc" font-size="10" font-family="inherit">${item.amount >= 0 ? '+' : ''}${formatEur(item.amount)}</text>
+        </g>`;
+      }).join('');
+      const svgH = dist.items.length * 44 + 20;
+      barHtml = `<div style="margin:12px 0 8px">
+        <div style="font-size:0.68rem;color:#555;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Capital vs beneficio</div>
+        <svg width="340" height="${svgH}" viewBox="0 0 340 ${svgH}" style="overflow:visible">${barRows}</svg>
       </div>`;
     }
 
     wrap.innerHTML = `
       <div class="partner-cards">${cards}</div>
-      ${pieHtml}
+      ${barHtml}
       <div class="dist-total">Total neto repartido: ${formatEur(total)}</div>`;
   }
 
@@ -1975,7 +1976,7 @@
       </tr>`;
     }).join('');
 
-    // Pie chart — 300x300, vibrant colors, labels with mid-arc text, 2-col legend
+    // Donut chart — 300x300, modern palette, center total, no % on slices, 2-col legend
     const total = partners.reduce((s, p) => s + p.total_ganado, 0);
     const svgEl = document.getElementById('society-pie');
     const legend = document.getElementById('pie-legend');
@@ -1984,7 +1985,7 @@
       legend.innerHTML = ''; return;
     }
     let paths = [], legendHtml = [], angle = -Math.PI / 2;
-    const cx = 150, cy = 150, r = 115, ri = 60;
+    const cx = 150, cy = 150, r = 120, ri = 80;
     partners.forEach((p, i) => {
       if (p.total_ganado <= 0) return;
       const color = PIE_COLORS[i % PIE_COLORS.length];
@@ -1995,16 +1996,13 @@
       const ix1 = cx + ri * Math.cos(end),   iy1 = cy + ri * Math.sin(end);
       const ix2 = cx + ri * Math.cos(angle), iy2 = cy + ri * Math.sin(angle);
       const la = pct > 0.5 ? 1 : 0;
-      // donut slice
-      paths.push(`<path d="M ${ix2.toFixed(1)} ${iy2.toFixed(1)} L ${x1.toFixed(1)} ${y1.toFixed(1)} A ${r} ${r} 0 ${la} 1 ${x2.toFixed(1)} ${y2.toFixed(1)} L ${ix1.toFixed(1)} ${iy1.toFixed(1)} A ${ri} ${ri} 0 ${la} 0 ${ix2.toFixed(1)} ${iy2.toFixed(1)} Z" fill="${color}" stroke="#0f1117" stroke-width="2.5"/>`);
-      if (pct >= 0.07) {
-        const ma = angle + pct * Math.PI;
-        const lr = (r + ri) / 2;
-        paths.push(`<text x="${(cx + lr*Math.cos(ma)).toFixed(1)}" y="${(cy + lr*Math.sin(ma)+4).toFixed(1)}" text-anchor="middle" fill="#fff" font-size="12" font-weight="800">${(pct*100).toFixed(0)}%</text>`);
-      }
-      legendHtml.push(`<div class="pie-legend-item"><div class="pie-legend-dot" style="background:${color}"></div><span>${escHtml(p.name)}<br><span style="color:#888;font-size:0.7rem">${formatEur(p.total_ganado)}</span></span></div>`);
+      paths.push(`<path d="M ${ix2.toFixed(1)} ${iy2.toFixed(1)} L ${x1.toFixed(1)} ${y1.toFixed(1)} A ${r} ${r} 0 ${la} 1 ${x2.toFixed(1)} ${y2.toFixed(1)} L ${ix1.toFixed(1)} ${iy1.toFixed(1)} A ${ri} ${ri} 0 ${la} 0 ${ix2.toFixed(1)} ${iy2.toFixed(1)} Z" fill="${color}" stroke="#0f1117" stroke-width="3"/>`);
+      legendHtml.push(`<div class="pie-legend-item"><div class="pie-legend-dot" style="background:${color}"></div><span>${escHtml(p.name)}<br><span style="color:#999;font-size:0.7rem">${formatEur(p.total_ganado)} · ${(pct*100).toFixed(0)}%</span></span></div>`);
       angle = end;
     });
+    // center label
+    paths.push(`<text x="150" y="143" text-anchor="middle" fill="#666" font-size="11" font-family="inherit">Total</text>`);
+    paths.push(`<text x="150" y="165" text-anchor="middle" fill="#fff" font-size="17" font-weight="800" font-family="inherit">${formatEur(total)}</text>`);
     svgEl.innerHTML = paths.join('');
     legend.innerHTML = legendHtml.join('');
   }
