@@ -344,6 +344,22 @@
     .dist-unavail { color: #555; font-size: 0.82rem; padding: 16px 0; }
     .dist-total { text-align: right; font-size: 0.82rem; color: #e0e0e0;
                   font-weight: 700; padding: 8px 0; border-top: 1px solid #2a2d3a; margin-top: 4px; }
+    /* partner cards */
+    .partner-cards { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+    .partner-card { background: #12141e; border: 1px solid #2a2d3a; border-radius: 8px;
+                    padding: 14px 16px; min-width: 140px; flex: 1; }
+    .partner-card-name { font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 2px; }
+    .partner-card-role { font-size: 0.72rem; color: #666; margin-bottom: 8px; }
+    .partner-card-pct  { display: inline-block; background: #1e3a5f; color: #60a5fa;
+                          font-size: 0.72rem; font-weight: 700; padding: 2px 7px;
+                          border-radius: 10px; margin-bottom: 10px; }
+    .partner-card-amount { font-size: 1.25rem; font-weight: 800; }
+    .partner-card-loan { font-size: 0.72rem; color: #888; margin-top: 4px; }
+    /* dist pie */
+    .dist-pie-wrap { margin-top: 8px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+    .dist-pie-legend { display: flex; flex-direction: column; gap: 6px; }
+    .dist-pie-legend-item { display: flex; align-items: center; gap: 7px; font-size: 0.78rem; color: #ccc; }
+    .dist-pie-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 
     /* ── Society global tab ── */
     #tab-personas { display: none; flex-direction: column; height: calc(100vh - 46px); overflow-y: auto; }
@@ -1791,28 +1807,60 @@
     const wrap = document.getElementById('distribution-wrap');
     if (!wrap) return;
     if (!dist || !dist.available) {
-      wrap.innerHTML = `<div class="dist-unavail">${dist?.reason || 'No disponible'}</div>`;
+      wrap.innerHTML = `<div class="dist-unavail">${dist?.reason || 'No disponible todavía — introduce precio de venta real en el tab Financiero.'}</div>`;
       return;
     }
-    const rows = dist.items.map(item => `
-      <tr>
-        <td style="font-weight:600;color:#fff">${escHtml(item.name)}</td>
-        <td style="text-align:right">${item.participation_pct.toFixed(1)}%</td>
-        <td style="text-align:right;color:#4ade80">${item.amount.toLocaleString('es-ES')}€</td>
-        <td style="text-align:right" class="neighborhood">${item.loan_repayment > 0 ? item.loan_repayment.toLocaleString('es-ES')+'€' : '—'}</td>
-        <td style="text-align:right;font-weight:700;color:#fff">${item.total_received.toLocaleString('es-ES')}€</td>
-      </tr>`).join('');
+
+    const isVendido = currentOp?.status === 'vendido';
+    const total = dist.total_distributed;
+
+    // Partner cards
+    const cards = dist.items.map((item, i) => {
+      const col = PIE_COLORS[i % PIE_COLORS.length];
+      const amtCls = item.amount >= 0 ? 'pnl-pos' : 'pnl-neg';
+      const loanLine = item.loan_repayment > 0
+        ? `<div class="partner-card-loan">Dev. préstamo: ${item.loan_repayment.toLocaleString('es-ES')}€</div>`
+        : '';
+      return `<div class="partner-card" style="border-left:3px solid ${col}">
+        <div class="partner-card-name">${escHtml(item.name)}</div>
+        <div class="partner-card-role">${escHtml(item.role || 'Socio')}</div>
+        <div class="partner-card-pct">${item.participation_pct.toFixed(0)}%</div>
+        <div class="partner-card-amount ${amtCls}">${item.amount >= 0 ? '+' : ''}${item.amount.toLocaleString('es-ES', {minimumFractionDigits:0,maximumFractionDigits:0})}€</div>
+        ${loanLine}
+      </div>`;
+    }).join('');
+
+    // SVG pie chart (only if vendido and positive total)
+    let pieHtml = '';
+    if (isVendido && total > 0) {
+      const cx = 80, cy = 80, r = 65;
+      let paths = [], legendItems = [], angle = -Math.PI / 2;
+      dist.items.forEach((item, i) => {
+        if (item.amount <= 0) return;
+        const color = PIE_COLORS[i % PIE_COLORS.length];
+        const pct   = item.amount / total;
+        const end   = angle + pct * 2 * Math.PI;
+        const x1 = cx + r * Math.cos(angle), y1 = cy + r * Math.sin(angle);
+        const x2 = cx + r * Math.cos(end),   y2 = cy + r * Math.sin(end);
+        const la = pct > 0.5 ? 1 : 0;
+        paths.push(`<path d="M ${cx} ${cy} L ${x1.toFixed(1)} ${y1.toFixed(1)} A ${r} ${r} 0 ${la} 1 ${x2.toFixed(1)} ${y2.toFixed(1)} Z" fill="${color}" stroke="#1a1d27" stroke-width="2"/>`);
+        if (pct >= 0.08) {
+          const ma = angle + pct * Math.PI;
+          paths.push(`<text x="${(cx + r*0.6*Math.cos(ma)).toFixed(1)}" y="${(cy + r*0.6*Math.sin(ma)+4).toFixed(1)}" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">${(pct*100).toFixed(0)}%</text>`);
+        }
+        legendItems.push(`<div class="dist-pie-legend-item"><div class="dist-pie-dot" style="background:${color}"></div><span>${escHtml(item.name)} — ${item.amount.toLocaleString('es-ES',{minimumFractionDigits:0,maximumFractionDigits:0})}€</span></div>`);
+        angle = end;
+      });
+      pieHtml = `<div class="dist-pie-wrap">
+        <svg width="160" height="160" viewBox="0 0 160 160">${paths.join('')}</svg>
+        <div class="dist-pie-legend">${legendItems.join('')}</div>
+      </div>`;
+    }
+
     wrap.innerHTML = `
-      <table>
-        <thead><tr>
-          <th>Socio</th><th style="text-align:right">%</th>
-          <th style="text-align:right">Beneficio</th>
-          <th style="text-align:right">Dev. préstamo</th>
-          <th style="text-align:right">Total a recibir</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <div class="dist-total">Total neto repartido: ${dist.total_distributed.toLocaleString('es-ES')}€</div>`;
+      <div class="partner-cards">${cards}</div>
+      ${pieHtml}
+      <div class="dist-total">Total neto repartido: ${total.toLocaleString('es-ES')}€</div>`;
   }
 
   async function addPartner() {

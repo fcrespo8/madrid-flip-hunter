@@ -147,6 +147,7 @@ def get_distribution(
         loan_repayment = round(la + loan_cost, 2)
         items.append({
             "name": p.name,
+            "role": p.role or "",
             "participation_pct": pct,
             "amount": amount,
             "loan_repayment": loan_repayment,
