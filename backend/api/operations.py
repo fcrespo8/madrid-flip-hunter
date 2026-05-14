@@ -1,4 +1,5 @@
 from __future__ import annotations
+import logging
 import uuid
 from datetime import datetime, date
 from decimal import Decimal
@@ -7,9 +8,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from backend.models.database import get_db
-from backend.models.operation import Operation, OperationStatus, OperationFinancials, OperationExpense, ExpenseCategory, OperationDates
+from backend.models.operation import (
+    Operation, OperationStatus, OperationFinancials,
+    OperationExpense, ExpenseCategory, OperationDates,
+)
 from backend.auth.dependencies import get_current_user, require_admin
 from backend.models.operation import User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/operations", tags=["operations"])
 
@@ -171,6 +177,8 @@ def _build_financials_out(
     gross_profit: float | None = None
     net_profit:   float | None = None
     roi_pct:      float | None = None
+    beneficio_bruto = 0.0
+    taxes = 0.0
     if asp > 0:
         beneficio_bruto = asp - total_costes - ste
         regime = fin.tax_regime or "persona_fisica"
@@ -178,9 +186,20 @@ def _build_financials_out(
                   else _calc_irpf(max(0.0, beneficio_bruto)))
         gross_profit = beneficio_bruto
         net_profit   = beneficio_bruto - taxes
-        denom = foc + fib
-        if denom > 0:
-            roi_pct = round(net_profit / denom * 100, 2)
+        if total_costes > 0:
+            roi_pct = round(net_profit / total_costes * 100, 2)
+
+    logger.debug(
+        "P&L pp=%.0f buy_costs=%.0f buy_agency=%.0f sell_agency=%.0f "
+        "reforma=%.0f reforma_extra=%.0f tramites=%.0f gastos_corr=%.0f "
+        "otros=%.0f financiacion=%.0f loan=%.0f total_costes=%.0f "
+        "asp=%.0f ste=%.0f ben_bruto=%.0f taxes=%.0f net=%.0f roi=%.2f",
+        pp, buy_costs, buy_agency, sell_agency,
+        reforma, reforma_extra, tramites, gastos_corr,
+        otros, financiacion, loan_cost, total_costes,
+        asp, ste, beneficio_bruto, taxes,
+        net_profit or 0.0, roi_pct or 0.0,
+    )
 
     return {
         "purchase_price":    _f(fin.purchase_price),
@@ -348,6 +367,22 @@ def update_status(
     return OperationOut.from_orm(op)
 
 
+def _attach_partners_distribution(result: dict, op: Operation) -> dict:
+    net_profit = result.get("net_profit")
+    if net_profit is not None and op.op_partners:
+        result["partners_distribution"] = [
+            {
+                "name": p.name,
+                "pct": float(p.participation_pct),
+                "amount": round(net_profit * float(p.participation_pct) / 100, 2),
+            }
+            for p in op.op_partners
+        ]
+    else:
+        result["partners_distribution"] = []
+    return result
+
+
 @router.get("/{op_id}/financials")
 def get_financials(
     op_id: str,
@@ -359,7 +394,8 @@ def get_financials(
     if not op:
         raise HTTPException(status_code=404, detail="Operation not found")
     total_exp, by_cat = _get_expenses_data(db, uid)
-    return _build_financials_out(op.financials, total_exp, by_cat)
+    result = _build_financials_out(op.financials, total_exp, by_cat)
+    return _attach_partners_distribution(result, op)
 
 
 @router.put("/{op_id}/financials")
@@ -385,7 +421,8 @@ def upsert_financials(
     db.refresh(fin)
 
     total_exp, by_cat = _get_expenses_data(db, uid)
-    return _build_financials_out(fin, total_exp, by_cat)
+    result = _build_financials_out(fin, total_exp, by_cat)
+    return _attach_partners_distribution(result, op)
 
 
 def _dates_out(d: OperationDates | None) -> dict:

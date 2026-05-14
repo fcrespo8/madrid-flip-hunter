@@ -817,7 +817,7 @@
             <span class="pnl-row-val" id="pnl-net">—</span>
           </div>
           <div class="pnl-row">
-            <span class="pnl-row-label" style="font-weight:700;color:#fff">ROI %</span>
+            <span class="pnl-row-label" style="font-weight:700;color:#fff">ROI % (sobre costes)</span>
             <span class="pnl-row-val" id="pnl-roi">—</span>
           </div>
           <div class="pnl-row" id="pnl-roi-anual-row" style="display:none">
@@ -828,6 +828,10 @@
             <span class="pnl-row-label" style="color:#888">Hold</span>
             <span class="pnl-row-val" id="pnl-hold" style="color:#e0e0e0">—</span>
           </div>
+
+          <!-- REPARTO POR SOCIO -->
+          <div class="pnl-section-header" id="pnl-partners-header" style="display:none">Reparto por socio</div>
+          <div id="pnl-partners-list"></div>
         </div>
       </div>
 
@@ -1392,16 +1396,17 @@
       document.getElementById('pnl-sub-impuestos').textContent = fmtEur(plusvaliaTotal + taxes);
       sign('pnl-net', net);
 
+      const totalCostes = totalInversion + subVenta;
       const roiEl = document.getElementById('pnl-roi');
-      if (denom > 0) {
-        const roi = net / denom * 100;
+      if (totalCostes > 0) {
+        const roi = net / totalCostes * 100;
         roiEl.textContent = (roi >= 0 ? '+' : '') + roi.toFixed(1) + '%';
         roiEl.className = 'pnl-row-val ' + (roi >= 0 ? 'pnl-pos' : 'pnl-neg');
         const hold = getHoldMonths();
         const roiAnualRow = document.getElementById('pnl-roi-anual-row');
         const holdRow     = document.getElementById('pnl-hold-row');
         if (hold) {
-          const roiA = (net / denom) * (12 / hold) * 100;
+          const roiA = (net / totalCostes) * (12 / hold) * 100;
           const roiAEl = document.getElementById('pnl-roi-anual');
           roiAEl.textContent = (roiA >= 0 ? '+' : '') + roiA.toFixed(1) + '%';
           roiAEl.className   = 'pnl-row-val ' + (roiA >= 0 ? 'pnl-pos' : 'pnl-neg');
@@ -1417,6 +1422,26 @@
         document.getElementById('pnl-roi-anual-row').style.display = 'none';
         document.getElementById('pnl-hold-row').style.display      = 'none';
       }
+
+      // Partners distribution
+      const partners = currentFinancialsData?.partners_distribution || [];
+      const pHeader = document.getElementById('pnl-partners-header');
+      const pList   = document.getElementById('pnl-partners-list');
+      if (pHeader && pList) {
+        if (partners.length > 0) {
+          pHeader.style.display = '';
+          pList.innerHTML = partners.map(p => {
+            const col = p.amount >= 0 ? 'pnl-pos' : 'pnl-neg';
+            return `<div class="pnl-row-indent">
+              <span class="pnl-row-label">${p.name} (${p.pct.toFixed(0)}%)</span>
+              <span class="pnl-row-val ${col}">${p.amount >= 0 ? '+' : ''}${fmtEur(p.amount)}</span>
+            </div>`;
+          }).join('');
+        } else {
+          pHeader.style.display = 'none';
+          pList.innerHTML = '';
+        }
+      }
     } else {
       sign('pnl-net', null);
       document.getElementById('pnl-irpf').textContent          = '—';
@@ -1426,6 +1451,10 @@
       document.getElementById('fin-tax-amount').value          = '';
       document.getElementById('pnl-roi-anual-row').style.display = 'none';
       document.getElementById('pnl-hold-row').style.display      = 'none';
+      const ph = document.getElementById('pnl-partners-header');
+      const pl = document.getElementById('pnl-partners-list');
+      if (ph) ph.style.display = 'none';
+      if (pl) pl.innerHTML = '';
     }
   }
 
