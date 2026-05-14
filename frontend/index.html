@@ -557,7 +557,8 @@
         <thead><tr>
           <th>Persona</th>
           <th style="text-align:right">Ops</th>
-          <th style="text-align:right">Capital prestado</th>
+          <th style="text-align:right">Capital aportado</th>
+          <th style="text-align:right">Préstamo</th>
           <th style="text-align:right">Beneficio</th>
           <th style="text-align:right">Total recibido</th>
         </tr></thead>
@@ -877,6 +878,7 @@
           <div class="sf sf-name"><label>Nombre *</label><input type="text" id="sp-name" placeholder="Francisco"></div>
           <div class="sf sf-role"><label>Rol</label><input type="text" id="sp-role" placeholder="Operativo..."></div>
           <div class="sf sf-pct"><label>% beneficios *</label><input type="number" id="sp-pct" placeholder="50" step="0.01" min="0" max="100"></div>
+          <div class="sf sf-loan"><label>Capital aportado (€)</label><input type="number" id="sp-capital" placeholder="0"></div>
           <div class="sf sf-loan"><label>Préstamo (€)</label><input type="number" id="sp-loan" placeholder="0"></div>
           <div class="sf sf-loan"><label>Interés anual %</label><input type="number" id="sp-rate" placeholder="5" step="0.1"></div>
           <div class="sf sf-loan"><label>Meses plazo</label><input type="number" id="sp-months" placeholder="12" step="1"></div>
@@ -1134,7 +1136,7 @@
       const tr = document.createElement('tr');
       const np  = op._net_profit;
       const roi = op._roi_pct;
-      const npHtml  = np  != null ? `<span style="color:${np>=0?'#4ade80':'#f87171'};font-weight:600">${np>=0?'+':''}${np.toLocaleString('es-ES')}€</span>` : '<span style="color:#555">—</span>';
+      const npHtml  = np  != null ? `<span style="color:${np>=0?'#4ade80':'#f87171'};font-weight:600">${np>=0?'+':''}${formatEur(np)}</span>` : '<span style="color:#555">—</span>';
       const roiHtml = roi != null ? `<span style="color:${roi>=0?'#4ade80':'#f87171'};font-weight:600">${roi>=0?'+':''}${roi.toFixed(1)}%</span>` : '<span style="color:#555">—</span>';
       tr.innerHTML = `
         <td style="font-weight:600;color:#fff">${escHtml(op.name)}</td>
@@ -1157,7 +1159,7 @@
     const totalBenef = vendidas.reduce((s, o) => s + o._net_profit, 0);
     const avgRoi = vendidas.length ? vendidas.reduce((s, o) => s + (o._roi_pct || 0), 0) / vendidas.length : null;
     document.getElementById('opskpi-beneficio').textContent =
-      vendidas.length ? (totalBenef >= 0 ? '+' : '') + totalBenef.toLocaleString('es-ES') + '€' : '—';
+      vendidas.length ? (totalBenef >= 0 ? '+' : '') + formatEur(totalBenef) : '—';
     document.getElementById('opskpi-roi').textContent =
       avgRoi != null ? (avgRoi >= 0 ? '+' : '') + avgRoi.toFixed(1) + '%' : '—';
   }
@@ -1349,7 +1351,7 @@
       getTaxRegime() === 'sl' ? 'IS estimado (23%)' : 'IRPF estimado (tramos)';
   }
 
-  function fmtEur(v) {
+  function formatEur(v) {
     if (v == null || isNaN(v)) return '—';
     return v.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + '€';
   }
@@ -1394,8 +1396,8 @@
     const subVenta       = agenciaTotal + financieroTotal;
     const plusvaliaTotal = ste + impuestosExp;
 
-    const set = (id, val) => { document.getElementById(id).textContent = fmtEur(val); };
-    document.getElementById('pnl-precio-venta').textContent = pv != null ? fmtEur(pv) : '—';
+    const set = (id, val) => { document.getElementById(id).textContent = formatEur(val); };
+    document.getElementById('pnl-precio-venta').textContent = pv != null ? formatEur(pv) : '—';
     set('pnl-pp',                 pp);
     set('pnl-buy-costs',          buyExpenses);
     set('pnl-buy-agency',         buyAgency);
@@ -1415,7 +1417,7 @@
 
     const sign = (id, val) => {
       const el = document.getElementById(id);
-      el.textContent = val != null ? ((val >= 0 ? '+' : '') + fmtEur(val)) : '—';
+      el.textContent = val != null ? ((val >= 0 ? '+' : '') + formatEur(val)) : '—';
       el.className = 'pnl-row-val' + (val == null ? '' : val >= 0 ? ' pnl-pos' : ' pnl-neg');
     };
 
@@ -1427,8 +1429,8 @@
       const denom  = foc + fib;
 
       document.getElementById('fin-tax-amount').value      = taxes > 0 ? taxes.toFixed(2) : '';
-      document.getElementById('pnl-irpf').textContent      = fmtEur(taxes);
-      document.getElementById('pnl-sub-impuestos').textContent = fmtEur(plusvaliaTotal + taxes);
+      document.getElementById('pnl-irpf').textContent      = formatEur(taxes);
+      document.getElementById('pnl-sub-impuestos').textContent = formatEur(plusvaliaTotal + taxes);
       sign('pnl-net', net);
 
       const totalCostes = totalInversion + subVenta;
@@ -1469,7 +1471,7 @@
             const col = p.amount >= 0 ? 'pnl-pos' : 'pnl-neg';
             return `<div class="pnl-row-indent">
               <span class="pnl-row-label">${p.name} (${p.pct.toFixed(0)}%)</span>
-              <span class="pnl-row-val ${col}">${p.amount >= 0 ? '+' : ''}${fmtEur(p.amount)}</span>
+              <span class="pnl-row-val ${col}">${p.amount >= 0 ? '+' : ''}${formatEur(p.amount)}</span>
             </div>`;
           }).join('');
         } else {
@@ -1579,7 +1581,7 @@
     const total = currentFinancialsData?.total_expenses ?? 0;
     const set = (id, val) => {
       const el = document.getElementById(id);
-      if (el) el.textContent = val > 0 ? val.toLocaleString('es-ES',{minimumFractionDigits:0,maximumFractionDigits:0})+'€' : '—';
+      if (el) el.textContent = val > 0 ? formatEur(val) : '—';
     };
     set('esum-obra',        ebc.obra              || 0);
     set('esum-tramites',    ebc.tramites          || 0);
@@ -1588,7 +1590,7 @@
     set('esum-financiacion',ebc.financiacion      || 0);
     set('esum-impuestos',   ebc.impuestos_gastos  || 0);
     const totEl = document.getElementById('esum-total');
-    if (totEl) totEl.textContent = total > 0 ? total.toLocaleString('es-ES',{minimumFractionDigits:0,maximumFractionDigits:0})+'€' : '—';
+    if (totEl) totEl.textContent = total > 0 ? formatEur(total) : '—';
   }
 
   async function addExpense() {
@@ -1816,8 +1818,8 @@
         <td style="font-weight:600;color:#fff">${escHtml(p.name)}</td>
         <td class="neighborhood">${escHtml(p.role||'—')}</td>
         <td style="text-align:right;font-weight:600">${p.participation_pct.toFixed(1)}%</td>
-        <td style="text-align:right" class="neighborhood">${p.loan_amount ? p.loan_amount.toLocaleString('es-ES')+'€' : '—'}</td>
-        <td style="text-align:right" class="neighborhood">${p.loan_cost != null ? p.loan_cost.toLocaleString('es-ES')+'€' : '—'}</td>
+        <td style="text-align:right" class="neighborhood">${p.loan_amount ? formatEur(p.loan_amount) : '—'}</td>
+        <td style="text-align:right" class="neighborhood">${p.loan_cost != null ? formatEur(p.loan_cost) : '—'}</td>
         <td><button class="btn btn-sm" style="padding:2px 6px" onclick="deletePartner('${p.id}')">🗑</button></td>
       </tr>`).join('');
   }
@@ -1838,13 +1840,13 @@
       const col = PIE_COLORS[i % PIE_COLORS.length];
       const amtCls = item.amount >= 0 ? 'pnl-pos' : 'pnl-neg';
       const loanLine = item.loan_repayment > 0
-        ? `<div class="partner-card-loan">Dev. préstamo: ${item.loan_repayment.toLocaleString('es-ES')}€</div>`
+        ? `<div class="partner-card-loan">Dev. préstamo: ${formatEur(item.loan_repayment)}</div>`
         : '';
       return `<div class="partner-card" style="border-left:3px solid ${col}">
         <div class="partner-card-name">${escHtml(item.name)}</div>
         <div class="partner-card-role">${escHtml(item.role || 'Socio')}</div>
         <div class="partner-card-pct">${item.participation_pct.toFixed(0)}%</div>
-        <div class="partner-card-amount ${amtCls}">${item.amount >= 0 ? '+' : ''}${item.amount.toLocaleString('es-ES', {minimumFractionDigits:0,maximumFractionDigits:0})}€</div>
+        <div class="partner-card-amount ${amtCls}">${item.amount >= 0 ? '+' : ''}${formatEur(item.amount)}</div>
         ${loanLine}
       </div>`;
     }).join('');
@@ -1867,7 +1869,7 @@
           const ma = angle + pct * Math.PI;
           paths.push(`<text x="${(cx + r*0.6*Math.cos(ma)).toFixed(1)}" y="${(cy + r*0.6*Math.sin(ma)+4).toFixed(1)}" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">${(pct*100).toFixed(0)}%</text>`);
         }
-        legendItems.push(`<div class="dist-pie-legend-item"><div class="dist-pie-dot" style="background:${color}"></div><span>${escHtml(item.name)} — ${item.amount.toLocaleString('es-ES',{minimumFractionDigits:0,maximumFractionDigits:0})}€</span></div>`);
+        legendItems.push(`<div class="dist-pie-legend-item"><div class="dist-pie-dot" style="background:${color}"></div><span>${escHtml(item.name)} — ${formatEur(item.amount)}</span></div>`);
         angle = end;
       });
       pieHtml = `<div class="dist-pie-wrap">
@@ -1879,7 +1881,7 @@
     wrap.innerHTML = `
       <div class="partner-cards">${cards}</div>
       ${pieHtml}
-      <div class="dist-total">Total neto repartido: ${total.toLocaleString('es-ES')}€</div>`;
+      <div class="dist-total">Total neto repartido: ${formatEur(total)}</div>`;
   }
 
   async function addPartner() {
@@ -1888,6 +1890,7 @@
     const pct  = parseFloat(document.getElementById('sp-pct').value);
     if (!name) { document.getElementById('sp-error').textContent = 'Nombre obligatorio'; return; }
     if (!pct || pct <= 0) { document.getElementById('sp-error').textContent = 'Introduce un % válido'; return; }
+    const capital = parseFloat(document.getElementById('sp-capital').value) || null;
     const loan   = parseFloat(document.getElementById('sp-loan').value)   || null;
     const rate   = parseFloat(document.getElementById('sp-rate').value)   || null;
     const months = parseInt(document.getElementById('sp-months').value) || null;
@@ -1896,10 +1899,11 @@
       const resp = await fetch(`/api/operations/${currentOp.id}/partners`, {
         method: 'POST', headers: authHeaders(),
         body: JSON.stringify({ name, role: document.getElementById('sp-role').value.trim()||null,
-          participation_pct: pct, loan_amount: loan, loan_interest_rate: rate, loan_months: months }),
+          participation_pct: pct, capital_contributed: capital,
+          loan_amount: loan, loan_interest_rate: rate, loan_months: months }),
       });
       if (!resp.ok) { document.getElementById('sp-error').textContent = (await resp.json()).detail||'Error'; return; }
-      ['sp-name','sp-role','sp-pct','sp-loan','sp-rate','sp-months'].forEach(id => document.getElementById(id).value = '');
+      ['sp-name','sp-role','sp-pct','sp-capital','sp-loan','sp-rate','sp-months'].forEach(id => document.getElementById(id).value = '');
       await loadPartners(currentOp.id);
     } catch { document.getElementById('sp-error').textContent = 'Error de conexión'; }
   }
@@ -1930,9 +1934,8 @@
 
   function renderSociety(data) {
     const kpis = data.kpis;
-    const fmt = v => v > 0 ? v.toLocaleString('es-ES', {minimumFractionDigits:0,maximumFractionDigits:0})+'€' : '—';
-    document.getElementById('soc-capital').textContent   = fmt(kpis.capital_total);
-    document.getElementById('soc-beneficio').textContent = fmt(kpis.beneficio_total);
+    document.getElementById('soc-capital').textContent   = kpis.capital_total   > 0 ? formatEur(kpis.capital_total)   : '—';
+    document.getElementById('soc-beneficio').textContent = kpis.beneficio_total > 0 ? formatEur(kpis.beneficio_total) : '—';
     document.getElementById('soc-ops').textContent       = kpis.ops_cerradas;
 
     const partners = data.partners;
@@ -1940,7 +1943,7 @@
     const chartSection = document.getElementById('society-chart-section');
 
     if (!partners.length) {
-      tbody.innerHTML = `<tr><td colspan="5">
+      tbody.innerHTML = `<tr><td colspan="6">
         <div class="soc-empty">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <div class="soc-empty-title">Aún no hay operaciones cerradas</div>
@@ -1965,9 +1968,10 @@
           </div>
         </td>
         <td style="text-align:right" class="neighborhood">${p.ops}</td>
-        <td style="text-align:right" class="neighborhood">${p.loan_total > 0 ? p.loan_total.toLocaleString('es-ES')+'€' : '—'}</td>
-        <td style="text-align:right;color:#4ade80;font-weight:600">${p.total_ganado > 0 ? p.total_ganado.toLocaleString('es-ES')+'€' : '—'}</td>
-        <td style="text-align:right;font-weight:700;color:#fff">${(p.total_ganado + p.loan_total).toLocaleString('es-ES')}€</td>
+        <td style="text-align:right" class="neighborhood">${p.capital_aportado > 0 ? formatEur(p.capital_aportado) : '—'}</td>
+        <td style="text-align:right" class="neighborhood">${p.loan_total > 0 ? formatEur(p.loan_total) : '—'}</td>
+        <td style="text-align:right;color:#4ade80;font-weight:600">${p.total_ganado > 0 ? formatEur(p.total_ganado) : '—'}</td>
+        <td style="text-align:right;font-weight:700;color:#fff">${formatEur(p.total_ganado + p.loan_total)}</td>
       </tr>`;
     }).join('');
 
@@ -1998,8 +2002,7 @@
         const lr = (r + ri) / 2;
         paths.push(`<text x="${(cx + lr*Math.cos(ma)).toFixed(1)}" y="${(cy + lr*Math.sin(ma)+4).toFixed(1)}" text-anchor="middle" fill="#fff" font-size="12" font-weight="800">${(pct*100).toFixed(0)}%</text>`);
       }
-      const amtStr = p.total_ganado.toLocaleString('es-ES', {minimumFractionDigits:0,maximumFractionDigits:0});
-      legendHtml.push(`<div class="pie-legend-item"><div class="pie-legend-dot" style="background:${color}"></div><span>${escHtml(p.name)}<br><span style="color:#888;font-size:0.7rem">${amtStr}€</span></span></div>`);
+      legendHtml.push(`<div class="pie-legend-item"><div class="pie-legend-dot" style="background:${color}"></div><span>${escHtml(p.name)}<br><span style="color:#888;font-size:0.7rem">${formatEur(p.total_ganado)}</span></span></div>`);
       angle = end;
     });
     svgEl.innerHTML = paths.join('');

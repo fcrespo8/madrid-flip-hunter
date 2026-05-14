@@ -18,6 +18,7 @@ class PartnerCreate(BaseModel):
     name: str
     role: Optional[str] = None
     participation_pct: float
+    capital_contributed: Optional[float] = None
     loan_amount: Optional[float] = None
     loan_interest_rate: Optional[float] = None
     loan_months: Optional[int] = None
@@ -28,16 +29,19 @@ class PartnerOut(BaseModel):
     name: str
     role: Optional[str]
     participation_pct: float
+    capital_contributed: Optional[float]
     loan_amount: Optional[float]
     loan_interest_rate: Optional[float]
     loan_months: Optional[int]
     loan_cost: Optional[float]
+    roi_pct: Optional[float] = None
 
     @classmethod
     def from_orm(cls, p: OperationPartner) -> "PartnerOut":
         la  = float(p.loan_amount)        if p.loan_amount        else None
         lir = float(p.loan_interest_rate) if p.loan_interest_rate else None
         lm  = p.loan_months
+        cc  = float(p.capital_contributed) if p.capital_contributed else None
         loan_cost: float | None = None
         if la and lir and lm:
             loan_cost = round(la * (lir / 100) * (lm / 12), 2)
@@ -46,6 +50,7 @@ class PartnerOut(BaseModel):
             name=p.name,
             role=p.role,
             participation_pct=float(p.participation_pct),
+            capital_contributed=cc,
             loan_amount=la,
             loan_interest_rate=lir,
             loan_months=lm,
@@ -91,6 +96,7 @@ def create_partner(
         name=body.name,
         role=body.role,
         participation_pct=Decimal(str(body.participation_pct)),
+        capital_contributed=Decimal(str(body.capital_contributed)) if body.capital_contributed is not None else None,
         loan_amount=Decimal(str(body.loan_amount)) if body.loan_amount is not None else None,
         loan_interest_rate=Decimal(str(body.loan_interest_rate)) if body.loan_interest_rate is not None else None,
         loan_months=body.loan_months,
@@ -140,18 +146,23 @@ def get_distribution(
     for p in op.op_partners:
         pct = float(p.participation_pct)
         amount = round(net_profit * pct / 100, 2)
+        cc = float(p.capital_contributed) if p.capital_contributed else None
         la = float(p.loan_amount) if p.loan_amount else 0
         lir = float(p.loan_interest_rate) if p.loan_interest_rate else 0
         lm = p.loan_months or 0
         loan_cost = round(la * (lir / 100) * (lm / 12), 2) if la and lir and lm else 0
         loan_repayment = round(la + loan_cost, 2)
+        total_received = round(amount + loan_repayment, 2)
+        roi_pct = round(total_received / cc * 100, 2) if cc and cc > 0 else None
         items.append({
             "name": p.name,
             "role": p.role or "",
             "participation_pct": pct,
+            "capital_contributed": cc,
             "amount": amount,
             "loan_repayment": loan_repayment,
-            "total_received": round(amount + loan_repayment, 2),
+            "total_received": total_received,
+            "roi_pct": roi_pct,
         })
 
     return {

@@ -69,13 +69,14 @@ db.add(OperationFinancials(
     tax_regime="persona_fisica",
 ))
 
-# 5. Socios
+# 5. Socios — capital_contributed = 160k cada uno (320k total / 2)
 for name, pct in [("Francisco", 50), ("Germán", 50)]:
     db.add(OperationPartner(
         operation_id=op.id,
         name=name,
         role="socio",
         participation_pct=Decimal(str(pct)),
+        capital_contributed=Decimal("160000"),
     ))
 
 # 6. Gastos

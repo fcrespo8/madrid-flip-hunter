@@ -149,6 +149,7 @@ class OperationPartner(Base):
     name:              Mapped[str]            = mapped_column(String(200), nullable=False)
     role:              Mapped[str | None]     = mapped_column(String(100), nullable=True)
     participation_pct: Mapped[Decimal]        = mapped_column(Numeric(5, 2), nullable=False)
+    capital_contributed: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     loan_amount:       Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     loan_interest_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
     loan_months:       Mapped[int | None]     = mapped_column(Integer, nullable=True)

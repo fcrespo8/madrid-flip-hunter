@@ -15,14 +15,15 @@ def get_summary(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    all_ops   = db.query(Operation).all()
-    vendidas  = [op for op in all_ops if op.status == OperationStatus.vendido]
+    all_ops  = db.query(Operation).all()
+    vendidas = [op for op in all_ops if op.status == OperationStatus.vendido]
 
-    # total_capital_invested = sum of financing_own_capital across ALL operations
+    # capital_total = sum of capital_contributed from ALL partners across all operations
     capital_total = sum(
-        float(op.financials.financing_own_capital)
+        float(p.capital_contributed)
         for op in all_ops
-        if op.financials and op.financials.financing_own_capital
+        for p in op.op_partners
+        if p.capital_contributed
     )
 
     partners_map: dict[str, dict] = {}
@@ -42,8 +43,9 @@ def get_summary(
             name = p.name
             pct  = float(p.participation_pct)
             ganado = round(net_profit * pct / 100, 2)
-            la  = float(p.loan_amount)        if p.loan_amount        else 0
-            lir = float(p.loan_interest_rate) if p.loan_interest_rate else 0
+            cc  = float(p.capital_contributed)  if p.capital_contributed  else 0
+            la  = float(p.loan_amount)           if p.loan_amount          else 0
+            lir = float(p.loan_interest_rate)    if p.loan_interest_rate   else 0
             lm  = p.loan_months or 0
             loan_cost = round(la * (lir / 100) * (lm / 12), 2) if la and lir and lm else 0
             beneficio_local += ganado
@@ -51,17 +53,20 @@ def get_summary(
             if name not in partners_map:
                 partners_map[name] = {
                     "name": name, "role": p.role or "",
-                    "ops": 0, "total_ganado": 0.0, "loan_total": 0.0,
+                    "ops": 0, "capital_aportado": 0.0,
+                    "total_ganado": 0.0, "loan_total": 0.0,
                 }
-            partners_map[name]["ops"]         += 1
-            partners_map[name]["total_ganado"] += ganado
-            partners_map[name]["loan_total"]   += round(la + loan_cost, 2)
+            partners_map[name]["ops"]             += 1
+            partners_map[name]["capital_aportado"] += cc
+            partners_map[name]["total_ganado"]     += ganado
+            partners_map[name]["loan_total"]       += round(la + loan_cost, 2)
 
         beneficio_total += beneficio_local
 
     partners_list = sorted(partners_map.values(), key=lambda x: x["total_ganado"], reverse=True)
     for p in partners_list:
-        p["total_ganado"] = round(p["total_ganado"], 2)
+        p["total_ganado"]     = round(p["total_ganado"], 2)
+        p["capital_aportado"] = round(p["capital_aportado"], 2)
 
     return {
         "kpis": {
