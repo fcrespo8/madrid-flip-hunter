@@ -15,14 +15,17 @@ def get_summary(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    vendidas = (
-        db.query(Operation)
-        .filter(Operation.status == OperationStatus.vendido)
-        .all()
+    all_ops   = db.query(Operation).all()
+    vendidas  = [op for op in all_ops if op.status == OperationStatus.vendido]
+
+    # total_capital_invested = sum of financing_own_capital across ALL operations
+    capital_total = sum(
+        float(op.financials.financing_own_capital)
+        for op in all_ops
+        if op.financials and op.financials.financing_own_capital
     )
 
     partners_map: dict[str, dict] = {}
-    capital_total = 0.0
     beneficio_total = 0.0
     ops_cerradas = 0
 
@@ -43,12 +46,13 @@ def get_summary(
             lir = float(p.loan_interest_rate) if p.loan_interest_rate else 0
             lm  = p.loan_months or 0
             loan_cost = round(la * (lir / 100) * (lm / 12), 2) if la and lir and lm else 0
-
-            capital_total += la
             beneficio_local += ganado
 
             if name not in partners_map:
-                partners_map[name] = {"name": name, "ops": 0, "total_ganado": 0.0, "loan_total": 0.0}
+                partners_map[name] = {
+                    "name": name, "role": p.role or "",
+                    "ops": 0, "total_ganado": 0.0, "loan_total": 0.0,
+                }
             partners_map[name]["ops"]         += 1
             partners_map[name]["total_ganado"] += ganado
             partners_map[name]["loan_total"]   += round(la + loan_cost, 2)
@@ -61,9 +65,9 @@ def get_summary(
 
     return {
         "kpis": {
-            "capital_total":    round(capital_total, 2),
-            "beneficio_total":  round(beneficio_total, 2),
-            "ops_cerradas":     ops_cerradas,
+            "capital_total":   round(capital_total, 2),
+            "beneficio_total": round(beneficio_total, 2),
+            "ops_cerradas":    ops_cerradas,
         },
         "partners": partners_list,
     }

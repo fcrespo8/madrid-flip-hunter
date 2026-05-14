@@ -364,17 +364,40 @@
     /* ── Society global tab ── */
     #tab-personas { display: none; flex-direction: column; height: calc(100vh - 46px); overflow-y: auto; }
     #tab-personas.active { display: flex; }
-    .society-kpis { display: flex; background: #13151f; border-bottom: 1px solid #2a2d3a; flex-shrink: 0; }
+    /* KPI cards row */
+    .soc-kpi-row { display: flex; gap: 12px; padding: 16px 20px; background: #0f1117; border-bottom: 1px solid #1e2130; flex-shrink: 0; flex-wrap: wrap; }
+    .soc-kpi-card { background: #12141e; border: 1px solid #2a2d3a; border-radius: 8px; padding: 14px 16px; min-width: 150px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
+    .soc-kpi-card.blue  { border-left: 3px solid #60a5fa; }
+    .soc-kpi-card.green { border-left: 3px solid #4ade80; }
+    .soc-kpi-card.purple{ border-left: 3px solid #a78bfa; }
+    .soc-kpi-top { display: flex; align-items: center; gap: 8px; }
+    .soc-kpi-val { font-size: 1.35rem; font-weight: 800; color: #fff; }
+    .soc-kpi-val.green { color: #4ade80; }
+    .soc-kpi-label { font-size: 0.7rem; color: #666; text-transform: uppercase; letter-spacing: 0.04em; }
+    /* persons body layout */
     .society-body { display: flex; gap: 24px; padding: 20px; flex: 1; align-items: flex-start; }
     .society-table-wrap { flex: 1; min-width: 0; }
-    .society-chart-wrap { width: 280px; flex-shrink: 0; }
+    /* avatar */
+    .person-avatar { width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center;
+                     justify-content: center; font-weight: 700; font-size: 0.82rem; flex-shrink: 0; }
+    .person-name-cell { display: flex; align-items: center; gap: 8px; }
+    .person-name-inner { display: flex; flex-direction: column; }
+    .person-name-text { font-weight: 600; color: #fff; font-size: 0.85rem; }
+    .person-role-text { font-size: 0.68rem; color: #555; }
+    /* society chart */
+    .society-chart-wrap { width: 320px; flex-shrink: 0; }
     .society-chart-wrap h4 { font-size: 0.75rem; color: #60a5fa; text-transform: uppercase;
                               letter-spacing: 0.05em; margin-bottom: 12px; }
     #society-pie { display: block; }
-    .pie-legend { margin-top: 10px; }
-    .pie-legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.78rem;
-                       color: #ccc; margin-bottom: 5px; }
+    .pie-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin-top: 14px; }
+    .pie-legend-item { display: flex; align-items: center; gap: 7px; font-size: 0.75rem; color: #ccc; }
     .pie-legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    /* empty state */
+    .soc-empty { display: flex; flex-direction: column; align-items: center; justify-content: center;
+                 padding: 60px 20px; gap: 12px; color: #555; }
+    .soc-empty svg { opacity: 0.3; }
+    .soc-empty-title { font-size: 0.9rem; color: #666; font-weight: 600; }
+    .soc-empty-sub   { font-size: 0.78rem; color: #444; }
 
     /* ── Modals ── */
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
@@ -503,51 +526,47 @@
   </div>
 </div>
 
-<!-- ── Sociedad global tab ── -->
+<!-- ── Personas global tab ── -->
 <div id="tab-personas">
-  <div style="padding:16px 20px 0;flex-shrink:0">
-    <h2 style="font-size:1.1rem;color:#fff;font-weight:700">Personas</h2>
-    <p style="font-size:0.78rem;color:#666;margin-top:2px">Participación y ganancias por persona en todas las operaciones</p>
-  </div>
-  <div class="society-kpis" style="margin-top:12px">
-    <div class="kpi">
-      <div style="display:flex;align-items:center;gap:8px">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
-        <div class="kpi-val" id="soc-capital">—</div>
+  <div class="soc-kpi-row">
+    <div class="soc-kpi-card blue">
+      <div class="soc-kpi-top">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+        <div class="soc-kpi-val" id="soc-capital">—</div>
       </div>
-      <div class="kpi-label">Capital invertido total</div>
+      <div class="soc-kpi-label">Capital invertido total</div>
     </div>
-    <div class="kpi">
-      <div style="display:flex;align-items:center;gap:8px">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-        <div class="kpi-val green" id="soc-beneficio">—</div>
+    <div class="soc-kpi-card green">
+      <div class="soc-kpi-top">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+        <div class="soc-kpi-val green" id="soc-beneficio">—</div>
       </div>
-      <div class="kpi-label">Beneficio repartido total</div>
+      <div class="soc-kpi-label">Beneficio repartido total</div>
     </div>
-    <div class="kpi">
-      <div style="display:flex;align-items:center;gap:8px">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
-        <div class="kpi-val" id="soc-ops">—</div>
+    <div class="soc-kpi-card purple">
+      <div class="soc-kpi-top">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+        <div class="soc-kpi-val" id="soc-ops">—</div>
       </div>
-      <div class="kpi-label">Operaciones cerradas</div>
+      <div class="soc-kpi-label">Operaciones cerradas</div>
     </div>
   </div>
   <div class="society-body">
     <div class="society-table-wrap">
       <table>
         <thead><tr>
-          <th>Nombre</th>
-          <th style="text-align:right">Operaciones</th>
+          <th>Persona</th>
+          <th style="text-align:right">Ops</th>
           <th style="text-align:right">Capital prestado</th>
-          <th style="text-align:right">Beneficio ganado</th>
+          <th style="text-align:right">Beneficio</th>
           <th style="text-align:right">Total recibido</th>
         </tr></thead>
         <tbody id="society-tbody"></tbody>
       </table>
     </div>
-    <div class="society-chart-wrap" id="society-chart-section">
+    <div class="society-chart-wrap" id="society-chart-section" style="display:none">
       <h4>Reparto de beneficios</h4>
-      <svg id="society-pie" width="240" height="240" viewBox="0 0 240 240"></svg>
+      <svg id="society-pie" width="300" height="300" viewBox="0 0 300 300"></svg>
       <div class="pie-legend" id="pie-legend"></div>
     </div>
   </div>
@@ -1911,53 +1930,77 @@
 
   function renderSociety(data) {
     const kpis = data.kpis;
-    document.getElementById('soc-capital').textContent    = kpis.capital_total   ? kpis.capital_total.toLocaleString('es-ES')+'€' : '—';
-    document.getElementById('soc-beneficio').textContent  = kpis.beneficio_total ? kpis.beneficio_total.toLocaleString('es-ES')+'€' : '—';
-    document.getElementById('soc-ops').textContent        = kpis.ops_cerradas;
+    const fmt = v => v > 0 ? v.toLocaleString('es-ES', {minimumFractionDigits:0,maximumFractionDigits:0})+'€' : '—';
+    document.getElementById('soc-capital').textContent   = fmt(kpis.capital_total);
+    document.getElementById('soc-beneficio').textContent = fmt(kpis.beneficio_total);
+    document.getElementById('soc-ops').textContent       = kpis.ops_cerradas;
 
     const partners = data.partners;
     const tbody = document.getElementById('society-tbody');
     const chartSection = document.getElementById('society-chart-section');
+
     if (!partners.length) {
-      tbody.innerHTML = '<tr><td colspan="5" style="color:#888;padding:16px;text-align:center">Sin operaciones cerradas todavía</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="5">
+        <div class="soc-empty">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <div class="soc-empty-title">Aún no hay operaciones cerradas</div>
+          <div class="soc-empty-sub">Los datos aparecerán cuando una operación esté en estado Vendido con precio de venta real</div>
+        </div></td></tr>`;
       if (chartSection) chartSection.style.display = 'none';
       return;
     }
+
     if (chartSection) chartSection.style.display = '';
-    tbody.innerHTML = partners.map(p => `
-      <tr>
-        <td style="font-weight:600;color:#fff">${escHtml(p.name)}</td>
+    tbody.innerHTML = partners.map((p, i) => {
+      const color = PIE_COLORS[i % PIE_COLORS.length];
+      const initial = (p.name || '?')[0].toUpperCase();
+      return `<tr>
+        <td>
+          <div class="person-name-cell">
+            <div class="person-avatar" style="background:${color}22;color:${color}">${initial}</div>
+            <div class="person-name-inner">
+              <div class="person-name-text">${escHtml(p.name)}</div>
+              <div class="person-role-text">${escHtml(p.role || 'Socio')}</div>
+            </div>
+          </div>
+        </td>
         <td style="text-align:right" class="neighborhood">${p.ops}</td>
         <td style="text-align:right" class="neighborhood">${p.loan_total > 0 ? p.loan_total.toLocaleString('es-ES')+'€' : '—'}</td>
         <td style="text-align:right;color:#4ade80;font-weight:600">${p.total_ganado > 0 ? p.total_ganado.toLocaleString('es-ES')+'€' : '—'}</td>
         <td style="text-align:right;font-weight:700;color:#fff">${(p.total_ganado + p.loan_total).toLocaleString('es-ES')}€</td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
 
-    // Pie chart
+    // Pie chart — 300x300, vibrant colors, labels with mid-arc text, 2-col legend
     const total = partners.reduce((s, p) => s + p.total_ganado, 0);
     const svgEl = document.getElementById('society-pie');
     const legend = document.getElementById('pie-legend');
     if (total === 0) {
-      svgEl.innerHTML = '<text x="120" y="125" text-anchor="middle" fill="#555" font-size="13">Sin ganancias</text>';
+      svgEl.innerHTML = '<text x="150" y="155" text-anchor="middle" fill="#555" font-size="13">Sin ganancias aún</text>';
       legend.innerHTML = ''; return;
     }
     let paths = [], legendHtml = [], angle = -Math.PI / 2;
-    const cx = 120, cy = 120, r = 95;
+    const cx = 150, cy = 150, r = 115, ri = 60;
     partners.forEach((p, i) => {
       if (p.total_ganado <= 0) return;
       const color = PIE_COLORS[i % PIE_COLORS.length];
       const pct = p.total_ganado / total;
-      const endAngle = angle + pct * 2 * Math.PI;
-      const x1 = cx + r * Math.cos(angle), y1 = cy + r * Math.sin(angle);
-      const x2 = cx + r * Math.cos(endAngle), y2 = cy + r * Math.sin(endAngle);
+      const end = angle + pct * 2 * Math.PI;
+      const x1 = cx + r * Math.cos(angle),  y1 = cy + r * Math.sin(angle);
+      const x2 = cx + r * Math.cos(end),    y2 = cy + r * Math.sin(end);
+      const ix1 = cx + ri * Math.cos(end),   iy1 = cy + ri * Math.sin(end);
+      const ix2 = cx + ri * Math.cos(angle), iy2 = cy + ri * Math.sin(angle);
       const la = pct > 0.5 ? 1 : 0;
-      paths.push(`<path d="M ${cx} ${cy} L ${x1.toFixed(1)} ${y1.toFixed(1)} A ${r} ${r} 0 ${la} 1 ${x2.toFixed(1)} ${y2.toFixed(1)} Z" fill="${color}" stroke="#1a1d27" stroke-width="2"/>`);
+      // donut slice
+      paths.push(`<path d="M ${ix2.toFixed(1)} ${iy2.toFixed(1)} L ${x1.toFixed(1)} ${y1.toFixed(1)} A ${r} ${r} 0 ${la} 1 ${x2.toFixed(1)} ${y2.toFixed(1)} L ${ix1.toFixed(1)} ${iy1.toFixed(1)} A ${ri} ${ri} 0 ${la} 0 ${ix2.toFixed(1)} ${iy2.toFixed(1)} Z" fill="${color}" stroke="#0f1117" stroke-width="2.5"/>`);
       if (pct >= 0.07) {
         const ma = angle + pct * Math.PI;
-        paths.push(`<text x="${(cx + r*0.62*Math.cos(ma)).toFixed(1)}" y="${(cy + r*0.62*Math.sin(ma) + 4).toFixed(1)}" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">${(pct*100).toFixed(0)}%</text>`);
+        const lr = (r + ri) / 2;
+        paths.push(`<text x="${(cx + lr*Math.cos(ma)).toFixed(1)}" y="${(cy + lr*Math.sin(ma)+4).toFixed(1)}" text-anchor="middle" fill="#fff" font-size="12" font-weight="800">${(pct*100).toFixed(0)}%</text>`);
       }
-      legendHtml.push(`<div class="pie-legend-item"><div class="pie-legend-dot" style="background:${color}"></div>${escHtml(p.name)} — ${(pct*100).toFixed(1)}%</div>`);
-      angle = endAngle;
+      const amtStr = p.total_ganado.toLocaleString('es-ES', {minimumFractionDigits:0,maximumFractionDigits:0});
+      legendHtml.push(`<div class="pie-legend-item"><div class="pie-legend-dot" style="background:${color}"></div><span>${escHtml(p.name)}<br><span style="color:#888;font-size:0.7rem">${amtStr}€</span></span></div>`);
+      angle = end;
     });
     svgEl.innerHTML = paths.join('');
     legend.innerHTML = legendHtml.join('');
