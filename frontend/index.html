@@ -910,6 +910,7 @@
           <div class="pnl-section-header">Inversión realizada</div>
           <div class="pnl-sub-header">Compra</div>
           <div class="pnl-row-indent"><span class="pnl-row-label">Precio escritura</span><span class="pnl-row-val" id="pnl-pp">—</span></div>
+          <div class="pnl-row-indent" id="pnl-impuestos-compra-row" style="display:none"><span class="pnl-row-label">ITP (impuestos compra)</span><span class="pnl-row-val" id="pnl-impuestos-compra">—</span></div>
           <div class="pnl-row-indent"><span class="pnl-row-label">Gastos compra (notaría, tasas, registro)</span><span class="pnl-row-val" id="pnl-buy-costs">—</span></div>
           <div class="pnl-row-indent"><span class="pnl-row-label">Comisión inmob. compra</span><span class="pnl-row-val" id="pnl-buy-agency">—</span></div>
           <div class="pnl-subtotal"><span>Subtotal compra</span><span id="pnl-sub-compra">—</span></div>
@@ -928,9 +929,8 @@
           <div class="pnl-row-indent"><span class="pnl-row-label">Coste financiero</span><span class="pnl-row-val" id="pnl-financiero">—</span></div>
           <div class="pnl-subtotal"><span>Subtotal gastos venta</span><span id="pnl-sub-venta">—</span></div>
 
-          <!-- IMPUESTOS -->
-          <div class="pnl-section-header">Impuestos</div>
-          <div class="pnl-row-indent" id="pnl-impuestos-compra-row" style="display:none"><span class="pnl-row-label">ITP y otros impuestos compra</span><span class="pnl-row-val" id="pnl-impuestos-compra">—</span></div>
+          <!-- IMPUESTOS (solo venta) -->
+          <div class="pnl-section-header">Impuestos (venta)</div>
           <div class="pnl-row-indent"><span class="pnl-row-label">Plusvalía municipal</span><span class="pnl-row-val" id="pnl-plusvalia">—</span></div>
           <div class="pnl-row-indent"><span class="pnl-row-label" id="pnl-irpf-label">IRPF</span><span class="pnl-row-val" id="pnl-irpf">—</span></div>
           <div class="pnl-subtotal"><span>Subtotal impuestos</span><span id="pnl-sub-impuestos">—</span></div>
@@ -1483,7 +1483,7 @@
 
     const pv = (!isNaN(asp) && asp > 0) ? asp : (!isNaN(tsp) && tsp > 0 ? tsp : null);
 
-    const subCompra      = pp + buyExpenses + buyAgency;
+    const subCompra      = pp + impuestosCompra + buyExpenses + buyAgency;
     const subObra        = reforma + reformaExtra + tramites + gastosCorrientes + otros;
     const totalInversion = subCompra + subObra;
     const agenciaTotal   = sellAgency;
@@ -1507,7 +1507,7 @@
     set('pnl-agencia',            agenciaTotal);
     set('pnl-financiero',         financieroTotal);
     set('pnl-sub-venta',          subVenta);
-    // ITP row — show only if non-zero
+    // ITP row in compra section — show only if non-zero
     const itpRow = document.getElementById('pnl-impuestos-compra-row');
     if (itpRow) itpRow.style.display = impuestosCompra > 0 ? '' : 'none';
     if (impuestosCompra > 0) set('pnl-impuestos-compra', impuestosCompra);
@@ -1521,7 +1521,7 @@
     };
 
     if (pv != null) {
-      const gross  = pv - totalInversion - subVenta - impuestosCompra - plusvaliaOnly;
+      const gross  = pv - totalInversion - subVenta - plusvaliaOnly;
       const regime = getTaxRegime();
       const taxes  = regime === 'sl' ? Math.max(0, gross * 0.23) : calcIRPF(Math.max(0, gross));
       const net    = gross - taxes;
@@ -1529,10 +1529,10 @@
 
       document.getElementById('fin-tax-amount').value      = taxes > 0 ? taxes.toFixed(2) : '';
       document.getElementById('pnl-irpf').textContent      = formatEur(taxes);
-      document.getElementById('pnl-sub-impuestos').textContent = formatEur(impuestosCompra + plusvaliaOnly + taxes);
+      document.getElementById('pnl-sub-impuestos').textContent = formatEur(plusvaliaOnly + taxes);
       sign('pnl-net', net);
 
-      const totalCostes = totalInversion + subVenta + impuestosCompra;
+      const totalCostes = totalInversion + subVenta;
       const roiEl = document.getElementById('pnl-roi');
       if (totalCostes > 0) {
         const roi = net / totalCostes * 100;
@@ -1582,8 +1582,6 @@
       sign('pnl-net', null);
       document.getElementById('pnl-irpf').textContent          = '—';
       document.getElementById('pnl-sub-impuestos').textContent  = '—';
-      const itpRowEl = document.getElementById('pnl-impuestos-compra-row');
-      if (itpRowEl) itpRowEl.style.display = 'none';
       document.getElementById('pnl-roi').textContent           = '—';
       document.getElementById('pnl-roi').className             = 'pnl-row-val';
       document.getElementById('fin-tax-amount').value          = '';
