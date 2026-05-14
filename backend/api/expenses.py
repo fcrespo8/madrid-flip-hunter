@@ -57,7 +57,7 @@ def _parse_enum(enum_cls, value: str, field: str):
         raise HTTPException(status_code=400, detail=f"Invalid {field} '{value}'. Valid: {valid}")
 
 
-@router.get("/{operation_id}/expenses", response_model=list[ExpenseOut])
+@router.get("/{operation_id}/expenses")
 def list_expenses(
     operation_id: str,
     db: Session = Depends(get_db),
@@ -72,7 +72,36 @@ def list_expenses(
         .order_by(OperationExpense.date.desc(), OperationExpense.created_at.desc())
         .all()
     )
-    return [ExpenseOut.from_orm(e) for e in expenses]
+    summary: dict[str, float] = {
+        "obra": 0.0, "tramites": 0.0, "comunidad_otros": 0.0,
+        "agencia_compra": 0.0, "agencia_venta": 0.0,
+        "impuestos": 0.0, "financiacion": 0.0, "total": 0.0,
+    }
+    for e in expenses:
+        amt = float(e.amount)
+        cat = e.category
+        desc = (e.description or "").lower()
+        summary["total"] += amt
+        if cat in (ExpenseCategory.reforma, ExpenseCategory.reforma_extra):
+            summary["obra"] += amt
+        elif cat == ExpenseCategory.honorarios:
+            summary["tramites"] += amt
+        elif cat in (ExpenseCategory.comunidad, ExpenseCategory.suministros, ExpenseCategory.otros):
+            summary["comunidad_otros"] += amt
+        elif cat == ExpenseCategory.agencia:
+            if any(kw in desc for kw in ("compra", "inmobiliaria")):
+                summary["agencia_compra"] += amt
+            else:
+                summary["agencia_venta"] += amt
+        elif cat == ExpenseCategory.impuestos:
+            summary["impuestos"] += amt
+        elif cat == ExpenseCategory.financiacion:
+            summary["financiacion"] += amt
+    summary = {k: round(v, 2) for k, v in summary.items()}
+    return {
+        "expenses": [ExpenseOut.from_orm(e) for e in expenses],
+        "summary": summary,
+    }
 
 
 @router.post("/{operation_id}/expenses", response_model=ExpenseOut, status_code=201)

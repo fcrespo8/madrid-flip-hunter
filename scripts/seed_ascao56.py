@@ -83,7 +83,7 @@ gastos = [
     # COMPRA — solo gastos auxiliares (el precio del piso está en purchase_price)
     (date(2025,10,20),"Notario",                    ExpenseCategory.compra,        979,    PaidBy.sl),
     (date(2025,10,20),"Tasas Ayuntamiento",          ExpenseCategory.compra,        1010,   PaidBy.sl),
-    (date(2025,10,20),"ITP",                        ExpenseCategory.compra,        19200,  PaidBy.sl),
+    (date(2025,10,20),"ITP",                        ExpenseCategory.impuestos,     19200,  PaidBy.sl),
     (date(2025,10,20),"Registro Propiedad",          ExpenseCategory.compra,        521,    PaidBy.sl),
     (date(2025,10,20),"Mario ITP (gestoría)",        ExpenseCategory.compra,        605,    PaidBy.sl),
     # AGENCIA

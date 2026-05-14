@@ -143,7 +143,7 @@ def _build_financials_out(
         "financing_own_capital": None, "financing_borrowed": None, "financing_cost": None,
         "financing_interest_rate": None, "financing_loan_months": None,
         "tax_regime": None,
-        "total_purchase_cost": None, "total_costes": None, "total_expenses": total_expenses,
+        "total_purchase_cost": None, "total_costes": None, "impuestos_compra": None, "total_expenses": total_expenses,
         "expenses_by_category": ebc,
         "gross_profit": None, "net_profit": None, "roi_pct": None,
     }
@@ -158,21 +158,22 @@ def _build_financials_out(
     fir = _f(fin.financing_interest_rate) or 0
     fim = fin.financing_loan_months or 0
 
-    buy_costs     = ebc.get("compra", 0.0)
-    buy_agency    = ebc.get("buy_agency", 0.0)
-    sell_agency   = ebc.get("sell_agency", 0.0)
-    reforma       = ebc.get("reforma", 0.0)
-    reforma_extra = ebc.get("reforma_extra", 0.0)
-    tramites      = ebc.get("tramites", 0.0)
-    gastos_corr   = ebc.get("gastos_corrientes", 0.0)
-    otros         = ebc.get("otros", 0.0)
-    financiacion  = ebc.get("financiacion", 0.0)
+    buy_costs        = ebc.get("compra", 0.0)
+    buy_agency       = ebc.get("buy_agency", 0.0)
+    sell_agency      = ebc.get("sell_agency", 0.0)
+    reforma          = ebc.get("reforma", 0.0)
+    reforma_extra    = ebc.get("reforma_extra", 0.0)
+    tramites         = ebc.get("tramites", 0.0)
+    gastos_corr      = ebc.get("gastos_corrientes", 0.0)
+    otros            = ebc.get("otros", 0.0)
+    financiacion     = ebc.get("financiacion", 0.0)
+    impuestos_compra = ebc.get("impuestos_gastos", 0.0)
 
     loan_cost    = fib * (fir / 100) * (fim / 12) if fir and fim else 0.0
     total_compra = pp + buy_costs + buy_agency
     total_obra   = reforma + reforma_extra
     total_costes = (total_compra + total_obra + tramites + gastos_corr
-                    + otros + sell_agency + financiacion + loan_cost)
+                    + otros + sell_agency + financiacion + loan_cost + impuestos_compra)
 
     gross_profit: float | None = None
     net_profit:   float | None = None
@@ -219,6 +220,7 @@ def _build_financials_out(
         "tax_regime": fin.tax_regime,
         "total_purchase_cost": round(total_compra, 2),
         "total_costes":        round(total_costes, 2),
+        "impuestos_compra":    round(impuestos_compra, 2),
         "total_expenses":      round(total_expenses, 2),
         "expenses_by_category": {k: round(v, 2) for k, v in ebc.items()},
         "gross_profit": round(gross_profit, 2) if gross_profit is not None else None,
