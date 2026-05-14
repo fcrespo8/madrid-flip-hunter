@@ -143,7 +143,7 @@ def _build_financials_out(
         "financing_own_capital": None, "financing_borrowed": None, "financing_cost": None,
         "financing_interest_rate": None, "financing_loan_months": None,
         "tax_regime": None,
-        "total_purchase_cost": None, "total_expenses": total_expenses,
+        "total_purchase_cost": None, "total_costes": None, "total_expenses": total_expenses,
         "expenses_by_category": ebc,
         "gross_profit": None, "net_profit": None, "roi_pct": None,
     }
@@ -218,6 +218,7 @@ def _build_financials_out(
         "financing_loan_months":   fin.financing_loan_months,
         "tax_regime": fin.tax_regime,
         "total_purchase_cost": round(total_compra, 2),
+        "total_costes":        round(total_costes, 2),
         "total_expenses":      round(total_expenses, 2),
         "expenses_by_category": {k: round(v, 2) for k, v in ebc.items()},
         "gross_profit": round(gross_profit, 2) if gross_profit is not None else None,

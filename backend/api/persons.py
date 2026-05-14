@@ -18,13 +18,12 @@ def get_summary(
     all_ops  = db.query(Operation).all()
     vendidas = [op for op in all_ops if op.status == OperationStatus.vendido]
 
-    # capital_total = sum of capital_contributed from ALL partners across all operations
-    capital_total = sum(
-        float(p.capital_contributed)
-        for op in all_ops
-        for p in op.op_partners
-        if p.capital_contributed
-    )
+    # capital_total = sum of total_costes across ALL operations
+    capital_total = 0.0
+    for op in all_ops:
+        total_exp, by_cat = _get_expenses_data(db, op.id)
+        fin_data = _build_financials_out(op.financials, total_exp, by_cat)
+        capital_total += fin_data.get("total_costes") or 0.0
 
     partners_map: dict[str, dict] = {}
     beneficio_total = 0.0
@@ -37,13 +36,16 @@ def get_summary(
         if net_profit is None:
             continue
         ops_cerradas += 1
+        total_costes = fin_data.get("total_costes") or 0.0
         beneficio_local = 0.0
 
         for p in op.op_partners:
             name = p.name
             pct  = float(p.participation_pct)
             ganado = round(net_profit * pct / 100, 2)
-            cc  = float(p.capital_contributed)  if p.capital_contributed  else 0
+            # capital_aportado: explicit if set, else proportional share of total_costes
+            cc  = (float(p.capital_contributed) if p.capital_contributed
+                   else round(pct / 100 * total_costes, 2))
             la  = float(p.loan_amount)           if p.loan_amount          else 0
             lir = float(p.loan_interest_rate)    if p.loan_interest_rate   else 0
             lm  = p.loan_months or 0

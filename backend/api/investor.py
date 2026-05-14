@@ -35,19 +35,14 @@ def get_investor_summary(db: Session = Depends(get_db)):
     roi_anual_list: list[float] = []
 
     closed_deals = []
+    investors_map: dict[str, dict] = {}
+
     for op in vendidas:
         total_exp, by_cat = _get_expenses_data(db, op.id)
         fin = _build_financials_out(op.financials, total_exp, by_cat)
         net = fin.get("net_profit")
         roi = fin.get("roi_pct")
-
-        # capital deployed = sum of capital_contributed from all partners
-        cap = sum(
-            float(p.capital_contributed)
-            for p in op.op_partners
-            if p.capital_contributed
-        ) or (float(op.financials.financing_own_capital)
-              if op.financials and op.financials.financing_own_capital else 0)
+        cap = fin.get("total_costes") or 0.0   # capital desplegado = total costes operación
 
         capital_total += cap
         if net is not None:
@@ -64,31 +59,28 @@ def get_investor_summary(db: Session = Depends(get_db)):
         sale_date  = op.dates.sale_date.isoformat()     if op.dates and op.dates.sale_date      else None
 
         closed_deals.append({
-            "name":          op.name,
-            "address":       op.address or "",
-            "neighborhood":  op.neighborhood or "",
+            "name":           op.name,
+            "address":        op.address or "",
+            "neighborhood":   op.neighborhood or "",
             "escritura_date": escritura,
-            "sale_date":     sale_date,
-            "hold_months":   hold,
-            "capital":       round(cap, 0),
-            "net_profit":    round(net, 0) if net is not None else None,
-            "roi_pct":       roi,
-            "roi_anual_pct": roi_anual,
+            "sale_date":      sale_date,
+            "hold_months":    hold,
+            "capital":        round(cap, 0),
+            "net_profit":     round(net, 0) if net is not None else None,
+            "roi_pct":        roi,
+            "roi_anual_pct":  roi_anual,
         })
 
-    # ── Investors ─────────────────────────────────────────────────────────────
-    investors_map: dict[str, dict] = {}
-    for op in vendidas:
-        total_exp, by_cat = _get_expenses_data(db, op.id)
-        fin = _build_financials_out(op.financials, total_exp, by_cat)
-        net = fin.get("net_profit")
+        # ── Investors (built in same loop to avoid double-querying) ───────────
         if net is None:
             continue
         for p in op.op_partners:
             name = p.name
             pct  = float(p.participation_pct)
             ganado = round(net * pct / 100, 2)
-            cc = float(p.capital_contributed) if p.capital_contributed else 0
+            # capital per investor: explicit contribution or proportional share of total_costes
+            cc = (float(p.capital_contributed) if p.capital_contributed
+                  else round(pct / 100 * cap, 2))
             if name not in investors_map:
                 investors_map[name] = {
                     "name": name, "role": p.role or "Socio",

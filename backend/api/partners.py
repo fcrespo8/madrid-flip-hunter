@@ -142,11 +142,15 @@ def get_distribution(
     if net_profit is None:
         return {"available": False, "reason": "Beneficio neto no calculable — introduce precio de venta real"}
 
+    total_costes = fin_data.get("total_costes") or 0.0
+
     items = []
     for p in op.op_partners:
         pct = float(p.participation_pct)
         amount = round(net_profit * pct / 100, 2)
-        cc = float(p.capital_contributed) if p.capital_contributed else None
+        # capital_contributed: explicit if set, else proportional share of total_costes
+        cc = (float(p.capital_contributed) if p.capital_contributed
+              else (round(pct / 100 * total_costes, 2) if total_costes else None))
         la = float(p.loan_amount) if p.loan_amount else 0
         lir = float(p.loan_interest_rate) if p.loan_interest_rate else 0
         lm = p.loan_months or 0
