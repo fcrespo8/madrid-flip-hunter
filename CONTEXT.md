@@ -15,7 +15,18 @@ ESTADO ACTUAL (mayo 2026)
 - Soft delete: columnas is_active y last_seen_at — listings sin ver en 30 días se desactivan
 - APScheduler: pipeline completo se ejecuta automáticamente cada día a las 7:00 AM
 - Dashboard: FastAPI + Leaflet en http://localhost:8000 — KPIs (total, score medio, mejor deal, bajo mercado), columna vs mercado con color, precio medio zona, badges por fuente, toggle "sin m²", panel de detalle con margen estimado
-- Deal Tracker (Tab "Operaciones"): Módulos 1-3 completos — 8 tablas PostgreSQL (operations, operation_financials, operation_dates, operation_expenses, recurring_expenses, partners, partner_distributions, users), autenticación JWT (admin/viewer), CRUD operaciones, primera pantalla con tabs Deal Finder/Operaciones
+- Deal Tracker (Tab "Operaciones"): Módulos 1-7 completos
+  - 8 tablas PostgreSQL con migraciones Alembic
+  - Autenticación JWT (admin/viewer)
+  - CRUD operaciones con SPA navigation (/operaciones/{id})
+  - Tab Ficha: datos generales + timeline de fechas clave
+  - Tab Gastos: entrada línea a línea, resumen por categoría, export CSV
+  - Tab Financiero: P&L detallado (Inversión → Gastos venta → Impuestos → Beneficio neto), ITP en compra, IRPF con tramos reales, IS 23%, ROI y ROI anualizado
+  - Tab Sociedad: socios por operación, % participación, reparto al cierre con tarjetas y gráfico
+  - Tab Personas (global): track record por persona, capital aportado, gráfico donut
+  - Tab Inversores (global): track record profesional para mostrar en llamadas, KPIs, operaciones cerradas, retorno por inversor, próximas oportunidades
+  - Fuente de verdad: P&L calcula todo desde operation_expenses, no desde campos duplicados
+  - Datos reales cargados: Ascao 56 (vendido, 44 gastos, 2 socios, beneficio neto ~43.403€)
 - CI/CD: GitHub Actions verde (lint ruff + 4 smoke tests) + deploy automático a Railway en cada push a main
 - Deploy: Railway — madrid-flip-hunter-production.up.railway.app + PostgreSQL en Railway (DB se puebla con pipeline diario 7am)
 - Docker: Playwright + Chromium instalado para scraping en cloud
@@ -30,12 +41,12 @@ PIPELINE COMPLETO (ejecutado automáticamente a las 7am vía APScheduler)
   poetry run uvicorn backend.api.main:app --reload --port 8000
 
 PROXIMOS PASOS
-- Deal Tracker Módulo 4: Financiero (P&L por operación)
-- Deal Tracker Módulo 5: Gastos (operation_expenses — entrada línea a línea)
-- Deal Tracker Módulo 6: Documentos
-- Deal Tracker Módulo 7: Sociedad y reparto de beneficios
-- Deal Tracker Módulo 8: Portfolio view + KPIs globales
-- Deal Tracker Módulo 9: Exportación PDF/Excel para gestoría
+- Deal Tracker Módulo 8: Calculadora de viabilidad (nueva tab, análisis rápido de pisos, comparación de escenarios)
+- Deal Tracker Módulo 9: Documentos (checklist por fase, estado, links)
+- Deal Tracker: Deploy a Railway (producción)
+- Deal Tracker: Usuario viewer para gestor/socio
+- Deal Tracker: Export PDF del P&L para gestoría
+- Deal Tracker: Gastos recurrentes automáticos (comunidad mensual, cuota gestoría SL)
 - Idealista scraper: pendiente proxies residenciales
-- README portfolio para mostrar el proyecto
+- README portfolio actualizado con Deal Tracker
 - Cancelar Wix
