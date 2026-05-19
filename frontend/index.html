@@ -453,6 +453,81 @@
     .form-row input:focus, .form-row select:focus, .form-row textarea:focus { outline: none; border-color: #3b5bdb; }
     .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
     .error-msg { color: #f87171; font-size: 0.75rem; margin-top: 8px; min-height: 16px; }
+
+    /* ── Calculadora tab ── */
+    #tab-calculadora { display: none; flex-direction: column; height: calc(100vh - 46px); overflow: hidden; }
+    #tab-calculadora.active { display: flex; }
+    .calc-mode-tabs { display: flex; background: #12141e; border-bottom: 1px solid #2a2d3a; flex-shrink: 0; }
+    .calc-mode-btn { background: none; border: none; color: #888; font-size: 0.82rem; font-weight: 600; padding: 10px 20px; cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.15s; }
+    .calc-mode-btn:hover { color: #ccc; }
+    .calc-mode-btn.active { color: #a78bfa; border-bottom-color: #a78bfa; }
+    .calc-layout { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+    .calc-panel-left { width: 320px; flex-shrink: 0; background: #1a1d27; border-right: 1px solid #2a2d3a; overflow-y: auto; padding: 16px; }
+    .calc-panel-right { flex: 1; overflow-y: auto; padding: 20px; background: #0f1117; }
+    .calc-section-label { font-size: 0.65rem; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin: 14px 0 6px; padding-top: 10px; border-top: 1px solid #1e2130; }
+    .calc-section-label.first { margin-top: 0; padding-top: 0; border-top: none; }
+    .calc-field { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; gap: 8px; }
+    .calc-field label { font-size: 0.78rem; color: #94a3b8; flex: 1; }
+    .calc-field-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    .calc-input { width: 100px; background: #12141e; color: #e0e0e0; border: 1px solid #2a2d3a; border-radius: 5px; padding: 5px 8px; font-size: 0.78rem; text-align: right; }
+    .calc-input:focus { outline: none; border-color: #7c3aed; }
+    .calc-input-sm { width: 60px; }
+    .calc-unit { font-size: 0.72rem; color: #555; width: 16px; }
+    .calc-select { background: #12141e; color: #e0e0e0; border: 1px solid #2a2d3a; border-radius: 5px; padding: 5px 8px; font-size: 0.78rem; width: 100%; margin-bottom: 6px; }
+    .calc-select:focus { outline: none; border-color: #7c3aed; }
+    .semaforo { padding: 12px 16px; border-radius: 8px; display: flex; align-items: center; gap: 10px; margin-bottom: 20px; font-weight: 600; font-size: 0.88rem; }
+    .semaforo.verde    { background: #052e16; border: 1px solid #166534; color: #34d399; }
+    .semaforo.amarillo { background: #3a2e0a; border: 1px solid #854d0e; color: #fbbf24; }
+    .semaforo.rojo     { background: #3a0a0a; border: 1px solid #991b1b; color: #f87171; }
+    .semaforo.gris     { background: #1e2130; border: 1px solid #2a2d3a; color: #555; }
+    .semaforo-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .semaforo.verde .semaforo-dot    { background: #34d399; }
+    .semaforo.amarillo .semaforo-dot { background: #fbbf24; }
+    .semaforo.rojo .semaforo-dot     { background: #f87171; }
+    .semaforo.gris .semaforo-dot     { background: #555; }
+    .calc-kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .calc-kpi-card { background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 8px; padding: 12px 14px; }
+    .calc-kpi-val { font-size: 1.1rem; font-weight: 800; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .calc-kpi-val.green  { color: #34d399; }
+    .calc-kpi-val.red    { color: #f87171; }
+    .calc-kpi-val.yellow { color: #fbbf24; }
+    .calc-kpi-label { font-size: 0.66rem; color: #555; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 4px; }
+    .calc-pnl { background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 8px; overflow: hidden; margin-bottom: 20px; font-size: 0.82rem; }
+    .calc-pnl-section { font-size: 0.65rem; color: #6366f1; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; padding: 8px 14px 4px; background: #0d1117; border-bottom: 1px solid #1e293b; }
+    .calc-pnl-row { display: flex; justify-content: space-between; padding: 6px 14px; border-bottom: 1px solid #111827; }
+    .calc-pnl-row:last-child { border-bottom: none; }
+    .calc-pnl-row.subtotal { background: #0d1117; font-weight: 600; color: #cbd5e1; border-top: 1px solid #1e293b; }
+    .calc-pnl-row.result   { background: #080b10; font-weight: 700; font-size: 0.9rem; color: #e2e8f0; border-top: 2px solid #2a2d3a; }
+    .calc-pnl-label  { color: #94a3b8; }
+    .calc-pnl-cost   { color: #f87171; font-weight: 600; }
+    .calc-pnl-income { color: #34d399; font-weight: 600; }
+    .calc-socio-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+    .calc-socio-name { flex: 1; background: #12141e; color: #e0e0e0; border: 1px solid #2a2d3a; border-radius: 5px; padding: 5px 8px; font-size: 0.78rem; }
+    .calc-socio-pct  { width: 60px; background: #12141e; color: #e0e0e0; border: 1px solid #2a2d3a; border-radius: 5px; padding: 5px 8px; font-size: 0.78rem; text-align: right; }
+    .calc-socio-name:focus, .calc-socio-pct:focus { outline: none; border-color: #7c3aed; }
+    .calc-socio-del { background: none; border: none; color: #555; cursor: pointer; font-size: 0.9rem; padding: 0 2px; line-height: 1; }
+    .calc-socio-del:hover { color: #f87171; }
+    .calc-pct-warn { font-size: 0.7rem; color: #f87171; min-height: 14px; margin: 2px 0 6px; }
+    .calc-socios-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+    .calc-socio-pill { padding: 7px 14px; border-radius: 20px; font-size: 0.8rem; background: #1a1d27; border: 1px solid #2a2d3a; }
+    .escenarios-title { font-size: 0.72rem; color: #6366f1; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; margin-bottom: 10px; padding-bottom: 4px; border-bottom: 1px solid #1e2130; }
+    .save-escenario-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    .escenarios-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .escenarios-table th { padding: 8px 12px; background: #12141e; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; border: 1px solid #1e2130; font-weight: 600; text-align: center; }
+    .escenarios-table th.opt  { color: #34d399; }
+    .escenarios-table th.base { color: #fbbf24; }
+    .escenarios-table th.pes  { color: #f87171; }
+    .escenarios-table td { padding: 7px 12px; border: 1px solid #1e2130; color: #ccc; text-align: center; }
+    .escenarios-table td.row-label { color: #666; font-size: 0.75rem; background: #12141e; text-align: left; }
+    .calc-compare-layout { display: flex; flex-direction: column; flex: 1; overflow-y: auto; padding: 20px; gap: 20px; background: #0f1117; }
+    .calc-compare-cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    .calc-compare-col { background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 8px; overflow: hidden; }
+    .calc-compare-col-header { padding: 10px 14px; border-bottom: 1px solid #2a2d3a; display: flex; justify-content: space-between; align-items: center; }
+    .calc-compare-col-inputs { padding: 12px 14px; }
+    .calc-compare-col-results { padding: 12px 14px; border-top: 1px solid #2a2d3a; }
+    .badge-opt  { background: #052e16; color: #34d399; padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 700; }
+    .badge-base { background: #3a2e0a; color: #fbbf24; padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 700; }
+    .badge-pes  { background: #3a0a0a; color: #f87171; padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 700; }
   </style>
 </head>
 <body>
@@ -468,6 +543,7 @@
       <button class="tab-btn" onclick="switchTab('ops')">Operaciones</button>
       <button class="tab-btn" onclick="switchTab('personas')">Personas</button>
       <button class="tab-btn" onclick="switchTab('inversores')">Inversores</button>
+      <button class="tab-btn" onclick="switchTab('calculadora')">Calculadora</button>
     </div>
     <div class="header-right">
       <span id="auth-status"></span>
@@ -664,6 +740,118 @@
   </div>
 
   <div class="inv-cta">Madrid Flip Hunter — Inversiones inmobiliarias de valor añadido</div>
+</div>
+
+<!-- ── Calculadora tab ── -->
+<div id="tab-calculadora">
+  <div class="calc-mode-tabs">
+    <button class="calc-mode-btn active" id="calc-btn-single" onclick="switchCalcMode('single')">Análisis único</button>
+    <button class="calc-mode-btn" id="calc-btn-compare" onclick="switchCalcMode('compare')">Comparar escenarios</button>
+  </div>
+
+  <!-- MODO: Análisis único -->
+  <div id="calc-mode-single" class="calc-layout">
+    <!-- Panel izquierdo -->
+    <div class="calc-panel-left">
+      <div class="calc-section-label first">Compra</div>
+      <div class="calc-field"><label>Precio de compra</label><div class="calc-field-right"><input class="calc-input" type="number" id="c-precio-compra" placeholder="0"><span class="calc-unit">€</span></div></div>
+      <div class="calc-field"><label>ITP</label><div class="calc-field-right"><input class="calc-input calc-input-sm" type="number" id="c-itp-pct" value="6.0" step="0.1"><span class="calc-unit">%</span></div></div>
+      <div class="calc-field"><label>Notaría + registro</label><div class="calc-field-right"><input class="calc-input" type="number" id="c-notaria" value="1500"><span class="calc-unit">€</span></div></div>
+      <div class="calc-field"><label>Comisión compra</label><div class="calc-field-right"><input class="calc-input" type="number" id="c-comision-compra" value="0"><span class="calc-unit">€</span></div></div>
+
+      <div class="calc-section-label">Reforma y hold</div>
+      <div class="calc-field"><label>Presupuesto reforma</label><div class="calc-field-right"><input class="calc-input" type="number" id="c-reforma" placeholder="0"><span class="calc-unit">€</span></div></div>
+      <div class="calc-field"><label>Gastos corrientes obra</label><div class="calc-field-right"><input class="calc-input" type="number" id="c-gastos-corrientes" value="0"><span class="calc-unit">€</span></div></div>
+      <div class="calc-field"><label>Meses de hold</label><div class="calc-field-right"><input class="calc-input calc-input-sm" type="number" id="c-meses" value="6" min="1" step="1"><span class="calc-unit"></span></div></div>
+
+      <div class="calc-section-label">Venta</div>
+      <div class="calc-field"><label>Precio de venta objetivo</label><div class="calc-field-right"><input class="calc-input" type="number" id="c-precio-venta" placeholder="0"><span class="calc-unit">€</span></div></div>
+      <div class="calc-field"><label>Comisión venta</label><div class="calc-field-right"><input class="calc-input calc-input-sm" type="number" id="c-comision-venta-pct" value="3.0" step="0.1"><span class="calc-unit">%</span></div></div>
+      <div class="calc-field"><label>Plusvalía municipal</label><div class="calc-field-right"><input class="calc-input" type="number" id="c-plusvalia" value="0"><span class="calc-unit">€</span></div></div>
+
+      <div class="calc-section-label">Fiscal</div>
+      <select class="calc-select" id="c-regimen">
+        <option value="irpf">Persona física (IRPF)</option>
+        <option value="sl">Sociedad Limitada (IS 25%)</option>
+      </select>
+      <div id="c-is-badge" style="display:none;font-size:0.7rem;color:#fbbf24;margin-bottom:6px">ℹ️ 15% los primeros 2 años de actividad</div>
+
+      <div class="calc-section-label">Socios</div>
+      <div id="c-socios-rows"></div>
+      <div class="calc-pct-warn" id="c-pct-warn"></div>
+      <button class="btn btn-sm" id="c-add-socio-btn" onclick="addCalcSocio()">+ Añadir socio</button>
+    </div>
+
+    <!-- Panel derecho -->
+    <div class="calc-panel-right">
+      <div class="semaforo gris" id="c-semaforo"><div class="semaforo-dot"></div><span id="c-semaforo-text">Introduce los datos</span></div>
+
+      <div class="calc-kpi-grid">
+        <div class="calc-kpi-card"><div class="calc-kpi-val" id="c-kpi-inversion">—</div><div class="calc-kpi-label">Inversión total</div></div>
+        <div class="calc-kpi-card"><div class="calc-kpi-val" id="c-kpi-bruto">—</div><div class="calc-kpi-label">Beneficio bruto</div></div>
+        <div class="calc-kpi-card"><div class="calc-kpi-val" id="c-kpi-neto">—</div><div class="calc-kpi-label">Beneficio neto</div></div>
+        <div class="calc-kpi-card"><div class="calc-kpi-val" id="c-kpi-roi">—</div><div class="calc-kpi-label">ROI total %</div></div>
+        <div class="calc-kpi-card" style="grid-column:1/-1"><div class="calc-kpi-val" id="c-kpi-roi-anual">—</div><div class="calc-kpi-label">ROI anualizado %</div></div>
+      </div>
+
+      <div class="calc-pnl">
+        <div class="calc-pnl-section">P&amp;L detallado</div>
+        <div class="calc-pnl-row"><span class="calc-pnl-label">Precio venta</span><span class="calc-pnl-income" id="c-pnl-venta">—</span></div>
+        <div class="calc-pnl-row"><span class="calc-pnl-label">Precio compra</span><span class="calc-pnl-cost" id="c-pnl-compra">—</span></div>
+        <div class="calc-pnl-row"><span class="calc-pnl-label">ITP</span><span class="calc-pnl-cost" id="c-pnl-itp">—</span></div>
+        <div class="calc-pnl-row"><span class="calc-pnl-label">Notaría + registro</span><span class="calc-pnl-cost" id="c-pnl-notaria">—</span></div>
+        <div class="calc-pnl-row"><span class="calc-pnl-label">Comisión compra</span><span class="calc-pnl-cost" id="c-pnl-com-compra">—</span></div>
+        <div class="calc-pnl-row"><span class="calc-pnl-label">Reforma</span><span class="calc-pnl-cost" id="c-pnl-reforma">—</span></div>
+        <div class="calc-pnl-row"><span class="calc-pnl-label">Gastos corrientes</span><span class="calc-pnl-cost" id="c-pnl-corrientes">—</span></div>
+        <div class="calc-pnl-row subtotal"><span>Inversión total</span><span id="c-pnl-inversion">—</span></div>
+        <div class="calc-pnl-row"><span class="calc-pnl-label">Comisión venta</span><span class="calc-pnl-cost" id="c-pnl-com-venta">—</span></div>
+        <div class="calc-pnl-row"><span class="calc-pnl-label">Plusvalía municipal</span><span class="calc-pnl-cost" id="c-pnl-plusvalia">—</span></div>
+        <div class="calc-pnl-row subtotal"><span>Beneficio bruto</span><span id="c-pnl-bruto">—</span></div>
+        <div class="calc-pnl-row"><span class="calc-pnl-label" id="c-pnl-tax-label">IRPF estimado</span><span class="calc-pnl-cost" id="c-pnl-tax">—</span></div>
+        <div class="calc-pnl-row result"><span>Beneficio neto</span><span id="c-pnl-neto">—</span></div>
+      </div>
+
+      <div id="c-socios-reparto-wrap" style="display:none">
+        <div style="font-size:0.72rem;color:#6366f1;text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:10px;padding-bottom:4px;border-bottom:1px solid #1e2130">Reparto por socio</div>
+        <div class="calc-socios-pills" id="c-socios-pills"></div>
+      </div>
+
+      <div>
+        <div class="escenarios-title">Escenarios guardados</div>
+        <div class="save-escenario-row">
+          <span style="font-size:0.78rem;color:#888">Guardar como:</span>
+          <select class="calc-select" id="c-save-tipo" style="width:auto">
+            <option value="optimista">Optimista</option>
+            <option value="base" selected>Base</option>
+            <option value="pesimista">Pesimista</option>
+          </select>
+          <button class="btn btn-sm btn-primary" onclick="saveEscenario()">Guardar →</button>
+        </div>
+        <table class="escenarios-table">
+          <thead><tr>
+            <th style="text-align:left">Métrica</th>
+            <th class="opt">Optimista</th><th class="base">Base</th><th class="pes">Pesimista</th>
+          </tr></thead>
+          <tbody id="escenarios-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODO: Comparar escenarios -->
+  <div id="calc-mode-compare" class="calc-compare-layout" style="display:none">
+    <div style="background:#1a1d27;border:1px solid #2a2d3a;border-radius:8px;overflow:hidden">
+      <div style="font-size:0.72rem;color:#6366f1;text-transform:uppercase;letter-spacing:.06em;font-weight:700;padding:10px 14px;background:#0d1117;border-bottom:1px solid #1e293b">Comparativa</div>
+      <table class="escenarios-table">
+        <thead><tr>
+          <th style="text-align:left">Métrica</th>
+          <th class="opt">Optimista</th><th class="base">Base</th><th class="pes">Pesimista</th>
+        </tr></thead>
+        <tbody id="compare-summary-tbody"></tbody>
+      </table>
+    </div>
+    <div class="calc-compare-cols" id="calc-compare-cols"></div>
+  </div>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
@@ -1163,12 +1351,14 @@
     document.getElementById('tab-ops').classList.toggle('active', name === 'ops');
     document.getElementById('tab-personas').classList.toggle('active', name === 'personas');
     document.getElementById('tab-inversores').classList.toggle('active', name === 'inversores');
+    document.getElementById('tab-calculadora').classList.toggle('active', name === 'calculadora');
     document.querySelectorAll('.tab-btn').forEach((b, i) => {
-      b.classList.toggle('active', ['finder','ops','personas','inversores'][i] === name);
+      b.classList.toggle('active', ['finder','ops','personas','inversores','calculadora'][i] === name);
     });
   }
 
   function switchTab(name) {
+    if (name === 'calculadora') { _setActiveMainTab('calculadora'); return; }
     const paths = { finder: '/', ops: '/operaciones', personas: '/personas', inversores: '/inversores' };
     navigateTo(paths[name] || '/');
   }
@@ -2342,6 +2532,381 @@
   document.getElementById('f-sort').addEventListener('change', applyFilters);
   document.getElementById('f-no-size').addEventListener('change', applyFilters);
 
+  // ── Calculadora ───────────────────────────────────────────────────────────
+
+  function calcularIRPF(ganancia) {
+    if (ganancia <= 0) return 0;
+    let impuesto = 0;
+    const tramos = [
+      { hasta: 6000,     tipo: 0.19 },
+      { hasta: 50000,    tipo: 0.21 },
+      { hasta: 200000,   tipo: 0.23 },
+      { hasta: 300000,   tipo: 0.27 },
+      { hasta: Infinity, tipo: 0.28 },
+    ];
+    let base = ganancia, anterior = 0;
+    for (const t of tramos) {
+      const tramo = Math.min(base, t.hasta - anterior);
+      if (tramo <= 0) break;
+      impuesto += tramo * t.tipo;
+      base -= tramo;
+      anterior = t.hasta;
+      if (base <= 0) break;
+    }
+    return impuesto;
+  }
+
+  function calcularFlip(inputs) {
+    const itp = inputs.precio_compra * (inputs.itp_pct / 100);
+    const costes_entrada = inputs.precio_compra + itp + inputs.notaria + inputs.comision_compra;
+    const costes_reforma = inputs.reforma + inputs.gastos_corrientes;
+    const comision_venta_eur = inputs.precio_venta * (inputs.comision_venta_pct / 100);
+    const costes_salida = comision_venta_eur + inputs.plusvalia;
+    const inversion_total = costes_entrada + costes_reforma;
+    const beneficio_bruto = inputs.precio_venta - inversion_total - costes_salida;
+    const impuesto = inputs.regimen === 'irpf'
+      ? calcularIRPF(Math.max(0, beneficio_bruto))
+      : Math.max(0, beneficio_bruto * 0.25);
+    const beneficio_neto = beneficio_bruto - impuesto;
+    const meses = (inputs.meses > 0 ? inputs.meses : 1);
+    const roi_total = inversion_total > 0 ? (beneficio_neto / inversion_total) * 100 : 0;
+    const roi_anualizado = roi_total / meses * 12;
+    return { itp, costes_entrada, costes_reforma, costes_salida, comision_venta_eur,
+             inversion_total, beneficio_bruto, impuesto, beneficio_neto, roi_total, roi_anualizado };
+  }
+
+  let _calcSocios = [{ name: 'Socio 1', pct: 50 }, { name: 'Socio 2', pct: 50 }];
+
+  function renderCalcSocios() {
+    const container = document.getElementById('c-socios-rows');
+    if (!container) return;
+    container.innerHTML = _calcSocios.map((s, i) => `
+      <div class="calc-socio-row">
+        <input class="calc-socio-name" placeholder="Nombre" value="${escHtml(s.name || '')}"
+          oninput="_calcSocios[${i}].name=this.value;recalculate()">
+        <input class="calc-socio-pct" type="number" min="0" max="100" step="0.1" value="${s.pct}"
+          oninput="_calcSocios[${i}].pct=parseFloat(this.value)||0;recalculate()">
+        <span style="font-size:0.7rem;color:#555">%</span>
+        ${_calcSocios.length > 1
+          ? `<button class="calc-socio-del" onclick="removeCalcSocio(${i})">×</button>`
+          : '<span style="width:18px"></span>'}
+      </div>`).join('');
+    const total = _calcSocios.reduce((s, p) => s + (p.pct || 0), 0);
+    const warn = document.getElementById('c-pct-warn');
+    if (warn) warn.textContent = Math.abs(total - 100) > 0.01 ? `Los % no suman 100% (suman ${total.toFixed(1)}%)` : '';
+    const btn = document.getElementById('c-add-socio-btn');
+    if (btn) btn.style.display = _calcSocios.length >= 4 ? 'none' : '';
+  }
+
+  function addCalcSocio() {
+    if (_calcSocios.length >= 4) return;
+    _calcSocios.push({ name: '', pct: 0 });
+    renderCalcSocios();
+    recalculate();
+  }
+
+  function removeCalcSocio(i) {
+    if (_calcSocios.length <= 1) return;
+    _calcSocios.splice(i, 1);
+    renderCalcSocios();
+    recalculate();
+  }
+
+  function _getCalcInputs() {
+    const gv = id => parseFloat(document.getElementById(id)?.value) || 0;
+    return {
+      precio_compra:      gv('c-precio-compra'),
+      itp_pct:            gv('c-itp-pct'),
+      notaria:            gv('c-notaria'),
+      comision_compra:    gv('c-comision-compra'),
+      reforma:            gv('c-reforma'),
+      gastos_corrientes:  gv('c-gastos-corrientes'),
+      meses:              gv('c-meses') || 6,
+      precio_venta:       gv('c-precio-venta'),
+      comision_venta_pct: gv('c-comision-venta-pct'),
+      plusvalia:          gv('c-plusvalia'),
+      regimen:            document.getElementById('c-regimen')?.value || 'irpf',
+    };
+  }
+
+  function _semaforoClass(roi_anualizado, hasData) {
+    if (!hasData) return 'gris';
+    if (roi_anualizado < 10) return 'rojo';
+    if (roi_anualizado <= 20) return 'amarillo';
+    return 'verde';
+  }
+  const SEMAFORO_TEXTS = { verde:'Operación viable', amarillo:'Rentabilidad moderada', rojo:'Operación no rentable', gris:'Introduce los datos' };
+
+  function recalculate() {
+    const inputs = _getCalcInputs();
+    const hasData = inputs.precio_compra > 0 && inputs.precio_venta > 0;
+    const r = calcularFlip(inputs);
+    const cls = _semaforoClass(r.roi_anualizado, hasData);
+
+    const sem = document.getElementById('c-semaforo');
+    if (sem) sem.className = `semaforo ${cls}`;
+    const semText = document.getElementById('c-semaforo-text');
+    if (semText) semText.textContent = SEMAFORO_TEXTS[cls];
+
+    const badge = document.getElementById('c-is-badge');
+    if (badge) badge.style.display = inputs.regimen === 'sl' ? '' : 'none';
+
+    const fP1 = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+    const fS  = v => (v >= 0 ? '+' : '') + formatEur(v);
+
+    const setKpi = (id, val, klass) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = val;
+      el.className = 'calc-kpi-val' + (klass ? ' ' + klass : '');
+    };
+    setKpi('c-kpi-inversion',  hasData ? formatEur(r.inversion_total) : '—');
+    setKpi('c-kpi-bruto',      hasData ? fS(r.beneficio_bruto)  : '—', hasData ? (r.beneficio_bruto  >= 0 ? 'green' : 'red') : '');
+    setKpi('c-kpi-neto',       hasData ? fS(r.beneficio_neto)   : '—', hasData ? (r.beneficio_neto   >= 0 ? 'green' : 'red') : '');
+    setKpi('c-kpi-roi',        hasData ? fP1(r.roi_total)       : '—', hasData ? (r.roi_total        >= 0 ? 'green' : 'red') : '');
+    setKpi('c-kpi-roi-anual',  hasData ? fP1(r.roi_anualizado)  : '—', hasData ? (r.roi_anualizado >= 20 ? 'green' : r.roi_anualizado >= 10 ? 'yellow' : 'red') : '');
+
+    const setT = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    setT('c-pnl-venta',      hasData ? formatEur(inputs.precio_venta)      : '—');
+    setT('c-pnl-compra',     hasData ? formatEur(inputs.precio_compra)     : '—');
+    setT('c-pnl-itp',        hasData ? formatEur(r.itp)                    : '—');
+    setT('c-pnl-notaria',    hasData ? formatEur(inputs.notaria)           : '—');
+    setT('c-pnl-com-compra', hasData ? formatEur(inputs.comision_compra)   : '—');
+    setT('c-pnl-reforma',    hasData ? formatEur(inputs.reforma)           : '—');
+    setT('c-pnl-corrientes', hasData ? formatEur(inputs.gastos_corrientes) : '—');
+    setT('c-pnl-inversion',  hasData ? formatEur(r.inversion_total)        : '—');
+    setT('c-pnl-com-venta',  hasData ? formatEur(r.comision_venta_eur)     : '—');
+    setT('c-pnl-plusvalia',  hasData ? formatEur(inputs.plusvalia)         : '—');
+    const taxLbl = document.getElementById('c-pnl-tax-label');
+    if (taxLbl) taxLbl.textContent = inputs.regimen === 'sl' ? 'IS 25%' : 'IRPF estimado';
+    setT('c-pnl-tax', hasData ? formatEur(r.impuesto) : '—');
+
+    const brutoEl = document.getElementById('c-pnl-bruto');
+    if (brutoEl) { brutoEl.textContent = hasData ? fS(r.beneficio_bruto) : '—'; brutoEl.style.color = hasData ? (r.beneficio_bruto >= 0 ? '#34d399' : '#f87171') : '#cbd5e1'; }
+    const netoEl = document.getElementById('c-pnl-neto');
+    if (netoEl)  { netoEl.textContent  = hasData ? fS(r.beneficio_neto)  : '—'; netoEl.style.color  = hasData ? (r.beneficio_neto  >= 0 ? '#34d399' : '#f87171') : '#e2e8f0'; }
+
+    const totalPct = _calcSocios.reduce((s, p) => s + (p.pct || 0), 0);
+    const repartoWrap = document.getElementById('c-socios-reparto-wrap');
+    const pillsEl = document.getElementById('c-socios-pills');
+    if (Math.abs(totalPct - 100) < 0.01 && hasData && repartoWrap && pillsEl) {
+      repartoWrap.style.display = '';
+      pillsEl.innerHTML = _calcSocios.map((s, i) => {
+        const amt = r.beneficio_neto * (s.pct / 100);
+        const col = PIE_COLORS[i % PIE_COLORS.length];
+        return `<div class="calc-socio-pill" style="border-left:3px solid ${col}">
+          <span style="font-weight:600;color:#fff">${escHtml(s.name || 'Socio ' + (i+1))}</span>
+          <span style="font-weight:700;color:${col};margin-left:8px">${(amt >= 0 ? '+' : '') + formatEur(amt)}</span>
+          <span style="font-size:0.68rem;color:#555;margin-left:4px">(${s.pct.toFixed(0)}%)</span>
+        </div>`;
+      }).join('');
+    } else if (repartoWrap) {
+      repartoWrap.style.display = 'none';
+    }
+
+    renderEscenariosTable();
+  }
+
+  function saveEscenario() {
+    const tipo = document.getElementById('c-save-tipo')?.value;
+    if (!tipo) return;
+    const data = { ..._getCalcInputs(), socios: JSON.parse(JSON.stringify(_calcSocios)) };
+    localStorage.setItem(`flip_scenario_${tipo}`, JSON.stringify(data));
+    renderEscenariosTable();
+    toast(`Escenario "${tipo}" guardado`, 'success');
+  }
+
+  function loadEscenarioToForm(tipo) {
+    const raw = localStorage.getItem(`flip_scenario_${tipo}`);
+    if (!raw) return;
+    try {
+      const d = JSON.parse(raw);
+      const sv = (id, val) => { const el = document.getElementById(id); if (el && val != null) el.value = val; };
+      sv('c-precio-compra', d.precio_compra); sv('c-itp-pct', d.itp_pct);
+      sv('c-notaria', d.notaria); sv('c-comision-compra', d.comision_compra);
+      sv('c-reforma', d.reforma); sv('c-gastos-corrientes', d.gastos_corrientes);
+      sv('c-meses', d.meses); sv('c-precio-venta', d.precio_venta);
+      sv('c-comision-venta-pct', d.comision_venta_pct); sv('c-plusvalia', d.plusvalia);
+      if (d.regimen) { const el = document.getElementById('c-regimen'); if (el) el.value = d.regimen; }
+      if (d.socios && d.socios.length) { _calcSocios = d.socios; renderCalcSocios(); }
+      recalculate();
+    } catch {}
+  }
+
+  function _scenarioResult(d) {
+    try { return calcularFlip(d); } catch { return null; }
+  }
+
+  function renderEscenariosTable() {
+    const tbody = document.getElementById('escenarios-tbody');
+    if (!tbody) return;
+    const tipos = ['optimista', 'base', 'pesimista'];
+    const datos = tipos.map(t => { try { const r = localStorage.getItem(`flip_scenario_${t}`); return r ? JSON.parse(r) : null; } catch { return null; } });
+    const rows = [
+      ['Precio compra',   d => d.precio_compra > 0 ? formatEur(d.precio_compra) : '—'],
+      ['Precio venta',    d => d.precio_venta  > 0 ? formatEur(d.precio_venta)  : '—'],
+      ['Inversión total', d => { const r = _scenarioResult(d); return r ? formatEur(r.inversion_total) : '—'; }],
+      ['Beneficio neto',  d => { const r = _scenarioResult(d); if (!r) return '—'; const v = r.beneficio_neto; return `<span style="color:${v>=0?'#34d399':'#f87171'}">${v>=0?'+':''}${formatEur(v)}</span>`; }],
+      ['ROI anualizado',  d => { const r = _scenarioResult(d); if (!r) return '—'; const v = r.roi_anualizado; return `<span style="color:${v>=20?'#34d399':v>=10?'#fbbf24':'#f87171'}">${v>=0?'+':''}${v.toFixed(1)}%</span>`; }],
+      ['Semáforo',        d => { const r = _scenarioResult(d); if (!r) return '—'; const cls = _semaforoClass(r.roi_anualizado, (d.precio_compra||0)>0 && (d.precio_venta||0)>0); const t = {verde:'✅ Viable',amarillo:'⚠️ Moderada',rojo:'❌ No rentable',gris:'—'}; const c = {verde:'#34d399',amarillo:'#fbbf24',rojo:'#f87171',gris:'#555'}; return `<span style="color:${c[cls]}">${t[cls]}</span>`; }],
+    ];
+    tbody.innerHTML = rows.map(([label, fn]) =>
+      `<tr><td class="row-label">${label}</td>${datos.map(d => `<td>${d ? fn(d) : '—'}</td>`).join('')}</tr>`
+    ).join('');
+  }
+
+  // ── Compare mode ──────────────────────────────────────────────────────────
+
+  function switchCalcMode(mode) {
+    document.getElementById('calc-mode-single').style.display  = mode === 'single'  ? 'flex' : 'none';
+    document.getElementById('calc-mode-compare').style.display = mode === 'compare' ? 'flex' : 'none';
+    document.getElementById('calc-btn-single').classList.toggle('active',  mode === 'single');
+    document.getElementById('calc-btn-compare').classList.toggle('active', mode === 'compare');
+    if (mode === 'compare') initCompareMode();
+  }
+
+  function _compareColInputsHTML(tipo) {
+    const p = `cmp-${tipo}`;
+    const cb = `recalculateCompare('${tipo}')`;
+    return `
+      <div style="font-size:0.6rem;color:#a78bfa;text-transform:uppercase;letter-spacing:.08em;font-weight:700;margin-bottom:6px">Compra</div>
+      <div class="calc-field"><label style="font-size:0.74rem">Precio compra</label><div class="calc-field-right"><input class="calc-input" type="number" id="${p}-precio-compra" placeholder="0" oninput="${cb}" style="width:90px"><span class="calc-unit">€</span></div></div>
+      <div class="calc-field"><label style="font-size:0.74rem">ITP</label><div class="calc-field-right"><input class="calc-input calc-input-sm" type="number" id="${p}-itp-pct" value="6.0" step="0.1" oninput="${cb}"><span class="calc-unit">%</span></div></div>
+      <div class="calc-field"><label style="font-size:0.74rem">Notaría</label><div class="calc-field-right"><input class="calc-input" type="number" id="${p}-notaria" value="1500" oninput="${cb}" style="width:90px"><span class="calc-unit">€</span></div></div>
+      <div style="font-size:0.6rem;color:#a78bfa;text-transform:uppercase;letter-spacing:.08em;font-weight:700;margin:10px 0 6px">Reforma y venta</div>
+      <div class="calc-field"><label style="font-size:0.74rem">Reforma</label><div class="calc-field-right"><input class="calc-input" type="number" id="${p}-reforma" placeholder="0" oninput="${cb}" style="width:90px"><span class="calc-unit">€</span></div></div>
+      <div class="calc-field"><label style="font-size:0.74rem">Precio venta</label><div class="calc-field-right"><input class="calc-input" type="number" id="${p}-precio-venta" placeholder="0" oninput="${cb}" style="width:90px"><span class="calc-unit">€</span></div></div>
+      <div class="calc-field"><label style="font-size:0.74rem">Com. venta</label><div class="calc-field-right"><input class="calc-input calc-input-sm" type="number" id="${p}-comision-venta-pct" value="3.0" step="0.1" oninput="${cb}"><span class="calc-unit">%</span></div></div>
+      <div class="calc-field"><label style="font-size:0.74rem">Meses hold</label><div class="calc-field-right"><input class="calc-input calc-input-sm" type="number" id="${p}-meses" value="6" oninput="${cb}"><span class="calc-unit"></span></div></div>
+      <div style="font-size:0.6rem;color:#a78bfa;text-transform:uppercase;letter-spacing:.08em;font-weight:700;margin:10px 0 6px">Fiscal</div>
+      <select class="calc-select" id="${p}-regimen" oninput="${cb}">
+        <option value="irpf">IRPF</option><option value="sl">IS 25%</option>
+      </select>`;
+  }
+
+  function _getCompareInputs(tipo) {
+    const p = `cmp-${tipo}`;
+    const gv = id => parseFloat(document.getElementById(id)?.value) || 0;
+    return {
+      precio_compra: gv(`${p}-precio-compra`), itp_pct: gv(`${p}-itp-pct`) || 6,
+      notaria: gv(`${p}-notaria`) || 1500, comision_compra: 0,
+      reforma: gv(`${p}-reforma`), gastos_corrientes: 0,
+      meses: gv(`${p}-meses`) || 6, precio_venta: gv(`${p}-precio-venta`),
+      comision_venta_pct: gv(`${p}-comision-venta-pct`) || 3, plusvalia: 0,
+      regimen: document.getElementById(`${p}-regimen`)?.value || 'irpf',
+    };
+  }
+
+  function recalculateCompare(tipo) {
+    const inputs = _getCompareInputs(tipo);
+    const hasData = inputs.precio_compra > 0 && inputs.precio_venta > 0;
+    const r = calcularFlip(inputs);
+    const p = `cmp-${tipo}`;
+    const fP1 = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+    const fS  = v => (v >= 0 ? '+' : '') + formatEur(v);
+
+    const sem = document.getElementById(`${p}-semaforo`);
+    const semT = document.getElementById(`${p}-semaforo-text`);
+    if (sem && semT) {
+      const cls = _semaforoClass(r.roi_anualizado, hasData);
+      sem.className = `semaforo ${cls}`;
+      semT.textContent = SEMAFORO_TEXTS[cls];
+    }
+    const setC = (id, val, col) => {
+      const el = document.getElementById(`${p}-${id}`);
+      if (!el) return;
+      el.textContent = val;
+      if (col) el.style.color = col;
+    };
+    setC('kpi-inversion', hasData ? formatEur(r.inversion_total)   : '—');
+    setC('kpi-bruto',     hasData ? fS(r.beneficio_bruto) : '—', hasData ? (r.beneficio_bruto >= 0 ? '#34d399' : '#f87171') : null);
+    setC('kpi-neto',      hasData ? fS(r.beneficio_neto)  : '—', hasData ? (r.beneficio_neto  >= 0 ? '#34d399' : '#f87171') : null);
+    setC('kpi-roi',       hasData ? fP1(r.roi_anualizado) : '—', hasData ? (r.roi_anualizado >= 20 ? '#34d399' : r.roi_anualizado >= 10 ? '#fbbf24' : '#f87171') : null);
+    renderCompareSummary();
+  }
+
+  function saveCompareCol(tipo) {
+    const data = { ..._getCompareInputs(tipo), socios: [] };
+    localStorage.setItem(`flip_scenario_${tipo}`, JSON.stringify(data));
+    renderEscenariosTable();
+    renderCompareSummary();
+    toast(`Escenario "${tipo}" guardado`, 'success');
+  }
+
+  function renderCompareSummary() {
+    const tbody = document.getElementById('compare-summary-tbody');
+    if (!tbody) return;
+    const tipos = ['optimista', 'base', 'pesimista'];
+    const datos = tipos.map(t => { try { return _getCompareInputs(t); } catch { return null; } });
+    const rows = [
+      ['Precio compra',   d => d.precio_compra > 0 ? formatEur(d.precio_compra) : '—'],
+      ['Precio venta',    d => d.precio_venta  > 0 ? formatEur(d.precio_venta)  : '—'],
+      ['Inversión total', d => formatEur(calcularFlip(d).inversion_total)],
+      ['Beneficio neto',  d => { const v = calcularFlip(d).beneficio_neto;  return `<span style="color:${v>=0?'#34d399':'#f87171'}">${v>=0?'+':''}${formatEur(v)}</span>`; }],
+      ['ROI anualizado',  d => { const v = calcularFlip(d).roi_anualizado;  return `<span style="color:${v>=20?'#34d399':v>=10?'#fbbf24':'#f87171'}">${v>=0?'+':''}${v.toFixed(1)}%</span>`; }],
+      ['Semáforo',        d => { const r = calcularFlip(d); const cls = _semaforoClass(r.roi_anualizado, d.precio_compra>0 && d.precio_venta>0); const t={verde:'✅ Viable',amarillo:'⚠️ Moderada',rojo:'❌ No rentable',gris:'—'}; const c={verde:'#34d399',amarillo:'#fbbf24',rojo:'#f87171',gris:'#555'}; return `<span style="color:${c[cls]}">${t[cls]}</span>`; }],
+    ];
+    tbody.innerHTML = rows.map(([label, fn]) =>
+      `<tr><td class="row-label">${label}</td>${datos.map(d => `<td>${d ? fn(d) : '—'}</td>`).join('')}</tr>`
+    ).join('');
+  }
+
+  function initCompareMode() {
+    const tipos = [
+      { key: 'optimista', label: 'Optimista', badge: 'badge-opt' },
+      { key: 'base',      label: 'Base',      badge: 'badge-base' },
+      { key: 'pesimista', label: 'Pesimista', badge: 'badge-pes' },
+    ];
+    const cols = document.getElementById('calc-compare-cols');
+    if (!cols || cols.children.length) return;
+    cols.innerHTML = tipos.map(t => `
+      <div class="calc-compare-col">
+        <div class="calc-compare-col-header">
+          <span class="${t.badge}">${t.label}</span>
+          <button class="btn btn-sm" onclick="saveCompareCol('${t.key}')">Guardar</button>
+        </div>
+        <div class="calc-compare-col-inputs">${_compareColInputsHTML(t.key)}</div>
+        <div class="calc-compare-col-results">
+          <div class="semaforo gris" id="cmp-${t.key}-semaforo" style="margin-bottom:10px"><div class="semaforo-dot"></div><span id="cmp-${t.key}-semaforo-text">Introduce los datos</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:0.8rem">
+            <div><div style="font-size:0.62rem;color:#555;text-transform:uppercase;margin-bottom:2px">Inversión</div><div id="cmp-${t.key}-kpi-inversion" style="font-weight:700;color:#fff">—</div></div>
+            <div><div style="font-size:0.62rem;color:#555;text-transform:uppercase;margin-bottom:2px">Ben. bruto</div><div id="cmp-${t.key}-kpi-bruto" style="font-weight:700">—</div></div>
+            <div><div style="font-size:0.62rem;color:#555;text-transform:uppercase;margin-bottom:2px">Ben. neto</div><div id="cmp-${t.key}-kpi-neto" style="font-weight:700">—</div></div>
+            <div><div style="font-size:0.62rem;color:#555;text-transform:uppercase;margin-bottom:2px">ROI anual</div><div id="cmp-${t.key}-kpi-roi" style="font-weight:700">—</div></div>
+          </div>
+        </div>
+      </div>`).join('');
+
+    tipos.forEach(t => {
+      const raw = localStorage.getItem(`flip_scenario_${t.key}`);
+      if (!raw) return;
+      try {
+        const d = JSON.parse(raw);
+        const pf = `cmp-${t.key}`;
+        const sv = (id, val) => { const el = document.getElementById(id); if (el && val != null) el.value = val; };
+        sv(`${pf}-precio-compra`, d.precio_compra); sv(`${pf}-itp-pct`, d.itp_pct);
+        sv(`${pf}-notaria`, d.notaria);             sv(`${pf}-reforma`, d.reforma);
+        sv(`${pf}-precio-venta`, d.precio_venta);   sv(`${pf}-comision-venta-pct`, d.comision_venta_pct);
+        sv(`${pf}-meses`, d.meses);
+        if (d.regimen) { const el = document.getElementById(`${pf}-regimen`); if (el) el.value = d.regimen; }
+        recalculateCompare(t.key);
+      } catch {}
+    });
+    renderCompareSummary();
+  }
+
+  function initCalculadora() {
+    ['c-precio-compra','c-itp-pct','c-notaria','c-comision-compra',
+     'c-reforma','c-gastos-corrientes','c-meses',
+     'c-precio-venta','c-comision-venta-pct','c-plusvalia','c-regimen'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('input', recalculate);
+    });
+    renderCalcSocios();
+    if (localStorage.getItem('flip_scenario_base')) loadEscenarioToForm('base');
+    else { recalculate(); renderEscenariosTable(); }
+  }
+
   // ── Init ──────────────────────────────────────────────────────────────────
   updateAuthUI();
   fetch('/api/listings')
@@ -2354,6 +2919,7 @@
       });
       applyFilters();
     });
+  initCalculadora();
   router();
 </script>
 </body>
