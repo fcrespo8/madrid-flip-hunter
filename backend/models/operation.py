@@ -21,7 +21,8 @@ class OperationStatus(enum.Enum):
 
 
 class ExpenseCategory(enum.Enum):
-    compra        = "compra"
+    precio_piso   = "precio_piso"   # precio de escritura del inmueble
+    compra        = "compra"        # notaría, registro, tasas (excluye precio del piso)
     reforma       = "reforma"
     reforma_extra = "reforma_extra"
     suministros   = "suministros"

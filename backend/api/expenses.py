@@ -73,6 +73,7 @@ def list_expenses(
         .all()
     )
     summary: dict[str, float] = {
+        "precio_piso": 0.0,
         "obra": 0.0, "tramites": 0.0, "comunidad_otros": 0.0,
         "agencia_compra": 0.0, "agencia_venta": 0.0,
         "impuestos": 0.0, "financiacion": 0.0, "total": 0.0,
@@ -82,7 +83,9 @@ def list_expenses(
         cat = e.category
         desc = (e.description or "").lower()
         summary["total"] += amt
-        if cat in (ExpenseCategory.reforma, ExpenseCategory.reforma_extra):
+        if cat == ExpenseCategory.precio_piso:
+            summary["precio_piso"] += amt
+        elif cat in (ExpenseCategory.reforma, ExpenseCategory.reforma_extra):
             summary["obra"] += amt
         elif cat == ExpenseCategory.honorarios:
             summary["tramites"] += amt

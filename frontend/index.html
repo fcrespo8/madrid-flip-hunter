@@ -249,6 +249,7 @@
     .ef-method input { width: 120px; }
 
     .cat-badge { padding: 2px 7px; border-radius: 10px; font-size: 0.68rem; font-weight: 600; }
+    .cat-precio_piso  { background: #1a0a3a; color: #c084fc; }
     .cat-compra       { background: #0c1a3a; color: #60a5fa; }
     .cat-reforma      { background: #3a1a0a; color: #f97316; }
     .cat-reforma_extra{ background: #3a1a0a; color: #fb923c; }
@@ -997,7 +998,8 @@
           <div class="ef ef-desc"><label>Descripción</label><input type="text" id="exp-desc" placeholder="Reforma baño..."></div>
           <div class="ef"><label>Categoría</label>
             <select id="exp-cat">
-              <option value="compra">Compra</option>
+              <option value="precio_piso">Precio piso</option>
+              <option value="compra">Compra (notaría, tasas…)</option>
               <option value="reforma" selected>Reforma</option>
               <option value="reforma_extra">Reforma extra</option>
               <option value="suministros">Suministros</option>
@@ -1868,7 +1870,7 @@
 
   // ── Gastos tab ────────────────────────────────────────────────────────────
   const CAT_LABELS = {
-    compra:'Compra', reforma:'Reforma', reforma_extra:'Reforma extra',
+    precio_piso:'Precio piso', compra:'Compra', reforma:'Reforma', reforma_extra:'Reforma extra',
     suministros:'Suministros', comunidad:'Comunidad', honorarios:'Honorarios',
     agencia:'Agencia', financiacion:'Financiación', impuestos:'Impuestos', otros:'Otros',
   };
@@ -1918,6 +1920,7 @@
   function updateExpenseSummary() {
     const s = currentExpensesSummary || {};
     const rows = [
+      ['🏠 Precio piso',             s.precio_piso,     'esum-precio-piso'],
       ['🔨 Obra y reforma',          s.obra,            'esum-obra'],
       ['📋 Trámites y honorarios',   s.tramites,        'esum-tramites'],
       ['🏠 Comunidad y otros',       s.comunidad_otros, 'esum-comunidad-otros'],
