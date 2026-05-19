@@ -111,6 +111,9 @@ def _calc_irpf(g: float) -> float:
     if g <= 0:
         return 0.0
     tax = 0.0
+    if g > 300000:
+        tax += (g - 300000) * 0.28
+        g = 300000
     if g > 200000:
         tax += (g - 200000) * 0.27
         g = 200000

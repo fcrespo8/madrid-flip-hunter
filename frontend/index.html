@@ -1669,6 +1669,7 @@
   function calcIRPF(g) {
     if (g <= 0) return 0;
     let tax = 0;
+    if (g > 300000) { tax += (g - 300000) * 0.28; g = 300000; }
     if (g > 200000) { tax += (g - 200000) * 0.27; g = 200000; }
     if (g > 50000)  { tax += (g - 50000)  * 0.23; g = 50000; }
     if (g > 6000)   { tax += (g - 6000)   * 0.21; g = 6000; }
@@ -1768,7 +1769,6 @@
       const regime = getTaxRegime();
       const taxes  = regime === 'sl' ? Math.max(0, gross * 0.23) : calcIRPF(Math.max(0, gross));
       const net    = gross - taxes;
-      const denom  = foc + fib;
 
       document.getElementById('fin-tax-amount').value      = taxes > 0 ? taxes.toFixed(2) : '';
       document.getElementById('pnl-irpf').textContent      = formatEur(taxes);
