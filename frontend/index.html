@@ -2687,6 +2687,8 @@
     if (netoEl)  { netoEl.textContent  = hasData ? fS(r.beneficio_neto)  : '—'; netoEl.style.color  = hasData ? (r.beneficio_neto  >= 0 ? '#34d399' : '#f87171') : '#e2e8f0'; }
 
     const totalPct = _calcSocios.reduce((s, p) => s + (p.pct || 0), 0);
+    const pctWarn = document.getElementById('c-pct-warn');
+    if (pctWarn) pctWarn.textContent = Math.abs(totalPct - 100) > 0.01 ? `Los % no suman 100% (suman ${totalPct.toFixed(1)}%)` : '';
     const repartoWrap = document.getElementById('c-socios-reparto-wrap');
     const pillsEl = document.getElementById('c-socios-pills');
     if (Math.abs(totalPct - 100) < 0.01 && hasData && repartoWrap && pillsEl) {
