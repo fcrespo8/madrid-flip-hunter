@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from backend.models.database import get_db
 from backend.models.operation import User, UserRole
-from backend.auth.security import verify_password, hash_password, create_access_token, APP_USERNAME, APP_PASSWORD
+from backend.auth.security import verify_password, hash_password, create_access_token, ADMIN_USERNAME, ADMIN_PASSWORD, VIEWER_USERNAME, VIEWER_PASSWORD
 from backend.auth.dependencies import get_current_user, require_admin
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -21,9 +21,12 @@ def login(
     form: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
-    # Env-var user takes priority — no DB round-trip needed
-    if form.username == APP_USERNAME and form.password == APP_PASSWORD:
+    # Env-var users take priority — no DB round-trip needed
+    if form.username == ADMIN_USERNAME and form.password == ADMIN_PASSWORD:
         token = create_access_token({"sub": form.username, "role": "admin"})
+        return {"access_token": token, "token_type": "bearer"}
+    if form.username == VIEWER_USERNAME and form.password == VIEWER_PASSWORD:
+        token = create_access_token({"sub": form.username, "role": "viewer"})
         return {"access_token": token, "token_type": "bearer"}
     # Fall back to DB users (legacy path)
     user = db.query(User).filter_by(username=form.username).first()

@@ -3,16 +3,16 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from backend.models.database import get_db
 from backend.models.operation import User, UserRole
-from backend.auth.security import decode_token, APP_USERNAME
+from backend.auth.security import decode_token, ADMIN_USERNAME, VIEWER_USERNAME
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
 
 
 class _EnvUser:
-    """Lightweight stand-in for the env-var admin — avoids a DB round-trip."""
-    def __init__(self, username: str):
+    """Lightweight stand-in for env-var users — avoids a DB round-trip."""
+    def __init__(self, username: str, role: UserRole):
         self.username = username
-        self.role = UserRole.admin
+        self.role = role
         self.id = None
 
 
@@ -26,9 +26,11 @@ def get_current_user(
     username = payload.get("sub")
     if not username:
         raise HTTPException(status_code=401, detail="Invalid token payload")
-    # Env-var admin — skip DB entirely
-    if username == APP_USERNAME:
-        return _EnvUser(username)
+    # Env-var users — skip DB entirely
+    if username == ADMIN_USERNAME:
+        return _EnvUser(username, UserRole.admin)
+    if username == VIEWER_USERNAME:
+        return _EnvUser(username, UserRole.viewer)
     user = db.query(User).filter_by(username=username).first()
     if user is None:
         raise HTTPException(status_code=401, detail="User not found")
