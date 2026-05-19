@@ -130,6 +130,7 @@ def _build_financials_out(
     expenses_by_category: dict | None = None,
 ) -> dict:
     ebc = expenses_by_category or {
+        "precio_piso": 0.0,
         "compra": 0.0, "buy_agency": 0.0, "sell_agency": 0.0,
         "obra": 0.0, "reforma": 0.0, "reforma_extra": 0.0,
         "tramites": 0.0, "gastos_corrientes": 0.0, "otros": 0.0,
@@ -143,7 +144,8 @@ def _build_financials_out(
         "financing_own_capital": None, "financing_borrowed": None, "financing_cost": None,
         "financing_interest_rate": None, "financing_loan_months": None,
         "tax_regime": None,
-        "total_purchase_cost": None, "total_costes": None, "impuestos_compra": None, "total_expenses": total_expenses,
+        "total_purchase_cost": None, "total_costes": None, "impuestos_compra": None,
+        "precio_piso_expenses": 0.0, "total_expenses": total_expenses,
         "expenses_by_category": ebc,
         "gross_profit": None, "net_profit": None, "roi_pct": None,
     }
@@ -158,7 +160,8 @@ def _build_financials_out(
     fir = _f(fin.financing_interest_rate) or 0
     fim = fin.financing_loan_months or 0
 
-    buy_costs        = ebc.get("compra", 0.0)
+    precio_piso_exp  = ebc.get("precio_piso", 0.0)   # escritura from expenses (fallback)
+    buy_costs        = ebc.get("compra", 0.0)         # notaría, tasas, registro
     buy_agency       = ebc.get("buy_agency", 0.0)
     sell_agency      = ebc.get("sell_agency", 0.0)
     reforma          = ebc.get("reforma", 0.0)
@@ -169,8 +172,11 @@ def _build_financials_out(
     financiacion     = ebc.get("financiacion", 0.0)
     impuestos_compra = ebc.get("impuestos_gastos", 0.0)
 
+    # Use manual purchase_price if set; otherwise fall back to precio_piso expenses
+    pp_effective = pp if pp > 0 else precio_piso_exp
+
     loan_cost    = fib * (fir / 100) * (fim / 12) if fir and fim else 0.0
-    total_compra = pp + buy_costs + buy_agency
+    total_compra = pp_effective + buy_costs + buy_agency
     total_obra   = reforma + reforma_extra
     total_costes = (total_compra + total_obra + tramites + gastos_corr
                     + otros + sell_agency + financiacion + loan_cost + impuestos_compra)
@@ -191,11 +197,11 @@ def _build_financials_out(
             roi_pct = round(net_profit / total_costes * 100, 2)
 
     logger.debug(
-        "P&L pp=%.0f buy_costs=%.0f buy_agency=%.0f sell_agency=%.0f "
+        "P&L pp=%.0f pp_eff=%.0f buy_costs=%.0f buy_agency=%.0f sell_agency=%.0f "
         "reforma=%.0f reforma_extra=%.0f tramites=%.0f gastos_corr=%.0f "
         "otros=%.0f financiacion=%.0f loan=%.0f total_costes=%.0f "
         "asp=%.0f ste=%.0f ben_bruto=%.0f taxes=%.0f net=%.0f roi=%.2f",
-        pp, buy_costs, buy_agency, sell_agency,
+        pp, pp_effective, buy_costs, buy_agency, sell_agency,
         reforma, reforma_extra, tramites, gastos_corr,
         otros, financiacion, loan_cost, total_costes,
         asp, ste, beneficio_bruto, taxes,
@@ -218,10 +224,11 @@ def _build_financials_out(
         "financing_interest_rate": _f(fin.financing_interest_rate),
         "financing_loan_months":   fin.financing_loan_months,
         "tax_regime": fin.tax_regime,
-        "total_purchase_cost": round(total_compra, 2),
-        "total_costes":        round(total_costes, 2),
-        "impuestos_compra":    round(impuestos_compra, 2),
-        "total_expenses":      round(total_expenses, 2),
+        "total_purchase_cost":   round(total_compra, 2),
+        "total_costes":          round(total_costes, 2),
+        "impuestos_compra":      round(impuestos_compra, 2),
+        "precio_piso_expenses":  round(precio_piso_exp, 2),
+        "total_expenses":        round(total_expenses, 2),
         "expenses_by_category": {k: round(v, 2) for k, v in ebc.items()},
         "gross_profit": round(gross_profit, 2) if gross_profit is not None else None,
         "net_profit":   round(net_profit,   2) if net_profit   is not None else None,
@@ -233,6 +240,7 @@ def _get_expenses_data(db: Session, op_id: uuid.UUID) -> tuple[float, dict]:
     expenses = db.query(OperationExpense).filter_by(operation_id=op_id).all()
     total = float(sum(e.amount for e in expenses))
     by_cat: dict[str, float] = {
+        "precio_piso": 0.0,
         "compra": 0.0, "buy_agency": 0.0, "sell_agency": 0.0,
         "obra": 0.0, "reforma": 0.0, "reforma_extra": 0.0,
         "tramites": 0.0, "gastos_corrientes": 0.0, "otros": 0.0,
@@ -242,7 +250,9 @@ def _get_expenses_data(db: Session, op_id: uuid.UUID) -> tuple[float, dict]:
         cat    = e.category
         amt    = float(e.amount)
         desc   = (e.description or "").lower()
-        if cat == ExpenseCategory.compra:
+        if cat == ExpenseCategory.precio_piso:
+            by_cat["precio_piso"] += amt
+        elif cat == ExpenseCategory.compra:
             by_cat["compra"] += amt
         elif cat == ExpenseCategory.reforma:
             by_cat["obra"]    += amt

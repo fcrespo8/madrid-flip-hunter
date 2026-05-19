@@ -1701,13 +1701,17 @@
 
   function calcPnl() {
     const gv  = id => parseFloat(document.getElementById(id).value) || 0;
-    const pp  = gv('fin-purchase-price');
     const fc  = calcFinancingCost();
     const ste = gv('fin-sale-tax-estimate');
     const foc = gv('fin-own-capital'), fib = gv('fin-borrowed');
     const asp = parseFloat(document.getElementById('fin-actual-sale-price').value);
     const tsp = parseFloat(document.getElementById('fin-target-sale-price').value);
     const ebc = currentFinancialsData?.expenses_by_category || {};
+
+    // Use manual purchase_price if set; otherwise fall back to precio_piso expenses
+    const ppManual     = gv('fin-purchase-price');
+    const precioPisoExp = ebc.precio_piso || 0;
+    const pp           = ppManual > 0 ? ppManual : precioPisoExp;
 
     const buyExpenses     = ebc.compra             || 0;
     const buyAgency       = ebc.buy_agency         || 0;
