@@ -579,6 +579,7 @@
       <div class="kpi"><div class="kpi-val" id="kpi-score">—</div><div class="kpi-label">Score medio</div></div>
       <div class="kpi"><div class="kpi-val" id="kpi-best">—</div><div class="kpi-label">Mejor deal</div></div>
       <div class="kpi"><div class="kpi-val green" id="kpi-below">—</div><div class="kpi-label">Bajo precio de mercado (&lt;−5%)</div></div>
+      <div class="kpi"><div class="kpi-val" id="kpi-last-scrape" style="font-size:0.88rem">—</div><div class="kpi-label">Último scrape</div></div>
     </div>
     <div id="filters">
       <div class="filter-group"><label>Score mín</label><input type="range" id="f-score" min="0" max="10" value="0" step="1"><span class="filter-val" id="f-score-val">0</span></div>
@@ -599,6 +600,7 @@
           <option value="score-desc">Score ↓</option><option value="score-asc">Score ↑</option>
           <option value="price-asc">Precio ↑</option><option value="price-desc">Precio ↓</option>
           <option value="ppm2-asc">€/m² ↑</option><option value="ppm2-desc">€/m² ↓</option>
+          <option value="date-desc">Visto ↓</option><option value="date-asc">Visto ↑</option>
         </select>
       </div>
       <div class="filter-group"><label for="f-no-size">Sin m²</label><input type="checkbox" id="f-no-size"></div>
@@ -615,7 +617,7 @@
             <th title="Precio medio €/m² del barrio (Idealista, abr 2026)">Zona</th>
             <th title="Superficie en metros cuadrados">m²</th>
             <th title="Número de habitaciones">Hab</th>
-            <th>Barrio</th><th>Fuente</th><th></th>
+            <th>Barrio</th><th>Fuente</th><th title="Fecha del último scrape">Visto</th><th></th>
           </tr></thead>
           <tbody id="tbody"></tbody>
         </table>
@@ -2448,6 +2450,11 @@
   }
   function vsMarketClass(pct) { return pct <= -10 ? 'vs-green' : pct >= 10 ? 'vs-red' : 'vs-yellow'; }
   function fmtPct(pct) { return pct == null ? '—' : (pct > 0 ? '+' : '') + pct.toFixed(1) + '%'; }
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    const [y, m, d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+  }
 
   const markers = {};
   let allListings = [], _selectedRow = null;
@@ -2509,6 +2516,8 @@
       bestEl.innerHTML = `<span style="color:#4ade80">${best.score}</span> — ${title}`;
     } else { bestEl.textContent = '—'; }
     document.getElementById('kpi-below').textContent = filtered.filter(l => l.vs_market_pct != null && l.vs_market_pct < -5).length;
+    const dates = allListings.map(l => l.last_seen_at).filter(Boolean).sort();
+    document.getElementById('kpi-last-scrape').textContent = dates.length ? fmtDate(dates[dates.length - 1]) : '—';
   }
 
   function applyFilters() {
@@ -2529,6 +2538,7 @@
       if (key==='score') { av=a.score; bv=b.score; }
       else if (key==='price') { av=a.price; bv=b.price; }
       else if (key==='ppm2') { av=ppm2(a)||99999; bv=ppm2(b)||99999; }
+      else if (key==='date') { return dir==='asc' ? (a.last_seen_at||'').localeCompare(b.last_seen_at||'') : (b.last_seen_at||'').localeCompare(a.last_seen_at||''); }
       return dir==='asc' ? av-bv : bv-av;
     });
     updateKpis(list);
@@ -2556,6 +2566,7 @@
         <td class="neighborhood">${l.rooms??'—'}</td>
         <td class="neighborhood">${l.neighborhood||l.district||'—'}</td>
         <td><span class="source-badge ${sourceBadgeClass(l.source)}">${l.source||''}</span></td>
+        <td class="neighborhood">${fmtDate(l.last_seen_at)}</td>
         <td><a class="link" href="${l.url}" target="_blank">ver →</a></td>`;
       tr.addEventListener('click', () => { highlightRow(l.id); showDetail(l); if (markers[l.id]) map.panTo(markers[l.id].getLatLng()); });
       tbody.appendChild(tr);
