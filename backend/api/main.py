@@ -1,9 +1,10 @@
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+from backend.auth.dependencies import get_current_user
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from backend.models.database import SessionLocal
 from backend.models.listing import Listing
@@ -44,7 +45,7 @@ app.add_middleware(
 )
 
 @app.get("/api/listings")
-def get_listings():
+def get_listings(_=Depends(get_current_user)):
     db: Session = SessionLocal()
     try:
         listings = (

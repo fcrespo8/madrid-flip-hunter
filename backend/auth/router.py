@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from backend.models.database import get_db
 from backend.models.operation import User, UserRole
-from backend.auth.security import verify_password, hash_password, create_access_token
+from backend.auth.security import verify_password, hash_password, create_access_token, APP_USERNAME, APP_PASSWORD
 from backend.auth.dependencies import get_current_user, require_admin
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -21,6 +21,11 @@ def login(
     form: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
+    # Env-var user takes priority — no DB round-trip needed
+    if form.username == APP_USERNAME and form.password == APP_PASSWORD:
+        token = create_access_token({"sub": form.username, "role": "admin"})
+        return {"access_token": token, "token_type": "bearer"}
+    # Fall back to DB users (legacy path)
     user = db.query(User).filter_by(username=form.username).first()
     if not user or not verify_password(form.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Incorrect username or password")

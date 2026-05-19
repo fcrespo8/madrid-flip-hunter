@@ -454,6 +454,27 @@
     .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
     .error-msg { color: #f87171; font-size: 0.75rem; margin-top: 8px; min-height: 16px; }
 
+    /* ── Login screen ── */
+    #login-screen { display: none; position: fixed; inset: 0; background: #0b0d14;
+                    z-index: 9000; align-items: center; justify-content: center; }
+    #login-screen.visible { display: flex; }
+    .login-card { background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 12px;
+                  padding: 40px 36px; width: 360px; max-width: 95vw; }
+    .login-card-logo { font-size: 1.4rem; font-weight: 800; color: #fff; text-align: center;
+                       margin-bottom: 6px; letter-spacing: -0.02em; }
+    .login-card-sub { font-size: 0.75rem; color: #555; text-align: center; margin-bottom: 28px;
+                      text-transform: uppercase; letter-spacing: 0.06em; }
+    .login-field { margin-bottom: 14px; }
+    .login-field label { display: block; font-size: 0.72rem; color: #666; margin-bottom: 5px; }
+    .login-field input { width: 100%; background: #12141e; color: #e0e0e0; border: 1px solid #2a2d3a;
+                         border-radius: 6px; padding: 9px 12px; font-size: 0.88rem; }
+    .login-field input:focus { outline: none; border-color: #3b5bdb; }
+    .login-btn { width: 100%; background: #1d3a6e; border: 1px solid #2a5298; color: #93c5fd;
+                 border-radius: 6px; padding: 10px; font-size: 0.88rem; font-weight: 600;
+                 cursor: pointer; margin-top: 6px; transition: background 0.15s; }
+    .login-btn:hover { background: #2a4a8a; }
+    .login-error { color: #f87171; font-size: 0.75rem; margin-top: 10px; min-height: 16px; text-align: center; }
+
     /* ── Calculadora tab ── */
     #tab-calculadora { display: none; flex-direction: column; height: calc(100vh - 46px); overflow: hidden; }
     #tab-calculadora.active { display: flex; }
@@ -546,8 +567,8 @@
       <button class="tab-btn" onclick="switchTab('calculadora')">Calculadora</button>
     </div>
     <div class="header-right">
-      <span id="auth-status"></span>
-      <button class="btn" id="auth-btn" onclick="openLoginModal()">Login</button>
+      <span id="auth-status" style="font-size:0.75rem;color:#888"></span>
+      <button class="btn btn-sm" id="auth-btn" onclick="doLogout()" style="display:none">Cerrar sesión</button>
     </div>
   </header>
 
@@ -1228,6 +1249,20 @@
   </div>
 </div>
 
+<!-- ── Login screen (shown when not authenticated) ── -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-card-logo">🏠 Madrid Flip Hunter</div>
+    <div class="login-card-sub">Inversiones inmobiliarias · Madrid</div>
+    <form onsubmit="doLoginScreen(); return false;">
+      <div class="login-field"><label>Usuario</label><input type="text" id="ls-username" autocomplete="username" autofocus></div>
+      <div class="login-field"><label>Contraseña</label><input type="password" id="ls-password" autocomplete="current-password"></div>
+      <button class="login-btn" type="submit">Entrar</button>
+    </form>
+    <div class="login-error" id="ls-error"></div>
+  </div>
+</div>
+
 <div id="toast-container"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -1257,49 +1292,59 @@
     return t ? { 'Authorization': `Bearer ${t}`, 'Content-Type': 'application/json' }
              : { 'Content-Type': 'application/json' };
   }
+
+  function showLoginScreen() {
+    document.getElementById('login-screen').classList.add('visible');
+    document.getElementById('ls-error').textContent = '';
+    document.getElementById('ls-username').value = '';
+    document.getElementById('ls-password').value = '';
+    setTimeout(() => document.getElementById('ls-username').focus(), 50);
+  }
+
+  function hideLoginScreen() {
+    document.getElementById('login-screen').classList.remove('visible');
+  }
+
   function updateAuthUI() {
     const t = getToken();
     ['auth-status','auth-status-detail'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.textContent = t ? '✓ conectado' : '';
     });
-    const mainBtn   = document.getElementById('auth-btn');
+    const mainBtn = document.getElementById('auth-btn');
+    if (mainBtn) mainBtn.style.display = t ? '' : 'none';
     const detailBtn = document.getElementById('auth-btn-detail');
-    [mainBtn, detailBtn].forEach(btn => {
-      if (!btn) return;
-      btn.textContent = t ? 'Logout' : 'Login';
-      btn.onclick = t ? doLogout : openLoginModal;
-    });
+    if (detailBtn) { detailBtn.textContent = t ? 'Logout' : 'Login'; detailBtn.onclick = t ? doLogout : showLoginScreen; }
   }
-  function doLogout() { localStorage.removeItem('mfh_token'); updateAuthUI(); }
-  function openLoginModal() {
-    document.getElementById('login-error').textContent = '';
-    document.getElementById('login-username').value = '';
-    document.getElementById('login-password').value = '';
-    document.getElementById('modal-login').classList.add('open');
-    setTimeout(() => document.getElementById('login-username').focus(), 50);
+
+  function doLogout() {
+    localStorage.removeItem('mfh_token');
+    updateAuthUI();
+    showLoginScreen();
   }
-  async function doLogin() {
-    const username = document.getElementById('login-username').value.trim();
-    const password = document.getElementById('login-password').value;
-    document.getElementById('login-error').textContent = '';
+
+  // Full-screen login form handler
+  async function doLoginScreen() {
+    const username = document.getElementById('ls-username').value.trim();
+    const password = document.getElementById('ls-password').value;
+    document.getElementById('ls-error').textContent = '';
     try {
       const resp = await fetch('/api/auth/token', {
         method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`,
       });
-      if (!resp.ok) { document.getElementById('login-error').textContent = 'Credenciales incorrectas'; return; }
+      if (!resp.ok) { document.getElementById('ls-error').textContent = 'Credenciales incorrectas'; return; }
       localStorage.setItem('mfh_token', (await resp.json()).access_token);
-      closeModal('modal-login');
+      hideLoginScreen();
       updateAuthUI();
-      // Refresh whichever view is active
-      const m = window.location.pathname.match(/^\/operaciones\/([^/]+)$/);
-      if (m) loadOpDetail(m[1]);
-      else if (window.location.pathname.startsWith('/personas')) loadPersonsData();
-      else if (window.location.pathname.startsWith('/inversores')) loadInvestorData();
-      else loadOperations();
-    } catch { document.getElementById('login-error').textContent = 'Error de conexión'; }
+      loadListings();
+      router();
+    } catch { document.getElementById('ls-error').textContent = 'Error de conexión'; }
   }
+
+  // Kept for the modal (operation detail re-auth flow)
+  function openLoginModal() { showLoginScreen(); }
+  async function doLogin() { await doLoginScreen(); }
 
   // ── Modal helpers ─────────────────────────────────────────────────────────
   function closeModal(id) { document.getElementById(id).classList.remove('open'); }
@@ -1309,7 +1354,7 @@
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(el => el.classList.remove('open'));
   });
-  document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  document.getElementById('ls-password').addEventListener('keydown', e => { if (e.key === 'Enter') doLoginScreen(); });
 
   // ── SPA Router ────────────────────────────────────────────────────────────
   function navigateTo(path) {
@@ -2910,19 +2955,32 @@
   }
 
   // ── Init ──────────────────────────────────────────────────────────────────
-  updateAuthUI();
-  fetch('/api/listings')
-    .then(r => r.json())
-    .then(listings => {
-      allListings = listings;
-      listings.forEach(l => {
-        const m = makeMarker(l);
-        if (m) { markers[l.id] = m; m.addTo(map); m.on('click', () => { highlightRow(l.id); showDetail(l); }); }
-      });
-      applyFilters();
-    });
+  function loadListings() {
+    fetch('/api/listings', { headers: authHeaders() })
+      .then(r => {
+        if (r.status === 401) { doLogout(); return null; }
+        return r.json();
+      })
+      .then(listings => {
+        if (!listings) return;
+        allListings = listings;
+        listings.forEach(l => {
+          const m = makeMarker(l);
+          if (m) { markers[l.id] = m; m.addTo(map); m.on('click', () => { highlightRow(l.id); showDetail(l); }); }
+        });
+        applyFilters();
+      })
+      .catch(() => {});
+  }
+
   initCalculadora();
-  router();
+  updateAuthUI();
+  if (getToken()) {
+    loadListings();
+    router();
+  } else {
+    showLoginScreen();
+  }
 </script>
 </body>
 </html>
