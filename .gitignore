@@ -4,8 +4,6 @@ __pycache__/
 .venv/
 *.env
 
-# Poetry
-poetry.lock
 
 # OS
 .DS_Store
