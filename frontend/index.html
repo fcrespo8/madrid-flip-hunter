@@ -1047,6 +1047,7 @@
           <div class="field-row"><div class="field-label">Dirección</div><input class="field-input" id="fe-address"></div>
           <div class="field-row"><div class="field-label">Barrio</div><input class="field-input" id="fe-neighborhood"></div>
           <div class="field-row"><div class="field-label">Distrito</div><input class="field-input" id="fe-district"></div>
+          <div class="field-row"><div class="field-label">Metros (m²)</div><input class="field-input" id="fe-metros" type="number" min="1" step="1" placeholder="ej. 75"></div>
           <div class="field-row"><div class="field-label">Notas</div><textarea class="field-input" id="fe-notes"></textarea></div>
           <div class="error-msg" id="ficha-error"></div>
           <div class="ficha-actions">
@@ -1648,6 +1649,11 @@
       const fP   = v => v != null ? (v >= 0 ? '+' : '') + v.toFixed(1) + '%' : '—';
       const sema = v => v == null ? '#888' : v > 12 ? '#34d399' : v >= 7 ? '#facc15' : '#f87171';
 
+      const metros = currentOp?.metros || 0;
+      const epm2compra = metros > 0 && pp > 0 ? Math.round(pp / metros) : null;
+      const epm2venta  = metros > 0 && pv > 0 ? Math.round(pv / metros) : null;
+      const fM = v => v != null ? v.toLocaleString('es-ES') + ' €/m²' : '—';
+
       const cards = [
         { val: fE(pp),   label: 'Precio compra',  color: pp > 0 ? '#fff' : '#555' },
         { val: pv ? formatEur(pv) : 'Pendiente', label: 'Precio venta', color: pv ? '#fff' : '#888' },
@@ -1656,8 +1662,8 @@
         { val: fP(roi),  label: 'ROI total',       color: roi == null ? '#888' : roi >= 0 ? '#34d399' : '#f87171' },
         { val: fP(roiA), label: 'ROI anualizado',  color: sema(roiA) },
         { val: durVal,   label: 'Duración',         color: durColor },
-        { val: '—',      label: '€/m² compra',     color: '#555' },
-        { val: '—',      label: '€/m² venta',      color: '#555' },
+        { val: fM(epm2compra), label: '€/m² compra', color: epm2compra ? '#60a5fa' : '#555' },
+        { val: fM(epm2venta),  label: '€/m² venta',  color: epm2venta  ? '#60a5fa' : '#555' },
       ];
       grid.innerHTML = cards.map(c =>
         `<div class="ficha-kpi-card"><div class="ficha-kpi-val" style="color:${c.color}">${c.val}</div><div class="ficha-kpi-label">${c.label}</div></div>`
@@ -1726,6 +1732,7 @@
     document.getElementById('fe-address').value      = currentOp.address      || '';
     document.getElementById('fe-neighborhood').value = currentOp.neighborhood || '';
     document.getElementById('fe-district').value     = currentOp.district     || '';
+    document.getElementById('fe-metros').value       = currentOp.metros       != null ? currentOp.metros : '';
     document.getElementById('fe-notes').value        = currentOp.notes        || '';
     document.getElementById('ficha-error').textContent = '';
   }
@@ -1738,10 +1745,12 @@
   async function saveFicha() {
     if (!currentOp) return;
     const btn = document.querySelector('#ficha-edit .btn-primary');
+    const metrosRaw = parseInt(document.getElementById('fe-metros').value);
     const body = {
       address:      document.getElementById('fe-address').value.trim()      || null,
       neighborhood: document.getElementById('fe-neighborhood').value.trim() || null,
       district:     document.getElementById('fe-district').value.trim()     || null,
+      metros:       metrosRaw > 0 ? metrosRaw : null,
       notes:        document.getElementById('fe-notes').value.trim()        || null,
     };
     document.getElementById('ficha-error').textContent = '';
@@ -1758,6 +1767,7 @@
       document.getElementById('op-detail-title').textContent = currentOp.name;
       cancelEditMode();
       renderFichaView();
+      loadFichaKpis(currentOp.id);
       toast('Ficha guardada ✓', 'success');
     } catch { document.getElementById('ficha-error').textContent = 'Error de conexión'; }
     finally { btnLoading(btn, false); }

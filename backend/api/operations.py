@@ -39,6 +39,7 @@ class OperationUpdate(BaseModel):
     district: Optional[str] = None
     notes: Optional[str] = None
     listing_id: Optional[int] = None
+    metros: Optional[int] = None
 
 
 class OperationOut(BaseModel):
@@ -50,6 +51,7 @@ class OperationOut(BaseModel):
     district: Optional[str]
     notes: Optional[str]
     listing_id: Optional[int]
+    metros: Optional[int] = None
     created_at: datetime
     updated_at: datetime
     roi_pct:    Optional[float] = None
@@ -66,6 +68,7 @@ class OperationOut(BaseModel):
             district=op.district,
             notes=op.notes,
             listing_id=op.listing_id,
+            metros=op.metros,
             created_at=op.created_at,
             updated_at=op.updated_at,
         )

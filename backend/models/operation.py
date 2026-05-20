@@ -67,6 +67,7 @@ class Operation(Base):
 
     listing_id: Mapped[int | None] = mapped_column(ForeignKey("listings.id"), nullable=True)
     notes:      Mapped[str | None] = mapped_column(Text, nullable=True)
+    metros:     Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
