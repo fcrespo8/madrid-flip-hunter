@@ -1,10 +1,10 @@
 import os
 from contextlib import asynccontextmanager
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-from backend.auth.dependencies import get_current_user
+from backend.auth.dependencies import get_current_user, require_admin
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from backend.models.database import SessionLocal
 from backend.models.listing import Listing
@@ -87,6 +87,21 @@ def get_listings(_=Depends(get_current_user)):
         return result
     finally:
         db.close()
+
+@app.patch("/api/listings/{listing_id}")
+def patch_listing(listing_id: int, body: dict, _=Depends(require_admin)):
+    db: Session = SessionLocal()
+    try:
+        listing = db.query(Listing).filter_by(id=listing_id).first()
+        if not listing:
+            raise HTTPException(status_code=404, detail="Listing not found")
+        if "is_active" in body:
+            listing.is_active = bool(body["is_active"])
+        db.commit()
+        return {"id": listing_id, "is_active": listing.is_active}
+    finally:
+        db.close()
+
 
 # Servir el frontend
 frontend_path = os.path.join(os.path.dirname(__file__), "../../frontend")

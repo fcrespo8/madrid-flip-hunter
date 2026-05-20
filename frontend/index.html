@@ -1376,6 +1376,14 @@
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   function getToken() { return localStorage.getItem('mfh_token'); }
+  function getTokenRole() {
+    const t = getToken();
+    if (!t) return null;
+    try {
+      const payload = JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      return payload.role || null;
+    } catch { return null; }
+  }
   function authHeaders() {
     const t = getToken();
     return t ? { 'Authorization': `Bearer ${t}`, 'Content-Type': 'application/json' }
@@ -2657,11 +2665,31 @@
     }
     const d = document.getElementById('detail');
     d.style.display = 'block';
+    const expireBtn = getTokenRole() === 'admin'
+      ? `<button onclick="expireListing(${l.id})" style="margin-top:10px;background:#3a0a0a;border:1px solid #7f1d1d;color:#f87171;border-radius:5px;padding:4px 10px;font-size:0.73rem;cursor:pointer">Marcar como expirado</button>`
+      : '';
     d.innerHTML = `<h3>${l.title}</h3>${marketHtml}<div class="reasoning">${l.score_reasoning||'Sin razonamiento'}</div>
       <div class="flags">
         ${green.length?`<div class="flag-group green"><h4>✅ Green flags</h4>${green.map(f=>`<div class="flag-item">· ${f}</div>`).join('')}</div>`:''}
         ${red.length?`<div class="flag-group red"><h4>⚠️ Red flags</h4>${red.map(f=>`<div class="flag-item">· ${f}</div>`).join('')}</div>`:''}
-      </div>`;
+      </div>${expireBtn}`;
+  }
+
+  async function expireListing(id) {
+    if (!confirm('¿Marcar este listing como expirado? Se ocultará del dashboard.')) return;
+    try {
+      const resp = await fetch(`/api/listings/${id}`, {
+        method: 'PATCH', headers: authHeaders(), body: JSON.stringify({ is_active: false }),
+      });
+      if (resp.status === 401) { doLogout(); return; }
+      if (!resp.ok) { toast('Error al marcar el listing', 'error'); return; }
+      toast('Listing marcado como expirado ✓', 'success');
+      document.getElementById('detail').style.display = 'none';
+      const row = document.getElementById(`row-${id}`);
+      if (row) row.remove();
+      allListings = allListings.filter(l => l.id !== id);
+      if (markers[id]) { markers[id].remove(); delete markers[id]; }
+    } catch { toast('Error de conexión', 'error'); }
   }
 
   function highlightRow(id) {
