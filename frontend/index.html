@@ -550,6 +550,37 @@
     .badge-opt  { background: #052e16; color: #34d399; padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 700; }
     .badge-base { background: #3a2e0a; color: #fbbf24; padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 700; }
     .badge-pes  { background: #3a0a0a; color: #f87171; padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 700; }
+
+    /* ── Tab loading bar ── */
+    .tab-load-bar { height: 2px; background: linear-gradient(90deg, transparent 0%, var(--accent) 50%, transparent 100%);
+                    background-size: 200% 100%; animation: tabLoad 1s ease-in-out infinite; margin-bottom: 8px; border-radius: 1px; }
+    @keyframes tabLoad { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    /* ── Responsive < 900px ── */
+    @media (max-width: 900px) {
+      #app { grid-template-columns: 1fr; height: auto; }
+      #map { height: 50vh; }
+      #sidebar { height: 50vh; }
+      .tabs { overflow-x: auto; flex-wrap: nowrap; }
+      .tab-btn { white-space: nowrap; padding: 0 10px; font-size: 0.76rem; }
+      .ficha-grid { grid-template-columns: 1fr; }
+      .fin-row { flex-direction: column; gap: 8px; }
+      .sf-name input, .sf-role input, .sf-pct input, .sf-loan input { width: 100%; }
+      .ef-desc { min-width: 100%; }
+      .op-detail-tabs { overflow-x: auto; }
+      .dtab-btn { white-space: nowrap; padding: 8px 10px; font-size: 0.76rem; }
+      .op-detail-header { flex-wrap: wrap; gap: 8px; }
+      .society-body { flex-direction: column; }
+      .society-chart-wrap { width: 100%; }
+      .inv-hero { padding: 20px; }
+      .inv-section { padding: 16px 20px; }
+      .inv-kpi-row { gap: 8px; }
+      .calc-layout { flex-direction: column; }
+      .calc-panel-left { width: 100%; border-right: none; border-bottom: 1px solid #2a2d3a; }
+      .calc-compare-cols { grid-template-columns: 1fr; }
+      #kpis { flex-wrap: wrap; }
+      .kpi { min-width: 100px; }
+    }
   </style>
 </head>
 <body>
@@ -818,6 +849,21 @@
         <div class="calc-kpi-card" style="grid-column:1/-1"><div class="calc-kpi-val" id="c-kpi-roi-anual">—</div><div class="calc-kpi-label">ROI anualizado %</div></div>
       </div>
 
+      <div style="margin-bottom:16px;background:#1a1d27;border:1px solid #2a2d3a;border-radius:8px;padding:14px 16px">
+        <div style="font-size:0.7rem;color:#a78bfa;text-transform:uppercase;letter-spacing:.08em;font-weight:700;margin-bottom:10px">¿A qué precio tengo que vender?</div>
+        <div class="calc-field" style="margin-bottom:0">
+          <label>ROI anualizado objetivo</label>
+          <div class="calc-field-right">
+            <input class="calc-input calc-input-sm" type="number" id="c-roi-obj" value="15" min="0" step="0.5">
+            <span class="calc-unit">%</span>
+          </div>
+        </div>
+        <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid #1e2130">
+          <span style="font-size:0.82rem;color:#94a3b8">Precio de venta mínimo:</span>
+          <span style="font-size:1rem;font-weight:800;color:#a78bfa" id="c-precio-minimo">—</span>
+        </div>
+      </div>
+
       <div class="calc-pnl">
         <div class="calc-pnl-section">P&amp;L detallado</div>
         <div class="calc-pnl-row"><span class="calc-pnl-label">Precio venta</span><span class="calc-pnl-income" id="c-pnl-venta">—</span></div>
@@ -1051,6 +1097,7 @@
 
       <!-- Tab: Financiero -->
       <div id="dtab-financiero" style="display:none">
+        <div id="fin-loading" class="tab-load-bar" style="display:none"></div>
         <details class="collapsible" open>
           <summary>Compra</summary>
           <div class="collapsible-body">
@@ -1650,6 +1697,8 @@
   // ── Financiero tab ────────────────────────────────────────────────────────
 
   async function loadFinancials(opId) {
+    const loadBar = document.getElementById('fin-loading');
+    if (loadBar) loadBar.style.display = '';
     try {
       const resp = await fetch(`/api/operations/${opId}/financials`, { headers: authHeaders() });
       if (!resp.ok) return;
@@ -1659,6 +1708,7 @@
       calcPnl();
       updateExpenseSummary();
     } catch { toast('Error cargando datos financieros', 'error'); }
+    finally { if (loadBar) loadBar.style.display = 'none'; }
   }
 
   function populateFinancials(d) {
@@ -2002,12 +2052,14 @@
 
   async function deleteExpense(expenseId) {
     if (!currentOp) return;
+    if (!confirm('¿Eliminar este gasto?')) return;
     try {
       const resp = await fetch(`/api/operations/${currentOp.id}/expenses/${expenseId}`, {
         method: 'DELETE', headers: authHeaders(),
       });
       if (resp.status === 401) { doLogout(); return; }
       if (!resp.ok) { toast('Error al eliminar el gasto', 'error'); return; }
+      toast('Gasto eliminado ✓', 'success');
       await loadExpenses(currentOp.id);
     } catch { toast('Error de conexión al eliminar', 'error'); }
   }
@@ -2162,6 +2214,8 @@
 
   async function loadPartners(opId) {
     if (!getToken()) return;
+    showTableSkeleton('partners-tbody', 7, 3);
+    document.getElementById('distribution-wrap').innerHTML = '<div class="dist-unavail">Cargando...</div>';
     try {
       const [pResp, dResp, fResp] = await Promise.all([
         fetch(`/api/operations/${opId}/partners`, { headers: authHeaders() }),
@@ -2283,6 +2337,8 @@
     const rate   = parseFloat(document.getElementById('sp-rate').value)   || null;
     const months = parseInt(document.getElementById('sp-months').value) || null;
     document.getElementById('sp-error').textContent = '';
+    const btn = document.querySelector('#dtab-sociedad .sf .btn-primary');
+    btnLoading(btn, true, 'Añadiendo...');
     try {
       const resp = await fetch(`/api/operations/${currentOp.id}/partners`, {
         method: 'POST', headers: authHeaders(),
@@ -2294,10 +2350,12 @@
       ['sp-name','sp-role','sp-pct','sp-capital','sp-loan','sp-rate','sp-months'].forEach(id => document.getElementById(id).value = '');
       await loadPartners(currentOp.id);
     } catch { document.getElementById('sp-error').textContent = 'Error de conexión'; }
+    finally { btnLoading(btn, false); }
   }
 
   async function deletePartner(partnerId) {
     if (!currentOp) return;
+    if (!confirm('¿Eliminar este socio?')) return;
     try {
       await fetch(`/api/operations/${currentOp.id}/partners/${partnerId}`, {
         method: 'DELETE', headers: authHeaders(),
@@ -2724,10 +2782,35 @@
     };
   }
 
+  function _calcBrutoFromNeto(neto, regimen) {
+    if (neto <= 0) return neto;
+    if (regimen === 'sl') return neto / 0.75;
+    let bruto = neto;
+    for (let i = 0; i < 15; i++) bruto = neto + calcularIRPF(Math.max(0, bruto));
+    return bruto;
+  }
+
+  function updatePrecioMinimo(inputs) {
+    const el = document.getElementById('c-precio-minimo');
+    if (!el) return;
+    const roiObjAnual = parseFloat(document.getElementById('c-roi-obj')?.value) || 0;
+    if (inputs.precio_compra <= 0 || roiObjAnual <= 0) { el.textContent = '—'; return; }
+    const itp = inputs.precio_compra * (inputs.itp_pct / 100);
+    const inversion = inputs.precio_compra + itp + inputs.notaria + inputs.comision_compra
+                    + inputs.reforma + inputs.gastos_corrientes;
+    const meses = inputs.meses > 0 ? inputs.meses : 1;
+    const roi_total_necesario = roiObjAnual * meses / 12;
+    const neto_necesario = inversion * (roi_total_necesario / 100);
+    const bruto_necesario = _calcBrutoFromNeto(neto_necesario, inputs.regimen);
+    const comVentaFrac = inputs.comision_venta_pct / 100;
+    const precio_min = (inversion + bruto_necesario + inputs.plusvalia) / (1 - comVentaFrac);
+    el.textContent = precio_min > 0 ? formatEur(Math.ceil(precio_min)) : '—';
+  }
+
   function _semaforoClass(roi_anualizado, hasData) {
     if (!hasData) return 'gris';
-    if (roi_anualizado < 10) return 'rojo';
-    if (roi_anualizado <= 20) return 'amarillo';
+    if (roi_anualizado < 7)  return 'rojo';
+    if (roi_anualizado <= 12) return 'amarillo';
     return 'verde';
   }
   const SEMAFORO_TEXTS = { verde:'Operación viable', amarillo:'Rentabilidad moderada', rojo:'Operación no rentable', gris:'Introduce los datos' };
@@ -2759,7 +2842,7 @@
     setKpi('c-kpi-bruto',      hasData ? fS(r.beneficio_bruto)  : '—', hasData ? (r.beneficio_bruto  >= 0 ? 'green' : 'red') : '');
     setKpi('c-kpi-neto',       hasData ? fS(r.beneficio_neto)   : '—', hasData ? (r.beneficio_neto   >= 0 ? 'green' : 'red') : '');
     setKpi('c-kpi-roi',        hasData ? fP1(r.roi_total)       : '—', hasData ? (r.roi_total        >= 0 ? 'green' : 'red') : '');
-    setKpi('c-kpi-roi-anual',  hasData ? fP1(r.roi_anualizado)  : '—', hasData ? (r.roi_anualizado >= 20 ? 'green' : r.roi_anualizado >= 10 ? 'yellow' : 'red') : '');
+    setKpi('c-kpi-roi-anual',  hasData ? fP1(r.roi_anualizado)  : '—', hasData ? (r.roi_anualizado > 12 ? 'green' : r.roi_anualizado >= 7 ? 'yellow' : 'red') : '');
 
     const setT = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     setT('c-pnl-venta',      hasData ? formatEur(inputs.precio_venta)      : '—');
@@ -2801,6 +2884,7 @@
       repartoWrap.style.display = 'none';
     }
 
+    updatePrecioMinimo(inputs);
     renderEscenariosTable();
   }
 
@@ -2844,7 +2928,7 @@
       ['Precio venta',    d => d.precio_venta  > 0 ? formatEur(d.precio_venta)  : '—'],
       ['Inversión total', d => { const r = _scenarioResult(d); return r ? formatEur(r.inversion_total) : '—'; }],
       ['Beneficio neto',  d => { const r = _scenarioResult(d); if (!r) return '—'; const v = r.beneficio_neto; return `<span style="color:${v>=0?'#34d399':'#f87171'}">${v>=0?'+':''}${formatEur(v)}</span>`; }],
-      ['ROI anualizado',  d => { const r = _scenarioResult(d); if (!r) return '—'; const v = r.roi_anualizado; return `<span style="color:${v>=20?'#34d399':v>=10?'#fbbf24':'#f87171'}">${v>=0?'+':''}${v.toFixed(1)}%</span>`; }],
+      ['ROI anualizado',  d => { const r = _scenarioResult(d); if (!r) return '—'; const v = r.roi_anualizado; return `<span style="color:${v>12?'#34d399':v>=7?'#fbbf24':'#f87171'}">${v>=0?'+':''}${v.toFixed(1)}%</span>`; }],
       ['Semáforo',        d => { const r = _scenarioResult(d); if (!r) return '—'; const cls = _semaforoClass(r.roi_anualizado, (d.precio_compra||0)>0 && (d.precio_venta||0)>0); const t = {verde:'✅ Viable',amarillo:'⚠️ Moderada',rojo:'❌ No rentable',gris:'—'}; const c = {verde:'#34d399',amarillo:'#fbbf24',rojo:'#f87171',gris:'#555'}; return `<span style="color:${c[cls]}">${t[cls]}</span>`; }],
     ];
     tbody.innerHTML = rows.map(([label, fn]) =>
@@ -2918,7 +3002,7 @@
     setC('kpi-inversion', hasData ? formatEur(r.inversion_total)   : '—');
     setC('kpi-bruto',     hasData ? fS(r.beneficio_bruto) : '—', hasData ? (r.beneficio_bruto >= 0 ? '#34d399' : '#f87171') : null);
     setC('kpi-neto',      hasData ? fS(r.beneficio_neto)  : '—', hasData ? (r.beneficio_neto  >= 0 ? '#34d399' : '#f87171') : null);
-    setC('kpi-roi',       hasData ? fP1(r.roi_anualizado) : '—', hasData ? (r.roi_anualizado >= 20 ? '#34d399' : r.roi_anualizado >= 10 ? '#fbbf24' : '#f87171') : null);
+    setC('kpi-roi',       hasData ? fP1(r.roi_anualizado) : '—', hasData ? (r.roi_anualizado > 12 ? '#34d399' : r.roi_anualizado >= 7 ? '#fbbf24' : '#f87171') : null);
     renderCompareSummary();
   }
 
@@ -2940,7 +3024,7 @@
       ['Precio venta',    d => d.precio_venta  > 0 ? formatEur(d.precio_venta)  : '—'],
       ['Inversión total', d => formatEur(calcularFlip(d).inversion_total)],
       ['Beneficio neto',  d => { const v = calcularFlip(d).beneficio_neto;  return `<span style="color:${v>=0?'#34d399':'#f87171'}">${v>=0?'+':''}${formatEur(v)}</span>`; }],
-      ['ROI anualizado',  d => { const v = calcularFlip(d).roi_anualizado;  return `<span style="color:${v>=20?'#34d399':v>=10?'#fbbf24':'#f87171'}">${v>=0?'+':''}${v.toFixed(1)}%</span>`; }],
+      ['ROI anualizado',  d => { const v = calcularFlip(d).roi_anualizado;  return `<span style="color:${v>12?'#34d399':v>=7?'#fbbf24':'#f87171'}">${v>=0?'+':''}${v.toFixed(1)}%</span>`; }],
       ['Semáforo',        d => { const r = calcularFlip(d); const cls = _semaforoClass(r.roi_anualizado, d.precio_compra>0 && d.precio_venta>0); const t={verde:'✅ Viable',amarillo:'⚠️ Moderada',rojo:'❌ No rentable',gris:'—'}; const c={verde:'#34d399',amarillo:'#fbbf24',rojo:'#f87171',gris:'#555'}; return `<span style="color:${c[cls]}">${t[cls]}</span>`; }],
     ];
     tbody.innerHTML = rows.map(([label, fn]) =>
@@ -2995,7 +3079,7 @@
   function initCalculadora() {
     ['c-precio-compra','c-itp-pct','c-notaria','c-comision-compra',
      'c-reforma','c-gastos-corrientes','c-meses',
-     'c-precio-venta','c-comision-venta-pct','c-plusvalia','c-regimen'].forEach(id => {
+     'c-precio-venta','c-comision-venta-pct','c-plusvalia','c-regimen','c-roi-obj'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.addEventListener('input', recalculate);
     });
