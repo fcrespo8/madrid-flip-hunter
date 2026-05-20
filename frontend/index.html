@@ -1055,7 +1055,7 @@
           <summary>Compra</summary>
           <div class="collapsible-body">
             <div class="fin-row">
-              <div class="fin-field"><label>Precio escritura</label><input type="number" id="fin-purchase-price" placeholder="0"></div>
+              <div class="fin-field"><label>Precio escritura (€)</label><input type="number" id="fin-purchase-price" placeholder="ej. 180000" title="Precio de compra escriturado. Si usas la categoría 'Precio piso' en Gastos, este campo se calcula automáticamente."></div>
             </div>
           </div>
         </details>
@@ -1069,8 +1069,8 @@
           <summary>Venta</summary>
           <div class="collapsible-body">
             <div class="fin-row">
-              <div class="fin-field"><label>Precio objetivo venta</label><input type="number" id="fin-target-sale-price" placeholder="0"></div>
-              <div class="fin-field"><label>Precio venta real</label><input type="number" id="fin-actual-sale-price" placeholder="0"></div>
+              <div class="fin-field"><label>Precio objetivo (€)</label><input type="number" id="fin-target-sale-price" placeholder="ej. 250000"></div>
+              <div class="fin-field"><label>Precio venta real (€)</label><input type="number" id="fin-actual-sale-price" placeholder="ej. 260000" title="Al rellenar este campo se activa el cálculo de beneficio neto y ROI"></div>
             </div>
           </div>
         </details>
@@ -1103,7 +1103,7 @@
               </label>
             </div>
             <div class="fin-row">
-              <div class="fin-field"><label>Plusvalía municipal</label><input type="number" id="fin-sale-tax-estimate" placeholder="0"></div>
+              <div class="fin-field"><label>Plusvalía municipal (€)</label><input type="number" id="fin-sale-tax-estimate" placeholder="0" title="Impuesto municipal sobre el incremento de valor del suelo (IIVTNU). Se resta del beneficio bruto antes de calcular IRPF/IS."></div>
               <div class="fin-field"><label id="tax-label">IRPF estimado (tramos)</label>
                 <input type="number" id="fin-tax-amount" readonly style="color:#555;background:#0f1117"></div>
             </div>
@@ -1280,6 +1280,20 @@
     setTimeout(() => el.remove(), 3100);
   }
 
+  // ── Button loading state ──────────────────────────────────────────────────
+  function btnLoading(el, loading, loadingText = 'Guardando...') {
+    if (!el) return;
+    if (loading) {
+      el.dataset.origText = el.textContent;
+      el.textContent = loadingText;
+      el.disabled = true;
+    } else {
+      el.textContent = el.dataset.origText || el.textContent;
+      el.disabled = false;
+      delete el.dataset.origText;
+    }
+  }
+
   // ── Loading skeleton ──────────────────────────────────────────────────────
   function showTableSkeleton(tbodyId, cols, rows = 4) {
     const tbody = document.getElementById(tbodyId);
@@ -1446,7 +1460,10 @@
       });
       _opsAll = ops;
       renderOperations(_opsFilterStatus ? ops.filter(o => o.status === _opsFilterStatus) : ops);
-    } catch { console.error('Error loading operations'); }
+    } catch {
+      document.getElementById('ops-tbody').innerHTML =
+        '<tr><td colspan="8" style="color:#f87171;padding:20px;text-align:center">Error cargando operaciones. Inténtalo de nuevo.</td></tr>';
+    }
   }
 
   function filterOpsBy(status) {
@@ -1604,6 +1621,7 @@
 
   async function saveFicha() {
     if (!currentOp) return;
+    const btn = document.querySelector('#ficha-edit .btn-primary');
     const body = {
       address:      document.getElementById('fe-address').value.trim()      || null,
       neighborhood: document.getElementById('fe-neighborhood').value.trim() || null,
@@ -1611,20 +1629,22 @@
       notes:        document.getElementById('fe-notes').value.trim()        || null,
     };
     document.getElementById('ficha-error').textContent = '';
+    btnLoading(btn, true);
     try {
       const resp = await fetch(`/api/operations/${currentOp.id}`, {
         method: 'PATCH', headers: authHeaders(), body: JSON.stringify(body),
       });
       if (!resp.ok) {
-        document.getElementById('ficha-error').textContent = (await resp.json()).detail || 'Error';
+        document.getElementById('ficha-error').textContent = (await resp.json()).detail || 'Error al guardar';
         return;
       }
       currentOp = { ...currentOp, ...(await resp.json()) };
       document.getElementById('op-detail-title').textContent = currentOp.name;
       cancelEditMode();
       renderFichaView();
-      toast('Ficha guardada', 'success');
+      toast('Ficha guardada ✓', 'success');
     } catch { document.getElementById('ficha-error').textContent = 'Error de conexión'; }
+    finally { btnLoading(btn, false); }
   }
 
   // ── Financiero tab ────────────────────────────────────────────────────────
@@ -1638,7 +1658,7 @@
       calcFinancingCost();
       calcPnl();
       updateExpenseSummary();
-    } catch { console.error('Error loading financials'); }
+    } catch { toast('Error cargando datos financieros', 'error'); }
   }
 
   function populateFinancials(d) {
@@ -1847,6 +1867,7 @@
 
   async function saveFinancials() {
     if (!currentOp) return;
+    const btn = document.querySelector('.fin-save-btn');
     const nv = id => { const v = document.getElementById(id).value.trim(); return v === '' ? null : parseFloat(v); };
     const body = {
       purchase_price: nv('fin-purchase-price'),
@@ -1862,14 +1883,16 @@
       tax_regime: getTaxRegime(),
     };
     document.getElementById('fin-error').textContent = '';
+    btnLoading(btn, true);
     try {
       const resp = await fetch(`/api/operations/${currentOp.id}/financials`, {
         method: 'PUT', headers: authHeaders(), body: JSON.stringify(body),
       });
-      if (!resp.ok) { document.getElementById('fin-error').textContent = (await resp.json()).detail || 'Error'; return; }
+      if (!resp.ok) { document.getElementById('fin-error').textContent = (await resp.json()).detail || 'Error al guardar'; return; }
       currentFinancialsData = await resp.json();
-      toast('Financiero guardado', 'success');
+      toast('Financiero guardado ✓', 'success');
     } catch { document.getElementById('fin-error').textContent = 'Error de conexión'; }
+    finally { btnLoading(btn, false); }
   }
 
   // ── Gastos tab ────────────────────────────────────────────────────────────
@@ -1898,7 +1921,7 @@
       renderExpenses(data.expenses || []);
       // Reload financials so P&L updates with new real expenses
       await loadFinancials(opId);
-    } catch { console.error('Error loading expenses'); }
+    } catch { toast('Error cargando gastos', 'error'); }
   }
 
   function renderExpenses(expenses) {
@@ -1927,7 +1950,7 @@
       ['🏠 Precio piso',             s.precio_piso,     'esum-precio-piso'],
       ['🔨 Obra y reforma',          s.obra,            'esum-obra'],
       ['📋 Trámites y honorarios',   s.tramites,        'esum-tramites'],
-      ['🏠 Comunidad y otros',       s.comunidad_otros, 'esum-comunidad-otros'],
+      ['🏘 Comunidad y otros',       s.comunidad_otros, 'esum-comunidad-otros'],
       ['🏢 Agencia compra',          s.agencia_compra,  'esum-agencia-compra'],
       ['🏢 Agencia venta',           s.agencia_venta,   'esum-agencia-venta'],
       ['🧾 Impuestos',               s.impuestos,       'esum-impuestos'],
@@ -1949,11 +1972,15 @@
     if (!currentOp) return;
     const desc   = document.getElementById('exp-desc').value.trim();
     const amount = parseFloat(document.getElementById('exp-amount').value);
+    const expDate = document.getElementById('exp-date').value;
+    if (!expDate) { document.getElementById('exp-error').textContent = 'La fecha es obligatoria'; return; }
     if (!desc) { document.getElementById('exp-error').textContent = 'La descripción es obligatoria'; return; }
-    if (!amount || amount <= 0) { document.getElementById('exp-error').textContent = 'Introduce un importe válido'; return; }
+    if (!amount || amount <= 0) { document.getElementById('exp-error').textContent = 'Introduce un importe válido (mayor que 0)'; return; }
     document.getElementById('exp-error').textContent = '';
+    const addBtn = document.querySelector('.expense-form .btn-primary');
+    btnLoading(addBtn, true, 'Añadiendo...');
     const body = {
-      date:           document.getElementById('exp-date').value,
+      date:           expDate,
       description:    desc,
       category:       document.getElementById('exp-cat').value,
       amount,
@@ -1964,12 +1991,13 @@
       const resp = await fetch(`/api/operations/${currentOp.id}/expenses`, {
         method: 'POST', headers: authHeaders(), body: JSON.stringify(body),
       });
-      if (!resp.ok) { document.getElementById('exp-error').textContent = (await resp.json()).detail || 'Error'; return; }
+      if (!resp.ok) { document.getElementById('exp-error').textContent = (await resp.json()).detail || 'Error al añadir'; return; }
       document.getElementById('exp-desc').value = '';
       document.getElementById('exp-amount').value = '';
       document.getElementById('exp-method').value = '';
       await loadExpenses(currentOp.id);
     } catch { document.getElementById('exp-error').textContent = 'Error de conexión'; }
+    finally { btnLoading(addBtn, false); }
   }
 
   async function deleteExpense(expenseId) {
@@ -1978,9 +2006,10 @@
       const resp = await fetch(`/api/operations/${currentOp.id}/expenses/${expenseId}`, {
         method: 'DELETE', headers: authHeaders(),
       });
-      if (!resp.ok) return;
+      if (resp.status === 401) { doLogout(); return; }
+      if (!resp.ok) { toast('Error al eliminar el gasto', 'error'); return; }
       await loadExpenses(currentOp.id);
-    } catch { console.error('Error deleting expense'); }
+    } catch { toast('Error de conexión al eliminar', 'error'); }
   }
 
   // ── Status update (Block 2 + 3) ──────────────────────────────────────────
@@ -2050,16 +2079,19 @@
       sale_date:        nv('fd-sale'),
     };
     document.getElementById('dates-error').textContent = '';
+    const btn = document.querySelector('#dates-edit .btn-primary');
+    btnLoading(btn, true);
     try {
       const resp = await fetch(`/api/operations/${currentOp.id}/dates`, {
         method: 'PUT', headers: authHeaders(), body: JSON.stringify(body),
       });
-      if (!resp.ok) { document.getElementById('dates-error').textContent = (await resp.json()).detail || 'Error'; return; }
+      if (!resp.ok) { document.getElementById('dates-error').textContent = (await resp.json()).detail || 'Error al guardar fechas'; return; }
       currentOpDates = await resp.json();
       cancelDatesEditMode();
       renderTimeline();
-      toast('Fechas guardadas', 'success');
+      toast('Fechas guardadas ✓', 'success');
     } catch { document.getElementById('dates-error').textContent = 'Error de conexión'; }
+    finally { btnLoading(btn, false); }
   }
 
   // ── CSV export (Block 4) ──────────────────────────────────────────────────
@@ -2141,7 +2173,7 @@
       if (fResp.ok) currentFinancialsData = await fResp.json();
       renderPartners(partners);
       renderDistribution(dist);
-    } catch { console.error('Error loading partners'); }
+    } catch { toast('Error cargando socios', 'error'); }
   }
 
   function renderPartners(partners) {
@@ -2271,7 +2303,7 @@
         method: 'DELETE', headers: authHeaders(),
       });
       await loadPartners(currentOp.id);
-    } catch { console.error('Error deleting partner'); }
+    } catch { toast('Error de conexión al eliminar socio', 'error'); }
   }
 
   // ── Personas global tab ───────────────────────────────────────────────────
@@ -2285,7 +2317,7 @@
       const resp = await fetch('/api/persons/summary', { headers: authHeaders() });
       if (!resp.ok) return;
       renderSociety(await resp.json());
-    } catch { console.error('Error loading society'); }
+    } catch { toast('Error cargando datos de personas', 'error'); }
   }
 
   function renderSociety(data) {
@@ -2368,7 +2400,7 @@
       const resp = await fetch('/api/investor/summary');
       if (!resp.ok) return;
       renderInvestorData(await resp.json());
-    } catch { console.error('Error loading investor data'); }
+    } catch { toast('Error cargando datos de inversores', 'error'); }
   }
 
   function _fmtDate(iso) {

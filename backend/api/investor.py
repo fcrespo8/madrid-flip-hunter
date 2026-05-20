@@ -1,9 +1,12 @@
 from __future__ import annotations
-from fastapi import APIRouter, Depends
+import logging
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from backend.models.database import get_db
 from backend.models.operation import Operation, OperationStatus
 from backend.api.operations import _build_financials_out, _get_expenses_data
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/investor", tags=["investor"])
 
@@ -21,7 +24,11 @@ def _hold_months(op: Operation) -> int | None:
 
 @router.get("/summary")
 def get_investor_summary(db: Session = Depends(get_db)):
-    all_ops  = db.query(Operation).all()
+    try:
+        all_ops  = db.query(Operation).all()
+    except Exception as exc:
+        logger.exception("Error querying operations in investor summary")
+        raise HTTPException(status_code=500, detail="Error interno del servidor") from exc
     vendidas = [op for op in all_ops if op.status == OperationStatus.vendido]
     prospectos = [
         op for op in all_ops

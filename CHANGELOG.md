@@ -1,82 +1,90 @@
 # Changelog — Madrid Flip Hunter
 
-## [Unreleased]
+## Sesión de revisión y polish (2026-05-19, ~1 hora)
 
-### feat: categoría precio_piso en gastos + migration (`db9d628`)
-
-**Problema:** La categoría `compra` agrupaba indistintamente el precio del inmueble y los
-gastos auxiliares de compra (notaría, registro, tasas), impidiendo que el P&L distinguiese
-cada partida.
-
-**Cambios:**
-- `backend/models/operation.py` — Nuevo valor `precio_piso` en el enum `ExpenseCategory`.
-  La categoría `compra` queda reservada para gastos auxiliares de compra (notaría, registro, tasas).
-- `alembic/versions/a1b2c3d4e5f6_add_precio_piso_to_expensecategory.py` — Migración Alembic:
-  `ALTER TYPE expensecategory ADD VALUE IF NOT EXISTS 'precio_piso'`.
-- `backend/api/expenses.py` — El resumen de gastos (`summary`) ahora incluye la clave
-  `precio_piso`, separada del resto de partidas.
-- `frontend/index.html`:
-  - Nuevo `<option value="precio_piso">Precio piso</option>` en el select de categoría de
-    la tab Gastos (aparece en primera posición).
-  - Badge CSS `.cat-precio_piso` (lila oscuro).
-  - `CAT_LABELS` actualizado con `precio_piso: 'Precio piso'`.
-  - Resumen de gastos: nueva fila "🏠 Precio piso" en primer lugar, visible solo cuando > 0.
+Archivos modificados (sin commit según las instrucciones):
+- `frontend/index.html`
+- `backend/api/persons.py`
+- `backend/api/investor.py`
 
 ---
 
-### fix: P&L precio escritura y ROI desde gastos reales (`9041827`)
+### BUGS corregidos
 
-**Problema:** Beneficio neto y ROI mostraban `—` cuando el campo manual "Precio escritura"
-estaba a 0 en Financiero, aunque el precio estuviese registrado como gasto `precio_piso`.
+#### 1. 8 errores silenciados → mensajes visibles al usuario
 
-**Cambios:**
-- `backend/api/operations.py`:
-  - `_get_expenses_data`: Nuevo bucket `precio_piso` en el dict `by_cat`.
-  - `_build_financials_out`:
-    - `pp_effective = purchase_price manual` si > 0, si no usa la suma de gastos `precio_piso`.
-    - `total_compra` y `total_costes` calculados con `pp_effective`.
-    - El response incluye el campo `precio_piso_expenses` para que el frontend lo consuma.
-  - `_get_expenses_data` inicializa el dict con `"precio_piso": 0.0`.
-- `frontend/index.html` — `calcPnl()`:
-  - `ppManual = gv('fin-purchase-price')` (campo manual del formulario).
-  - `precioPisoExp = ebc.precio_piso || 0` (suma de gastos con esa categoría).
-  - `pp = ppManual > 0 ? ppManual : precioPisoExp` — fallback automático.
-  - La línea "Precio escritura" del P&L detallado muestra el valor efectivo.
-  - ROI se calcula correctamente cuando el precio viene de gastos.
+Todas las funciones `async` que tenían `catch { console.error(...) }` ahora muestran
+`toast(...)` con mensaje en español o texto de error visible en la tabla/pantalla.
 
----
+| Función | Comportamiento anterior | Comportamiento nuevo |
+|---------|------------------------|---------------------|
+| `loadOperations` | `console.error` silenciado | Fila de error en tabla ("Error cargando operaciones. Inténtalo de nuevo.") |
+| `loadFinancials` | `console.error` silenciado | `toast('Error cargando datos financieros', 'error')` |
+| `loadExpenses` | `console.error` silenciado | `toast('Error cargando gastos', 'error')` |
+| `loadPartners` | `console.error` silenciado | `toast('Error cargando socios', 'error')` |
+| `deleteExpense` | `if (!resp.ok) return` sin feedback | `toast('Error al eliminar el gasto', 'error')` + manejo de 401 |
+| `deletePartner` | `console.error` silenciado | `toast('Error de conexión al eliminar socio', 'error')` |
+| `loadPersonsData` | `console.error` silenciado | `toast('Error cargando datos de personas', 'error')` |
+| `loadInvestorData` | `console.error` silenciado | `toast('Error cargando datos de inversores', 'error')` |
 
-### fix: mejoras generales (`405df25`)
+#### 2. `deleteExpense` sin manejo de 401
 
-**Bugs corregidos:**
+Añadido `if (resp.status === 401) { doLogout(); return; }` para que un token expirado
+no deje la UI en estado inconsistente.
 
-1. **Tramo IRPF 28% para ganancias > 300.000€** — Tanto el motor del backend
-   (`_calc_irpf` en `operations.py`) como la función del frontend (`calcIRPF` en
-   `index.html`) usaban 27% para todo lo que superase 200.000€. La escala 2024
-   de ganancias patrimoniales tiene un tramo adicional:
-   - 200.001€ – 300.000€ → 27 %
-   - > 300.000€ → 28 %
-   Ambas funciones se han actualizado para coincidir con `calcularIRPF` de la
-   Calculadora de Viabilidad, que ya era correcta.
+#### 3. `addExpense` no validaba la fecha
 
-2. **Variable `denom` sin uso** — En `calcPnl()` existía `const denom = foc + fib;`
-   declarada pero nunca referenciada. Eliminada.
+Antes: si el campo fecha estaba vacío se enviaba `""` al backend, que devolvía 400 de
+forma opaca. Ahora hay validación client-side: "La fecha es obligatoria".
+
+#### 4. Emoji duplicado en resumen de gastos
+
+"🏠 Precio piso" y "🏠 Comunidad y otros" usaban el mismo emoji. Corregido a
+"🏘 Comunidad y otros".
 
 ---
 
-## Historial previo
+### UX — Feedback visual en formularios
 
-| Commit | Descripción |
-|--------|-------------|
-| `c403b03` | fix: ITP en sección Compra del P&L, impuestos solo muestra impuestos de venta |
-| `498a0d7` | docs: actualizar CONTEXT.md — Deal Tracker módulos 1-7 completos |
-| `387ff65` | feat: Calculadora de Viabilidad — análisis único + comparar 3 escenarios |
-| `a797355` | fix: calculadora QA — warning % socios se actualiza en tiempo real |
-| `beff378` | feat: JWT auth — login requerido para ver listings |
-| `4a373b8` | fix: env var names ADMIN_USERNAME/PASSWORD en vez de APP_ |
-| `eb5c8ed` | feat: columna Visto (last_seen_at) en tabla listings + KPI último scrape |
-| `138d866` | fix: ITP a categoría impuestos, agencia split compra/venta en summary |
-| `c96220a` | fix: capital_contributed siempre desde total_costes, notaría venta, formato unificado |
-| `e8378fa` | feat: tab Inversores — track record, operaciones cerradas, retorno por inversor |
-| `022cc2d` | feat: capital_contributed por socio, formato numérico unificado |
-| `03f4eac` | fix: ROI calculation, partners distribution en P&L |
+Añadido helper `btnLoading(el, loading, text)` que deshabilita el botón y muestra
+"Guardando..." durante la petición, y lo restaura al terminar (tanto en éxito como en error).
+
+Aplicado a:
+- **Guardar financiero** (`.fin-save-btn`)
+- **Guardar ficha** (`#ficha-edit .btn-primary`)
+- **Guardar fechas** (`#dates-edit .btn-primary`)
+- **Añadir gasto** (`.expense-form .btn-primary`) — texto loading "Añadiendo..."
+
+Mensajes de toast actualizados con `✓` en los guardados exitosos:
+`'Financiero guardado ✓'`, `'Ficha guardada ✓'`, `'Fechas guardadas ✓'`.
+
+---
+
+### UX — Tooltips y placeholders descriptivos
+
+| Campo | Cambio |
+|-------|--------|
+| Precio escritura | Placeholder `ej. 180000` + tooltip explicando que se puede calcular desde Gastos |
+| Precio venta real | Placeholder `ej. 260000` + tooltip indicando que activa el cálculo de beneficio |
+| Plusvalía municipal | Tooltip explicando el IIVTNU y cómo afecta al P&L |
+
+---
+
+### Backend — try/except en endpoints de resumen
+
+`backend/api/persons.py` y `backend/api/investor.py` no tenían manejo de errores DB.
+Añadido `try/except Exception` alrededor del `db.query(Operation).all()` con:
+- `logger.exception(...)` para trazar el error en logs
+- `raise HTTPException(status_code=500, detail="Error interno del servidor")`
+
+Antes: un error de DB causaba 500 sin contexto y sin log estructurado.
+
+---
+
+### Pendiente (no llegó el tiempo)
+
+- Loading skeleton para la tab Financiero y Sociedad
+- Responsive básico para pantallas < 900px
+- Toasts de éxito al eliminar gastos (actualmente la lista se recarga silenciosamente)
+- `addPartner` sin loading state en el botón
+- Confirmación antes de borrar (gasto, socio)
