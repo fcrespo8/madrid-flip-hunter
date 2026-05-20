@@ -226,8 +226,15 @@
     .pnl-row.divider { border-top: 1px solid #1e293b; background: #080b10; }
     .pnl-row-label { color: #94a3b8; }
     .pnl-row-val { font-weight: 600; color: #e2e8f0; }
-    .pnl-pos { color: #10b981 !important; }
-    .pnl-neg { color: #ef4444 !important; }
+    .pnl-pos  { color: #10b981 !important; }
+    .pnl-neg  { color: #ef4444 !important; }
+    .pnl-warn { color: #facc15 !important; }
+
+    /* ── Ficha KPI cards ── */
+    .ficha-kpi-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+    .ficha-kpi-card { background: #12141e; border: 1px solid #2a2d3a; border-radius: 6px; padding: 10px 12px; }
+    .ficha-kpi-val  { font-size: 0.88rem; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ficha-kpi-label { font-size: 0.6rem; color: #555; text-transform: uppercase; letter-spacing: .04em; margin-top: 3px; }
 
     /* ── Placeholders ── */
     .placeholder { display: flex; align-items: center; justify-content: center;
@@ -995,6 +1002,22 @@
             <div class="field-row"><div class="field-label">Distrito</div><div class="field-val" id="fv-district"></div></div>
             <div class="field-row full"><div class="field-label">Notas</div><div class="field-val" id="fv-notes" style="white-space:pre-wrap"></div></div>
           </div>
+          <!-- KPI panel -->
+          <div style="border-top:1px solid #1e2130;padding-top:12px;margin-top:14px;margin-bottom:4px">
+            <div style="font-size:0.65rem;color:#60a5fa;text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:8px">Métricas financieras</div>
+            <div class="ficha-kpi-grid" id="ficha-kpi-grid">
+              <div class="ficha-kpi-card"><div class="ficha-kpi-val" style="color:#555">—</div><div class="ficha-kpi-label">Precio compra</div></div>
+              <div class="ficha-kpi-card"><div class="ficha-kpi-val" style="color:#555">—</div><div class="ficha-kpi-label">Precio venta</div></div>
+              <div class="ficha-kpi-card"><div class="ficha-kpi-val" style="color:#555">—</div><div class="ficha-kpi-label">Beneficio neto</div></div>
+              <div class="ficha-kpi-card"><div class="ficha-kpi-val" style="color:#555">—</div><div class="ficha-kpi-label">Total invertido</div></div>
+              <div class="ficha-kpi-card"><div class="ficha-kpi-val" style="color:#555">—</div><div class="ficha-kpi-label">ROI total</div></div>
+              <div class="ficha-kpi-card"><div class="ficha-kpi-val" style="color:#555">—</div><div class="ficha-kpi-label">ROI anualizado</div></div>
+              <div class="ficha-kpi-card"><div class="ficha-kpi-val" style="color:#555">—</div><div class="ficha-kpi-label">Duración</div></div>
+              <div class="ficha-kpi-card"><div class="ficha-kpi-val" style="color:#555">—</div><div class="ficha-kpi-label">€/m² compra</div></div>
+              <div class="ficha-kpi-card"><div class="ficha-kpi-val" style="color:#555">—</div><div class="ficha-kpi-label">€/m² venta</div></div>
+            </div>
+          </div>
+
           <!-- Dates section -->
           <div class="ficha-section-header">
             <span>Fechas clave</span>
@@ -1589,13 +1612,59 @@
     document.querySelectorAll('.dtab-btn').forEach((b, i) => {
       b.classList.toggle('active', ['ficha','gastos','financiero','sociedad','docs'][i] === name);
     });
-    if (name === 'ficha') renderFichaView();
+    if (name === 'ficha') { renderFichaView(); if (currentOp) loadFichaKpis(currentOp.id); }
     if (name === 'gastos'    && currentOp) loadExpenses(currentOp.id);
     if (name === 'financiero'&& currentOp) loadFinancials(currentOp.id);
     if (name === 'sociedad'  && currentOp) loadPartners(currentOp.id);
   }
 
   // ── Ficha tab ─────────────────────────────────────────────────────────────
+  async function loadFichaKpis(opId) {
+    const grid = document.getElementById('ficha-kpi-grid');
+    if (!grid) return;
+    try {
+      const resp = await fetch(`/api/operations/${opId}/financials`, { headers: authHeaders() });
+      if (!resp.ok) return;
+      const d = await resp.json();
+      currentFinancialsData = d;
+
+      const ebc = d.expenses_by_category || {};
+      const pp  = (d.purchase_price || 0) > 0 ? d.purchase_price : (ebc.precio_piso || 0);
+      const pv  = d.actual_sale_price || null;
+      const net = d.net_profit;
+      const roi = d.roi_pct;
+      const tc  = d.total_costes || 0;
+      const hold = getHoldMonths();
+      const roiA = (roi != null && hold) ? roi / hold * 12 : null;
+
+      const hasEscritura = currentOpDates?.escritura_date != null;
+      const hasSale      = currentOpDates?.sale_date != null;
+      const durVal = hold ? hold + ' meses'
+                   : (hasEscritura && !hasSale ? 'En curso' : '—');
+      const durColor = hold ? '#fff' : hasEscritura && !hasSale ? '#facc15' : '#555';
+
+      const fE   = v => v != null && v > 0 ? formatEur(v) : '—';
+      const fS   = v => v != null ? (v >= 0 ? '+' : '') + formatEur(v) : '—';
+      const fP   = v => v != null ? (v >= 0 ? '+' : '') + v.toFixed(1) + '%' : '—';
+      const sema = v => v == null ? '#888' : v > 12 ? '#34d399' : v >= 7 ? '#facc15' : '#f87171';
+
+      const cards = [
+        { val: fE(pp),   label: 'Precio compra',  color: pp > 0 ? '#fff' : '#555' },
+        { val: pv ? formatEur(pv) : 'Pendiente', label: 'Precio venta', color: pv ? '#fff' : '#888' },
+        { val: fS(net),  label: 'Beneficio neto', color: net == null ? '#888' : net >= 0 ? '#34d399' : '#f87171' },
+        { val: fE(tc),   label: 'Total invertido', color: tc > 0 ? '#fff' : '#555' },
+        { val: fP(roi),  label: 'ROI total',       color: roi == null ? '#888' : roi >= 0 ? '#34d399' : '#f87171' },
+        { val: fP(roiA), label: 'ROI anualizado',  color: sema(roiA) },
+        { val: durVal,   label: 'Duración',         color: durColor },
+        { val: '—',      label: '€/m² compra',     color: '#555' },
+        { val: '—',      label: '€/m² venta',      color: '#555' },
+      ];
+      grid.innerHTML = cards.map(c =>
+        `<div class="ficha-kpi-card"><div class="ficha-kpi-val" style="color:${c.color}">${c.val}</div><div class="ficha-kpi-label">${c.label}</div></div>`
+      ).join('');
+    } catch { /* leave placeholder dashes */ }
+  }
+
   function renderFichaView() {
     if (!currentOp) return;
     const setVal = (id, val) => {
@@ -1858,7 +1927,8 @@
           const roiA = (net / totalCostes) * (12 / hold) * 100;
           const roiAEl = document.getElementById('pnl-roi-anual');
           roiAEl.textContent = (roiA >= 0 ? '+' : '') + roiA.toFixed(1) + '%';
-          roiAEl.className   = 'pnl-row-val ' + (roiA >= 0 ? 'pnl-pos' : 'pnl-neg');
+          const raCls = roiA > 12 ? 'pnl-pos' : roiA >= 7 ? 'pnl-warn' : 'pnl-neg';
+          roiAEl.className   = 'pnl-row-val ' + raCls;
           roiAnualRow.style.display = 'flex';
           document.getElementById('pnl-hold').textContent = hold + ' meses';
           holdRow.style.display = 'flex';
