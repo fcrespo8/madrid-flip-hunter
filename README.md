@@ -1,113 +1,203 @@
-# Madrid Flip Hunter
+# Madrid Flip Hunter 🏠
 
-Automated pipeline that finds real estate flipping opportunities in Madrid and sends WhatsApp alerts for the best deals.
+An AI-powered real estate deal finder for the Madrid market. Detects underpriced properties with flip potential by scraping multiple portals, enriching listings with market data, and scoring them with a Claude-powered investment analysis agent.
 
-**Live demo:** [madrid-flip-hunter-production.up.railway.app](https://madrid-flip-hunter-production.up.railway.app)
-
-![CI](https://github.com/fcrespo8/madrid-flip-hunter/actions/workflows/ci.yml/badge.svg)
+Built as a production-grade portfolio project demonstrating end-to-end AI pipeline design.
 
 ---
 
-## What it does
+## What It Does
 
-Scrapes 5 property portals daily, filters out noise (rentals, commercial properties, anomalous prices), scores each listing against neighborhood market prices, and sends a WhatsApp message when it finds a deal with a score ≥ 7.5/10. Results are visible in a dashboard with an interactive map.
+1. **Scrapes** 5 real estate portals daily (Wallapop, DonPiso, Remax, Redpiso, Tecnocasa)
+2. **Filters** non-residential listings and anomalies via a QA agent
+3. **Enriches** each listing with GPS coordinates, actual m², and neighborhood market prices
+4. **Scores** listings 0–10 using a Claude Sonnet agent with investment reasoning and green/red flags
+5. **Alerts** via WhatsApp for listings scoring ≥ 7.5
+6. **Displays** results on a dark-theme dashboard with a Leaflet map and sortable table
+7. **Tracks** active deals through a full operations management suite (Deal Tracker)
 
 ---
 
-## Pipeline
+## Architecture
 
 ```
-Wallapop · DonPiso · Remax · Redpiso · Tecnocasa
-              ↓
-         QA Agent
-   (filters rentals, commercial, price anomalies)
-              ↓
-     Math pre-scorer
-   (price/m² vs neighborhood average)
-              ↓
-    pre-score < 7 ──→ auto score (no API call)
-    pre-score ≥ 7 ──→ Claude scoring (tool use)
-              ↓
-     WhatsApp alert
-   (score ≥ 7.5, first time only)
-              ↓
-         Dashboard
-   (FastAPI + Leaflet, sorted by score)
+Daily Pipeline (07:00 AM via APScheduler)
+│
+├── run_scrapers.py
+│   ├── Wallapop      (XHR network interception via Playwright)
+│   ├── DonPiso       (Playwright + BeautifulSoup)
+│   ├── Remax         (Playwright + BeautifulSoup)
+│   ├── Redpiso       (Playwright + BeautifulSoup)
+│   └── Tecnocasa     (Playwright + BeautifulSoup)
+│       │
+│       ├── QA Agent          → filters rentals, garajes, anomalous prices
+│       ├── enrich_location   → geocoding (lat/lon)
+│       └── deactivate_stale  → soft-delete listings unseen 30+ days
+│
+├── enrich_size.py            → Playwright scrape of individual pages → regex extract m²
+├── enrich_market_prices.py   → €/m² per district (21 distritos, ~130 barrios)
+│
+└── scoring_agent.py
+    ├── Pre-scorer            → math filter: listings ≥20% below market pass through
+    └── Claude Sonnet (tool use) → score 0–10 + reasoning + green/red flags
+        │
+        └── Twilio WhatsApp   → alert if score ≥ 7.5
 ```
 
 ---
 
-## Tech stack
+## Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
-| Scraping | Python + Playwright + playwright-stealth |
+|---|---|
+| Language | Python 3.11 + Poetry |
+| Scraping | Playwright + BeautifulSoup4 |
+| AI/LLM | Anthropic Claude Sonnet (`claude-sonnet-4-6`) — tool use / function calling |
 | Database | PostgreSQL + SQLAlchemy 2.0 + Alembic |
-| AI scoring | Claude API — tool use (structured output) |
-| Backend | FastAPI + APScheduler (daily at 7am) |
-| Frontend | Vanilla JS + Leaflet.js |
-| Alerts | Twilio WhatsApp API |
-| Deploy | Railway (API + PostgreSQL) |
-| CI/CD | GitHub Actions — lint, tests, auto-deploy on push |
+| Backend API | FastAPI |
+| Frontend | Single-file SPA (HTML + Leaflet + vanilla JS) |
+| Scheduler | APScheduler |
+| Notifications | Twilio WhatsApp |
+| CI/CD | GitHub Actions (ruff + smoke tests) |
+| Containerization | Docker + docker-compose |
+| Deployment | Railway |
 
 ---
 
-## Key technical decisions
+## Key Design Decisions
 
-**Playwright XHR interception instead of HTML parsing**
-The Wallapop scraper intercepts the internal `/api/v3/search/section` call rather than scraping the DOM. Yields structured JSON (price, m², coordinates) directly and is resilient to UI changes.
+### Pre-scorer Gate
+Before calling the Claude API, a mathematical pre-scorer filters listings by how far below the neighborhood market average they are. Only listings ≥20% below market (pre-score ≥7.0) trigger an LLM call. This keeps token costs low and is architecturally the right separation between cheap heuristics and expensive AI inference.
 
-**Math pre-scorer to minimize Claude API calls**
-Before hitting Claude, each listing gets a score based on `price/m² vs neighborhood median` using a static lookup table (~130 neighborhoods, sourced from Idealista). Only listings ≥ 20% below market (pre-score ≥ 7) go to Claude. Reduces API cost significantly without missing real deals.
+### Wallapop Network Interception
+Instead of scraping HTML, the Wallapop scraper intercepts XHR calls to Wallapop's internal `/api/v3/search/section` endpoint via Playwright, returning clean structured JSON directly.
 
-**Claude tool use for guaranteed structured output**
-The scoring agent forces Claude to call `score_listing(score, reasoning, green_flags, red_flags)` via tool use. If it doesn't, the call raises. No regex, no post-hoc parsing — the response is always a valid typed dict.
+### Tool Use for Structured Output
+The scoring agent uses Claude's function calling (tool use) to enforce a strict JSON schema on every response — score, reasoning, green flags, red flags. This guarantees parseable output without regex hacks.
 
-**Soft delete with `is_active` + `last_seen_at`**
-Listings are never hard-deleted. If a listing doesn't appear in any scrape for 30 days, `is_active` is set to `False`. Preserves history, prevents re-alerting on reactivated listings, and keeps the dashboard clean.
+### Prompt Engineering — "Carlos Martínez"
+The scoring agent is prompted as a Madrid real estate investor with 20 years of experience. The persona includes explicit instructions: penalize occupied properties and already-renovated units, treat Wallapop listings as motivated sellers (positive signal), and reward genuine below-market pricing.
 
 ---
 
-## Local setup
+## Modules
+
+### Deal Finder
+The core scraping and scoring pipeline. Exposes a FastAPI REST API consumed by the dashboard.
+
+**Dashboard features:**
+- Split table/map view with Leaflet, color-coded pins (green ≥7, yellow 4–6, red <4)
+- Filters: score, price, m², €/m², source, sort order
+- KPI cards: total listings, avg score, best deal, count below market, last scrape
+- Detail panel: reasoning, green/red flags, price vs. market, estimated gross margin
+- Admin: mark listing as expired
+
+### Deal Tracker
+A full operations management SPA with JWT authentication (admin/viewer roles).
+
+| Tab | Purpose |
+|---|---|
+| Ficha | Address, neighborhood, m², status timeline (7 milestones), 9 KPI cards |
+| Gastos | Line-by-line expenses, 11 categories, CSV export |
+| Financiero | Full P&L: purchase → renovation → sale costs → IRPF/IS taxes → net profit |
+| Sociedad | Partners per operation, % participation, loan tracking, payout at close |
+| Personas | Global partner track record, capital deployed, benefit per person |
+| Inversores | Investor-facing view: KPIs, closed deals, pipeline opportunities |
+
+**Calculadora de Viabilidad:** standalone deal analyzer with single-scenario P&L, semáforo ROI (7%/12% thresholds), minimum target price calculator, and 3-column scenario comparator.
+
+---
+
+## Database Schema
+
+### Deal Finder
+
+| Table | Key columns |
+|---|---|
+| `listings` | source, external_id, price, size_m2, rooms, neighborhood, district, lat, lon, score, score_reasoning, score_green_flags, score_red_flags, is_active, last_seen_at, notified_at |
+| `market_prices` | barrio, distrito, price_per_m2 |
+
+### Deal Tracker (9 tables)
+
+| Table | Purpose |
+|---|---|
+| `operations` | Core record: name, status, address, lat/lon, metros, notes |
+| `operation_financials` | Purchase/sale prices, renovation budget, financing |
+| `operation_dates` | 7 milestone dates |
+| `operation_expenses` | Line items by category (source of truth for all P&L) |
+| `operation_partners` | Per-operation: name, role, %, capital, loan |
+| `partner_distributions` | Recorded payouts |
+| `partners` | Global partner registry |
+| `users` | DB users (env-var users bypass DB) |
+
+---
+
+## Local Development
 
 ```bash
+# Clone and install
 git clone https://github.com/fcrespo8/madrid-flip-hunter
 cd madrid-flip-hunter
-cp .env.example .env        # fill in DATABASE_URL and ANTHROPIC_API_KEY
 poetry install
-poetry run playwright install chromium
+
+# Set up environment
+cp .env.example .env
+# Fill in: DATABASE_URL, ANTHROPIC_API_KEY, TWILIO_*
+
+# Run migrations
 poetry run alembic upgrade head
 
-# Run the pipeline
-poetry run python -m backend.scrapers.run_scrapers
-
-# Start the dashboard
+# Start the API + dashboard
 poetry run uvicorn backend.api.main:app --reload --port 8000
+```
 
-# Tests
-poetry run pytest tests/ -v
+Open `http://localhost:8000` for the Deal Finder dashboard.  
+Open `http://localhost:8000/tracker` for the Deal Tracker.
+
+---
+
+## Running the Pipeline Manually
+
+```bash
+# Full scrape + QA + enrichment
+poetry run python -m backend.pipeline.run_scrapers
+
+# Enrich m² for listings missing size
+poetry run python -m backend.pipeline.enrich_size
+
+# Score all unscored listings
+poetry run python -m backend.pipeline.scoring_agent
+
+# Reset and rescore everything
+poetry run python -m backend.pipeline.reset_and_rescore
 ```
 
 ---
 
-## Deal Tracker
+## Deployment
 
-ERP ligero para flippers inmobiliarios integrado en el mismo dashboard.
+The project runs on **Railway** with:
+- PostgreSQL managed database
+- Alembic migrations applied automatically on container startup
+- Playwright + Chromium bundled in Docker image
+- CI/CD via GitHub Actions on push to `main`
 
-Gestión completa del ciclo de vida de cada operación: prospecto → negociación → compra → en obra → en venta → vendido.
-
-Módulos: ficha general, gastos línea a línea, P&L automático, documentos, sociedad y reparto de beneficios, portfolio view, exportación para gestoría.
-
-Autenticación JWT con roles admin/viewer.
+**Production:** `madrid-flip-hunter-production.up.railway.app`
 
 ---
 
-## Deploy
+## Pending
 
-Deployed on Railway with a PostgreSQL addon. The pipeline runs automatically via APScheduler at 7am daily — no external cron needed. GitHub Actions runs lint (ruff) and smoke tests on every push, then deploys to Railway on green.
+- [ ] Idealista scraper (blocked by Cloudflare — needs residential proxies)
+- [ ] WhatsApp notifier wired into scheduler
+- [ ] Deal Tracker: Docs tab (checklist per phase, upload links)
+- [ ] Deal Tracker: Recurring expenses UI
+- [ ] Deal Tracker: PDF export of P&L for accountant
+- [ ] RAG layer: neighborhood qualitative context for scoring agent
 
 ---
 
 ## Author
 
-Francisco Crespo — [github.com/fcrespo8](https://github.com/fcrespo8)
+Francisco Crespo — Python Backend Engineer transitioning to AI Engineering  
+GitHub: [fcrespo8](https://github.com/fcrespo8)
