@@ -1,6 +1,7 @@
 import logging
 from anthropic import AsyncAnthropic
 from backend.agents.market_prices import get_market_price
+from backend.rag.retrieval import retrieve_context
 from sqlalchemy.orm import Session
 from backend.models.listing import Listing
 from backend.models.database import SessionLocal
@@ -121,6 +122,30 @@ PISO A EVALUAR:
 - Descripción: {listing.description or 'Sin descripción'}
 """.strip()
 
+    # Retrieve qualitative neighborhood context from RAG knowledge base
+    rag_context = ""
+    if listing.neighborhood and listing.district:
+        rag_session = SessionLocal()
+        try:
+            docs = retrieve_context(
+                rag_session,
+                barrio=listing.neighborhood,
+                distrito=listing.district,
+                top_k=2,
+            )
+            if docs:
+                rag_blocks = "\n\n".join(
+                    f"[{d.barrio} - {d.distrito}]\n{d.content}" for d in docs
+                )
+                rag_context = (
+                    "\n\nCONTEXTO CUALITATIVO DEL BARRIO (de tu base de conocimiento):\n"
+                    f"{rag_blocks}"
+                )
+        except Exception as e:
+            logger.warning("RAG retrieval failed for listing %s: %s", listing.id, e)
+        finally:
+            rag_session.close()
+
     response = await client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=1024,
@@ -130,7 +155,7 @@ PISO A EVALUAR:
         messages=[
             {
                 "role": "user",
-                "content": f"Evalúa esta oportunidad de flipping:\n\n{listing_context}",
+                "content": f"Evalúa esta oportunidad de flipping:\n\n{listing_context}{rag_context}",
             }
         ],
     )
