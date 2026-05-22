@@ -2642,7 +2642,7 @@
   }
 
   const markers = {};
-  let allListings = [], _selectedRow = null;
+  let allListings = [], _selectedRow = null, _selectedMarkerId = null;
 
   function makeMarker(l) {
     if (!l.lat || !l.lon) return null;
@@ -2685,6 +2685,7 @@
       if (!resp.ok) { toast('Error al marcar el listing', 'error'); return; }
       toast('Listing marcado como expirado ✓', 'success');
       document.getElementById('detail').style.display = 'none';
+      highlightMarker(null);
       const row = document.getElementById(`row-${id}`);
       if (row) row.remove();
       allListings = allListings.filter(l => l.id !== id);
@@ -2696,6 +2697,17 @@
     if (_selectedRow) _selectedRow.classList.remove('selected');
     _selectedRow = document.getElementById(`row-${id}`);
     if (_selectedRow) { _selectedRow.classList.add('selected'); _selectedRow.scrollIntoView({block:'nearest'}); }
+  }
+
+  function highlightMarker(id) {
+    if (_selectedMarkerId !== null && markers[_selectedMarkerId]) {
+      markers[_selectedMarkerId].setStyle({ radius: 8, weight: 1.5, color: '#fff', fillOpacity: 0.85 });
+    }
+    _selectedMarkerId = id;
+    if (id !== null && markers[id]) {
+      markers[id].setStyle({ radius: 13, weight: 3.5, color: '#fff', fillOpacity: 1 });
+      markers[id].bringToFront();
+    }
   }
 
   function getFilters() {
@@ -2773,7 +2785,7 @@
         <td><span class="source-badge ${sourceBadgeClass(l.source)}">${l.source||''}</span></td>
         <td class="neighborhood">${fmtDate(l.last_seen_at)}</td>
         <td><a class="link" href="${l.url}" target="_blank">ver →</a></td>`;
-      tr.addEventListener('click', () => { highlightRow(l.id); showDetail(l); if (markers[l.id]) map.panTo(markers[l.id].getLatLng()); });
+      tr.addEventListener('click', () => { highlightRow(l.id); highlightMarker(l.id); showDetail(l); if (markers[l.id]) map.flyTo(markers[l.id].getLatLng(), map.getZoom(), { animate: true, duration: 0.5 }); });
       tbody.appendChild(tr);
     });
   }
@@ -3208,7 +3220,7 @@
         allListings = listings;
         listings.forEach(l => {
           const m = makeMarker(l);
-          if (m) { markers[l.id] = m; m.addTo(map); m.on('click', () => { highlightRow(l.id); showDetail(l); }); }
+          if (m) { markers[l.id] = m; m.addTo(map); m.on('click', () => { highlightRow(l.id); highlightMarker(l.id); showDetail(l); }); }
         });
         applyFilters();
       })
