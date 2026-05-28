@@ -6,6 +6,11 @@ from sqlalchemy.orm import Session
 from backend.models.listing import Listing
 from backend.models.database import SessionLocal
 
+# Module-level singleton — one httpx connection pool shared across all scoring calls.
+# Creating AsyncAnthropic() per listing opened a new httpx.AsyncClient per call,
+# accumulating hundreds of idle connection pools during a pipeline run.
+_anthropic_client = AsyncAnthropic()
+
 logger = logging.getLogger(__name__)
 
 SCORE_TOOL = {
@@ -96,7 +101,7 @@ Sé directo. Di exactamente qué margen estimas y por qué. Un score 8+ debe ser
 
 
 async def score_listing(listing: Listing) -> dict:
-    client = AsyncAnthropic()
+    client = _anthropic_client
 
     price_per_m2 = (
         f"{listing.price / listing.size_m2:.0f}€/m²"
