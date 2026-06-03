@@ -63,21 +63,25 @@ async def run_all():
         db.commit()
         logger.info("%d candidatos para scoring Claude (pre-score >= 7.0)", len(candidatos_claude))
 
-        await run_scoring_agent(listings=candidatos_claude)
-
-        to_notify = (
-            db.query(Listing)
-            .filter(
-                Listing.score >= 7.5,
-                Listing.is_active.is_(True),
-                Listing.notified_at.is_(None),
+        try:
+            from backend.pipeline.scoring_graph import run_scoring_graph
+            await run_scoring_graph(candidatos_claude, db)
+        except ImportError:
+            logger.warning("LangGraph not available — using legacy scoring pipeline")
+            await run_scoring_agent(listings=candidatos_claude)
+            to_notify = (
+                db.query(Listing)
+                .filter(
+                    Listing.score >= 7.5,
+                    Listing.is_active.is_(True),
+                    Listing.notified_at.is_(None),
+                )
+                .all()
             )
-            .all()
-        )
-        await send_whatsapp_alerts(to_notify)
-        for listing in to_notify:
-            listing.notified_at = datetime.utcnow()
-        db.commit()
+            await send_whatsapp_alerts(to_notify)
+            for listing in to_notify:
+                listing.notified_at = datetime.utcnow()
+            db.commit()
 
     finally:
         db.close()
