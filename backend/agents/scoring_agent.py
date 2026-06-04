@@ -1,6 +1,7 @@
 import logging
 from anthropic import AsyncAnthropic
 from backend.agents.market_prices import get_market_price
+from backend.observability.tracing import get_langfuse
 from backend.rag.retrieval import retrieve_context
 from sqlalchemy.orm import Session
 from backend.models.listing import Listing
@@ -102,6 +103,7 @@ Sé directo. Di exactamente qué margen estimas y por qué. Un score 8+ debe ser
 
 async def score_listing(listing: Listing) -> dict:
     client = _anthropic_client
+    langfuse = get_langfuse()
 
     price_per_m2 = (
         f"{listing.price / listing.size_m2:.0f}€/m²"
@@ -151,6 +153,36 @@ PISO A EVALUAR:
         finally:
             rag_session.close()
 
+    lf_trace = None
+    lf_generation = None
+    if langfuse:
+        lf_trace = langfuse.trace(
+            name="score_listing",
+            metadata={
+                "listing_id": listing.id,
+                "neighborhood": listing.neighborhood,
+                "district": listing.district,
+                "source": listing.source,
+                "price": listing.price,
+                "size_m2": listing.size_m2,
+                "has_rag_context": bool(rag_context),
+                "pipeline": "legacy",
+            },
+        )
+        lf_generation = lf_trace.generation(
+            name="llm_score",
+            model="claude-sonnet-4-6",
+            input=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": f"Evalúa esta oportunidad de flipping:\n\n{listing_context}{rag_context}"},
+            ],
+            metadata={
+                "listing_id": listing.id,
+                "tool_use": True,
+                "has_rag_context": bool(rag_context),
+            },
+        )
+
     response = await client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=1024,
@@ -167,7 +199,26 @@ PISO A EVALUAR:
 
     for block in response.content:
         if block.type == "tool_use" and block.name == "score_listing":
-            return block.input
+            result = block.input
+            if lf_generation:
+                lf_generation.end(
+                    output=result,
+                    usage={
+                        "input": response.usage.input_tokens,
+                        "output": response.usage.output_tokens,
+                    },
+                    metadata={"score": result.get("score")},
+                )
+            if lf_trace:
+                lf_trace.update(output={"score": result.get("score"), "reasoning": result.get("reasoning")})
+                langfuse.flush()
+            return result
+
+    if lf_generation:
+        lf_generation.end(output=None, metadata={"error": "no_tool_use"}, level="ERROR")
+    if lf_trace:
+        lf_trace.update(output={"error": "no_tool_use"})
+        langfuse.flush()
 
     raise ValueError(f"Claude no devolvió tool_use para listing {listing.id}")
 

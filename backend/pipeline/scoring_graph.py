@@ -11,6 +11,7 @@ from backend.agents.market_prices import get_market_price
 from backend.agents.notifier import send_whatsapp_alerts
 from backend.agents.scoring_agent import SCORE_TOOL, SYSTEM_PROMPT, _anthropic_client
 from backend.models.listing import Listing
+from backend.observability.tracing import get_langfuse
 from backend.rag.retrieval import retrieve_context
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ class ScoringState(TypedDict):
     score_result: dict | None
     notified: bool
     error: str | None
+    _lf_trace: Any     # Langfuse trace — None when tracing is disabled
 
 
 # ── Nodes ─────────────────────────────────────────────────────────────────────
@@ -32,8 +34,17 @@ class ScoringState(TypedDict):
 def retrieve_rag(state: ScoringState) -> dict:
     listing: Listing = state["listing"]
     db: Session = state["db"]
+    lf_trace = state.get("_lf_trace")
+
+    lf_span = None
+    if lf_trace:
+        lf_span = lf_trace.span(
+            name="retrieve_rag",
+            input={"neighborhood": listing.neighborhood, "district": listing.district},
+        )
 
     rag_context = ""
+    docs_count = 0
     if listing.neighborhood and listing.district:
         try:
             docs = retrieve_context(
@@ -42,6 +53,7 @@ def retrieve_rag(state: ScoringState) -> dict:
                 distrito=listing.district,
                 top_k=2,
             )
+            docs_count = len(docs)
             if docs:
                 blocks = "\n\n".join(
                     f"[{d.barrio} - {d.distrito}]\n{d.content}" for d in docs
@@ -52,6 +64,9 @@ def retrieve_rag(state: ScoringState) -> dict:
                 )
         except Exception as e:
             logger.warning("RAG retrieval failed for listing %s: %s", listing.id, e)
+
+    if lf_span:
+        lf_span.end(output={"docs_retrieved": docs_count, "has_context": bool(rag_context)})
 
     return {"rag_context": rag_context}
 
@@ -96,6 +111,23 @@ def build_context(state: ScoringState) -> dict:
 async def llm_score(state: ScoringState) -> dict:
     listing: Listing = state["listing"]
     full_context = state["listing_ctx"] + state["rag_context"]
+    lf_trace = state.get("_lf_trace")
+
+    lf_generation = None
+    if lf_trace:
+        lf_generation = lf_trace.generation(
+            name="llm_score",
+            model="claude-sonnet-4-6",
+            input=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": f"Evalúa esta oportunidad de flipping:\n\n{full_context}"},
+            ],
+            metadata={
+                "listing_id": listing.id,
+                "tool_use": True,
+                "has_rag_context": bool(state.get("rag_context")),
+            },
+        )
 
     try:
         response = await _anthropic_client.messages.create(
@@ -114,13 +146,35 @@ async def llm_score(state: ScoringState) -> dict:
 
         for block in response.content:
             if block.type == "tool_use" and block.name == "score_listing":
-                return {"score_result": block.input}
+                result = block.input
+                if lf_generation:
+                    lf_generation.end(
+                        output=result,
+                        usage={
+                            "input": response.usage.input_tokens,
+                            "output": response.usage.output_tokens,
+                        },
+                        metadata={"score": result.get("score")},
+                    )
+                return {"score_result": result}
 
         logger.error("Claude did not return tool_use for listing %s", listing.id)
+        if lf_generation:
+            lf_generation.end(
+                output=None,
+                metadata={"error": "no_tool_use"},
+                level="ERROR",
+            )
         return {"score_result": None, "error": "no_tool_use"}
 
     except Exception as e:
         logger.error("LLM error for listing %s: %s", listing.id, e)
+        if lf_generation:
+            lf_generation.end(
+                output=None,
+                metadata={"error": str(e)},
+                level="ERROR",
+            )
         return {"score_result": None, "error": str(e)}
 
 
@@ -203,8 +257,26 @@ scoring_graph = _builder.compile()
 
 async def run_scoring_graph(listings: list[Listing], db: Session) -> None:
     """Invoke the scoring graph once per listing, sequentially."""
+    langfuse = get_langfuse()
+
     for listing in listings:
         logger.info("Graph scoring: %s...", listing.title[:60])
+
+        lf_trace = None
+        if langfuse:
+            lf_trace = langfuse.trace(
+                name="score_listing",
+                metadata={
+                    "listing_id": listing.id,
+                    "neighborhood": listing.neighborhood,
+                    "district": listing.district,
+                    "source": listing.source,
+                    "price": listing.price,
+                    "size_m2": listing.size_m2,
+                    "pipeline": "langgraph",
+                },
+            )
+
         initial_state: ScoringState = {
             "listing_id": listing.id,
             "listing": listing,
@@ -214,8 +286,23 @@ async def run_scoring_graph(listings: list[Listing], db: Session) -> None:
             "score_result": None,
             "notified": False,
             "error": None,
+            "_lf_trace": lf_trace,
         }
         try:
-            await scoring_graph.ainvoke(initial_state)
+            final_state = await scoring_graph.ainvoke(initial_state)
+            if lf_trace:
+                result = final_state.get("score_result")
+                if result:
+                    lf_trace.update(
+                        output={
+                            "score": result.get("score"),
+                            "reasoning": result.get("reasoning"),
+                        }
+                    )
         except Exception as e:
             logger.error("Graph failed for listing %s: %s", listing.id, e)
+            if lf_trace:
+                lf_trace.update(metadata={"error": str(e)})
+
+    if langfuse:
+        langfuse.flush()
