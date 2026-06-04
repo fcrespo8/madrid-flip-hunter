@@ -38,8 +38,9 @@ def retrieve_rag(state: ScoringState) -> dict:
 
     lf_rag = None
     if lf_span:
-        lf_rag = lf_span.start_span(
+        lf_rag = lf_span.start_observation(
             name="retrieve_rag",
+            as_type="retriever",
             input={"neighborhood": listing.neighborhood, "district": listing.district},
         )
 
@@ -116,8 +117,9 @@ async def llm_score(state: ScoringState) -> dict:
 
     lf_gen = None
     if lf_span:
-        lf_gen = lf_span.start_generation(
+        lf_gen = lf_span.start_observation(
             name="llm_score",
+            as_type="generation",
             model="claude-sonnet-4-6",
             input=[
                 {"role": "system", "content": SYSTEM_PROMPT},
@@ -260,8 +262,9 @@ async def run_scoring_graph(listings: list[Listing], db: Session) -> None:
 
         lf_span = None
         if langfuse:
-            lf_span = langfuse.start_span(
+            lf_span = langfuse.start_observation(
                 name="score_listing",
+                as_type="span",
                 metadata={
                     "listing_id": listing.id,
                     "neighborhood": listing.neighborhood,

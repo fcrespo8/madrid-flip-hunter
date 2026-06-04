@@ -156,8 +156,9 @@ PISO A EVALUAR:
     lf_span = None
     lf_gen = None
     if langfuse:
-        lf_span = langfuse.start_span(
+        lf_span = langfuse.start_observation(
             name="score_listing",
+            as_type="span",
             metadata={
                 "listing_id": listing.id,
                 "neighborhood": listing.neighborhood,
@@ -169,8 +170,9 @@ PISO A EVALUAR:
                 "pipeline": "legacy",
             },
         )
-        lf_gen = lf_span.start_generation(
+        lf_gen = lf_span.start_observation(
             name="llm_score",
+            as_type="generation",
             model="claude-sonnet-4-6",
             input=[
                 {"role": "system", "content": SYSTEM_PROMPT},

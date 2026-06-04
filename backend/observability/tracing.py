@@ -24,7 +24,7 @@ def get_langfuse():
         from langfuse import Langfuse
 
         host = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
-        client = Langfuse(public_key=public_key, secret_key=secret_key, host=host)
+        client = Langfuse(public_key=public_key, secret_key=secret_key, host=host, debug=True)
         logger.info("Langfuse tracing enabled (host: %s)", host)
         return client
     except Exception as e:
