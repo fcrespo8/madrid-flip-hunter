@@ -153,10 +153,10 @@ PISO A EVALUAR:
         finally:
             rag_session.close()
 
-    lf_trace = None
-    lf_generation = None
+    lf_span = None
+    lf_gen = None
     if langfuse:
-        lf_trace = langfuse.trace(
+        lf_span = langfuse.start_span(
             name="score_listing",
             metadata={
                 "listing_id": listing.id,
@@ -169,7 +169,7 @@ PISO A EVALUAR:
                 "pipeline": "legacy",
             },
         )
-        lf_generation = lf_trace.generation(
+        lf_gen = lf_span.start_generation(
             name="llm_score",
             model="claude-sonnet-4-6",
             input=[
@@ -200,24 +200,28 @@ PISO A EVALUAR:
     for block in response.content:
         if block.type == "tool_use" and block.name == "score_listing":
             result = block.input
-            if lf_generation:
-                lf_generation.end(
+            if lf_gen:
+                lf_gen.update(
                     output=result,
-                    usage={
+                    usage_details={
                         "input": response.usage.input_tokens,
                         "output": response.usage.output_tokens,
                     },
                     metadata={"score": result.get("score")},
                 )
-            if lf_trace:
-                lf_trace.update(output={"score": result.get("score"), "reasoning": result.get("reasoning")})
+                lf_gen.end()
+            if lf_span:
+                lf_span.update(output={"score": result.get("score"), "reasoning": result.get("reasoning")})
+                lf_span.end()
                 langfuse.flush()
             return result
 
-    if lf_generation:
-        lf_generation.end(output=None, metadata={"error": "no_tool_use"}, level="ERROR")
-    if lf_trace:
-        lf_trace.update(output={"error": "no_tool_use"})
+    if lf_gen:
+        lf_gen.update(output=None, metadata={"error": "no_tool_use"}, level="ERROR")
+        lf_gen.end()
+    if lf_span:
+        lf_span.update(output={"error": "no_tool_use"})
+        lf_span.end()
         langfuse.flush()
 
     raise ValueError(f"Claude no devolvió tool_use para listing {listing.id}")

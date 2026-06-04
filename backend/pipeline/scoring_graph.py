@@ -26,7 +26,7 @@ class ScoringState(TypedDict):
     score_result: dict | None
     notified: bool
     error: str | None
-    _lf_trace: Any     # Langfuse trace — None when tracing is disabled
+    _lf_span: Any      # LangfuseSpan (root) — None when tracing is disabled
 
 
 # ── Nodes ─────────────────────────────────────────────────────────────────────
@@ -34,11 +34,11 @@ class ScoringState(TypedDict):
 def retrieve_rag(state: ScoringState) -> dict:
     listing: Listing = state["listing"]
     db: Session = state["db"]
-    lf_trace = state.get("_lf_trace")
+    lf_span = state.get("_lf_span")
 
-    lf_span = None
-    if lf_trace:
-        lf_span = lf_trace.span(
+    lf_rag = None
+    if lf_span:
+        lf_rag = lf_span.start_span(
             name="retrieve_rag",
             input={"neighborhood": listing.neighborhood, "district": listing.district},
         )
@@ -65,8 +65,9 @@ def retrieve_rag(state: ScoringState) -> dict:
         except Exception as e:
             logger.warning("RAG retrieval failed for listing %s: %s", listing.id, e)
 
-    if lf_span:
-        lf_span.end(output={"docs_retrieved": docs_count, "has_context": bool(rag_context)})
+    if lf_rag:
+        lf_rag.update(output={"docs_retrieved": docs_count, "has_context": bool(rag_context)})
+        lf_rag.end()
 
     return {"rag_context": rag_context}
 
@@ -111,11 +112,11 @@ def build_context(state: ScoringState) -> dict:
 async def llm_score(state: ScoringState) -> dict:
     listing: Listing = state["listing"]
     full_context = state["listing_ctx"] + state["rag_context"]
-    lf_trace = state.get("_lf_trace")
+    lf_span = state.get("_lf_span")
 
-    lf_generation = None
-    if lf_trace:
-        lf_generation = lf_trace.generation(
+    lf_gen = None
+    if lf_span:
+        lf_gen = lf_span.start_generation(
             name="llm_score",
             model="claude-sonnet-4-6",
             input=[
@@ -147,34 +148,29 @@ async def llm_score(state: ScoringState) -> dict:
         for block in response.content:
             if block.type == "tool_use" and block.name == "score_listing":
                 result = block.input
-                if lf_generation:
-                    lf_generation.end(
+                if lf_gen:
+                    lf_gen.update(
                         output=result,
-                        usage={
+                        usage_details={
                             "input": response.usage.input_tokens,
                             "output": response.usage.output_tokens,
                         },
                         metadata={"score": result.get("score")},
                     )
+                    lf_gen.end()
                 return {"score_result": result}
 
         logger.error("Claude did not return tool_use for listing %s", listing.id)
-        if lf_generation:
-            lf_generation.end(
-                output=None,
-                metadata={"error": "no_tool_use"},
-                level="ERROR",
-            )
+        if lf_gen:
+            lf_gen.update(output=None, metadata={"error": "no_tool_use"}, level="ERROR")
+            lf_gen.end()
         return {"score_result": None, "error": "no_tool_use"}
 
     except Exception as e:
         logger.error("LLM error for listing %s: %s", listing.id, e)
-        if lf_generation:
-            lf_generation.end(
-                output=None,
-                metadata={"error": str(e)},
-                level="ERROR",
-            )
+        if lf_gen:
+            lf_gen.update(output=None, metadata={"error": str(e)}, level="ERROR")
+            lf_gen.end()
         return {"score_result": None, "error": str(e)}
 
 
@@ -262,9 +258,9 @@ async def run_scoring_graph(listings: list[Listing], db: Session) -> None:
     for listing in listings:
         logger.info("Graph scoring: %s...", listing.title[:60])
 
-        lf_trace = None
+        lf_span = None
         if langfuse:
-            lf_trace = langfuse.trace(
+            lf_span = langfuse.start_span(
                 name="score_listing",
                 metadata={
                     "listing_id": listing.id,
@@ -286,14 +282,14 @@ async def run_scoring_graph(listings: list[Listing], db: Session) -> None:
             "score_result": None,
             "notified": False,
             "error": None,
-            "_lf_trace": lf_trace,
+            "_lf_span": lf_span,
         }
         try:
             final_state = await scoring_graph.ainvoke(initial_state)
-            if lf_trace:
+            if lf_span:
                 result = final_state.get("score_result")
                 if result:
-                    lf_trace.update(
+                    lf_span.update(
                         output={
                             "score": result.get("score"),
                             "reasoning": result.get("reasoning"),
@@ -301,8 +297,11 @@ async def run_scoring_graph(listings: list[Listing], db: Session) -> None:
                     )
         except Exception as e:
             logger.error("Graph failed for listing %s: %s", listing.id, e)
-            if lf_trace:
-                lf_trace.update(metadata={"error": str(e)})
+            if lf_span:
+                lf_span.update(metadata={"error": str(e)})
+        finally:
+            if lf_span:
+                lf_span.end()
 
     if langfuse:
         langfuse.flush()
