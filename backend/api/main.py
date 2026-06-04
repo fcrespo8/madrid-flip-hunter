@@ -83,6 +83,8 @@ def get_listings(_=Depends(get_current_user)):
                 "market_price_m2": market_price,
                 "vs_market_pct": vs_market_pct,
                 "last_seen_at": listing.last_seen_at.strftime("%Y-%m-%d") if listing.last_seen_at else None,
+                "created_at": listing.created_at.strftime("%Y-%m-%d") if listing.created_at else None,
+                "scored_at": listing.scored_at.strftime("%Y-%m-%d") if listing.scored_at else None,
             })
         return result
     finally:

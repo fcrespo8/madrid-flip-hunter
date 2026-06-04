@@ -189,6 +189,7 @@ def save_score(state: ScoringState) -> dict:
         listing.score_reasoning = result["reasoning"]
         listing.score_green_flags = ", ".join(result.get("green_flags", []))
         listing.score_red_flags = ", ".join(result.get("red_flags", []))
+        listing.scored_at = datetime.utcnow()
         db.commit()
         logger.info(
             "Scored listing %s: %s/10 — %s",

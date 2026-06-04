@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from anthropic import AsyncAnthropic
 from backend.agents.market_prices import get_market_price
 from backend.observability.tracing import get_langfuse
@@ -246,6 +247,7 @@ async def run_scoring_agent(listings: list[Listing] | None = None):
                 listing.score_reasoning = result["reasoning"]
                 listing.score_green_flags = ", ".join(result.get("green_flags", []))
                 listing.score_red_flags = ", ".join(result.get("red_flags", []))
+                listing.scored_at = datetime.utcnow()
                 db.commit()
 
                 logger.info("Score: %s/10 — %s", result['score'], result['reasoning'])

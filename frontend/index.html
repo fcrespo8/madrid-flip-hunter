@@ -113,6 +113,11 @@
     .vs-green  { color: #4ade80; font-weight: 600; }
     .vs-yellow { color: #facc15; font-weight: 600; }
     .vs-red    { color: #f87171; font-weight: 600; }
+    .badge-nuevo { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 0.62rem;
+                   font-weight: 700; background: #052e16; color: #4ade80; border: 1px solid #166534;
+                   vertical-align: middle; margin-left: 4px; letter-spacing: 0.04em; }
+    .scored-date { color: #888; font-size: 0.72rem; }
+    .scored-pending { color: #555; font-size: 0.72rem; font-style: italic; }
     .source-badge { padding: 2px 6px; border-radius: 4px; font-size: 0.68rem; font-weight: 600; }
     .src-wallapop  { background: #431407; color: #f97316; }
     .src-remax     { background: #450a0a; color: #f87171; }
@@ -656,7 +661,7 @@
             <th title="Precio medio €/m² del barrio (Idealista, abr 2026)">Zona</th>
             <th title="Superficie en metros cuadrados">m²</th>
             <th title="Número de habitaciones">Hab</th>
-            <th>Barrio</th><th>Fuente</th><th title="Fecha del último scrape">Visto</th><th></th>
+            <th>Barrio</th><th>Fuente</th><th title="Cuándo fue scoreado por el agente">Scoreado</th><th title="Fecha del último scrape">Visto</th><th></th>
           </tr></thead>
           <tbody id="tbody"></tbody>
         </table>
@@ -2762,6 +2767,23 @@
     renderTable(list);
   }
 
+  function isNew(l) {
+    if (!l.created_at) return false;
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    return new Date(l.created_at) >= sevenDaysAgo;
+  }
+
+  function fmtRelativeScore(l) {
+    if (l.score == null) return '<span class="scored-pending">Pendiente</span>';
+    if (!l.scored_at) return '<span class="scored-pending">—</span>';
+    const today = new Date(); today.setHours(0,0,0,0);
+    const d = new Date(l.scored_at); d.setHours(0,0,0,0);
+    const days = Math.round((today - d) / (24*60*60*1000));
+    if (days === 0) return '<span class="scored-date">Hoy</span>';
+    if (days === 1) return '<span class="scored-date">Ayer</span>';
+    return `<span class="scored-date">Hace ${days}d</span>`;
+  }
+
   function renderTable(listings) {
     Object.values(markers).forEach(m => map.removeLayer(m));
     const visibleIds = new Set(listings.map(l => l.id));
@@ -2774,7 +2796,7 @@
       tr.id = `row-${l.id}`;
       tr.innerHTML = `
         <td><span class="score-badge ${scoreBadgeClass(l.score)}">${l.score??'—'}</span></td>
-        <td>${(l.title||'').substring(0,32)}${(l.title||'').length>32?'…':''}</td>
+        <td>${(l.title||'').substring(0,32)}${(l.title||'').length>32?'…':''}${isNew(l)?'<span class="badge-nuevo">NUEVO</span>':''}</td>
         <td class="price">${l.price?(l.price/1000).toFixed(0)+'k€':'—'}</td>
         <td class="ppm2">${pp?formatEur(pp):'—'}</td>
         <td><span class="${vsPct!=null?vsMarketClass(vsPct):''}">${fmtPct(vsPct)}</span></td>
@@ -2783,6 +2805,7 @@
         <td class="neighborhood">${l.rooms??'—'}</td>
         <td class="neighborhood">${l.neighborhood||l.district||'—'}</td>
         <td><span class="source-badge ${sourceBadgeClass(l.source)}">${l.source||''}</span></td>
+        <td>${fmtRelativeScore(l)}</td>
         <td class="neighborhood">${fmtDate(l.last_seen_at)}</td>
         <td><a class="link" href="${l.url}" target="_blank">ver →</a></td>`;
       tr.addEventListener('click', () => { highlightRow(l.id); highlightMarker(l.id); showDetail(l); if (markers[l.id]) map.flyTo(markers[l.id].getLatLng(), map.getZoom(), { animate: true, duration: 0.5 }); });
