@@ -1,6 +1,6 @@
 Ver README.md para descripción del proyecto y stack completo.
 
-ESTADO ACTUAL (mayo 2026)
+ESTADO ACTUAL (junio 2026)
 - Scraper Wallapop: funcionando (intercepción XHR de /api/v3/search/section)
 - Scraper DonPiso: funcionando (HTML parsing con BeautifulSoup, filtro Madrid capital)
 - Scraper Remax: funcionando (HTML parsing con BeautifulSoup)
@@ -10,7 +10,8 @@ ESTADO ACTUAL (mayo 2026)
 - QA agent: filtra alquileres, precios/tamaños anómalos, y propiedades no residenciales (local, oficina, nave, garaje, trastero, parking, comercial)
 - Enrich location agent: funcionando — rellena lat/lon y barrio/distrito por nombre de barrio
 - Enrich size agent: funcionando — visita URLs con size_m2=NULL y extrae m² del HTML
-- Scoring agent: funcionando, prompt inversor (Carlos Martínez) + contexto precio medio de mercado por barrio (Idealista abr 2026); re-scoring completo ejecutado
+- Scoring pipeline: refactorizado a grafo LangGraph (backend/pipeline/scoring_graph.py); nodos explícitos: retrieve_rag → build_context → llm_score → save_score → [notify]; fallback al agente legacy (scoring_agent.py) si LangGraph no está disponible
+- Observabilidad LLM: Langfuse integrado opcionalmente (backend/observability/tracing.py); traza por listing con span de RAG, generation con tokens y latencia, y score en metadata; se activa añadiendo LANGFUSE_PUBLIC_KEY + LANGFUSE_SECRET_KEY en .env
 - market_prices.py: precios medios €/m² por barrio y distrito (21 distritos, ~130 barrios)
 - Soft delete: columnas is_active y last_seen_at — listings sin ver en 30 días se desactivan
 - APScheduler: pipeline completo se ejecuta automáticamente cada día a las 7:00 AM
@@ -35,9 +36,11 @@ SCRAPERS ACTIVOS
   poetry run python -m backend.scrapers.run_scrapers   # Wallapop + DonPiso + Remax + Redpiso + Tecnocasa
 
 PIPELINE COMPLETO (ejecutado automáticamente a las 7am vía APScheduler)
-  poetry run python -m backend.scrapers.run_scrapers   # scraping + QA + enrich_location + deactivate_stale
+  poetry run python -m backend.scrapers.run_scrapers   # scraping + QA + enrich_location + deactivate_stale + scoring (LangGraph) + notify
   poetry run python -m backend.agents.enrich_size
-  poetry run python -m backend.agents.scoring_agent
+  # El scoring ya está integrado en run_scrapers.run_all() vía backend/pipeline/scoring_graph.py
+  # Para re-scoring manual completo (wipes scores, reruns Claude on all):
+  poetry run python -m backend.agents.reset_and_rescore
   poetry run uvicorn backend.api.main:app --reload --port 8000
 
 PROXIMOS PASOS

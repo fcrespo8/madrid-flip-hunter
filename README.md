@@ -31,14 +31,13 @@ Daily Pipeline (07:00 AM via APScheduler)
 │   └── price/m² vs market_prices.py dict → score 1–9
 │       └── score >= 7.0 → send to Claude  (score < 7.0 → assigned directly, no LLM call)
 │
-└── Scoring Agent (Claude Sonnet)
-    ├── [1] Structured listing data        (scraper → DB)
-    ├── [2] Market price lookup            (market_prices.py dict — not RAG)
-    ├── [3] RAG neighborhood context       (pgvector cosine similarity)
-    ├── [4] System prompt / persona        (Carlos Martínez investor agent)
-    └── [5] SCORE_TOOL                     (Anthropic function calling → structured JSON)
-        │
-        └── score >= 7.5 → Twilio WhatsApp alert
+└── Scoring Pipeline (LangGraph — backend/pipeline/scoring_graph.py)
+    ├── retrieve_rag    pgvector cosine similarity → barrio context (1–2 docs)
+    ├── build_context   assemble prompt (listing data + price/m² + vs market + RAG)
+    ├── llm_score       Claude Sonnet — SCORE_TOOL (tool use) → score 0–10 + flags
+    │   └── Langfuse    optional trace: RAG span + LLM generation + token usage
+    ├── save_score      persist score, reasoning, flags → DB
+    └── notify          conditional edge: score ≥ 7.5 → Twilio WhatsApp
 ```
 
 ---
@@ -136,6 +135,8 @@ CONTEXTO CUALITATIVO DEL BARRIO (de tu base de conocimiento):
 | Frontend | Single-file SPA — HTML + Leaflet + vanilla JS, no build step |
 | Scheduler | APScheduler (daily 07:00) |
 | Notifications | Twilio WhatsApp |
+| Pipeline orchestration | LangGraph 0.6 — StateGraph with explicit nodes and conditional edges |
+| LLM observability | Langfuse 3.x — optional; traces per listing with RAG span, generation tokens and latency |
 | CI/CD | GitHub Actions (ruff lint + smoke tests) → deploy to Railway |
 | Containerization | Docker + Playwright + Chromium |
 | Deployment | Railway (web + managed PostgreSQL) |
@@ -158,6 +159,9 @@ Full vector search across all neighborhood docs risks retrieving a semantically 
 
 ### Pre-scorer gate before LLM calls
 Every listing that enters the database gets a mathematical pre-score based on price/m² vs neighborhood market average. Only listings where `pre_score >= 7.0` (≥20% below market) trigger a Claude API call. Listings below that threshold are assigned the pre-score directly with a one-line reasoning string. This separates cheap heuristics from expensive inference and keeps API costs proportional to deal quality, not volume.
+
+### LangGraph vs imperative loop for scoring orchestration
+The original scoring pipeline was a `for listing in listings` loop inside `run_scoring_agent()` with RAG retrieval, LLM call, DB write, and notification logic all collapsed into one function. Refactoring to LangGraph externalizes the control flow into a `StateGraph` with five named nodes and a conditional edge for the notification step. This makes each per-listing trace visible in Langfuse as discrete spans, enables conditional routing without `if` chains inside business logic, and isolates each step for independent testing. The imperative path is kept as a fallback triggered by `ImportError`.
 
 ---
 
