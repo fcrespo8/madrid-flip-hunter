@@ -43,6 +43,9 @@ PIPELINE COMPLETO (ejecutado automáticamente a las 7am vía APScheduler)
   poetry run python -m backend.agents.reset_and_rescore
   poetry run uvicorn backend.api.main:app --reload --port 8000
 
+DEUDA TÉCNICA / ON THE HORIZON
+- Frontend refactor: extraer frontend/index.html (3264 líneas) a CSS separado (7 archivos) + JS modular (8 archivos), approach A (scripts regulares, funciones globales). Estimado: 1-1.5 días. Sin bundler.
+
 PROXIMOS PASOS
 - Deal Tracker Módulo 8: Calculadora de viabilidad (nueva tab, análisis rápido de pisos, comparación de escenarios)
 - Deal Tracker Módulo 9: Documentos (checklist por fase, estado, links)
