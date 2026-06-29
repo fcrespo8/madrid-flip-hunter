@@ -22,10 +22,12 @@ scheduler = AsyncIOScheduler()
 
 @asynccontextmanager
 async def lifespan(app):
-    scheduler.add_job(run_all, "cron", hour=7, minute=0)
-    scheduler.start()
+    if os.environ.get("ENABLE_SCHEDULER") == "true":
+        scheduler.add_job(run_all, "cron", hour=7, minute=0)
+        scheduler.start()
     yield
-    scheduler.shutdown()
+    if scheduler.running:
+        scheduler.shutdown()
 
 
 app = FastAPI(title="Madrid Flip Hunter", lifespan=lifespan)
