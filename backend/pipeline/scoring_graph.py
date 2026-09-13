@@ -138,7 +138,7 @@ async def llm_score(state: ScoringState) -> dict:
             max_tokens=1024,
             system=SYSTEM_PROMPT,
             tools=[SCORE_TOOL],
-            tool_choice={"type": "auto"},
+            tool_choice={"type": "tool", "name": "score_listing"},
             messages=[
                 {
                     "role": "user",

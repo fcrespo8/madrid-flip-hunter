@@ -191,7 +191,7 @@ PISO A EVALUAR:
         max_tokens=1024,
         system=SYSTEM_PROMPT,
         tools=[SCORE_TOOL],
-        tool_choice={"type": "auto"},
+        tool_choice={"type": "tool", "name": "score_listing"},
         messages=[
             {
                 "role": "user",
