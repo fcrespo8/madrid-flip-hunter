@@ -14,9 +14,28 @@ from backend.agents.enrich_location import enrich_locations
 from backend.agents.deactivate_stale import deactivate_stale
 from backend.agents.notifier import send_whatsapp_alerts
 from backend.agents.pre_scorer import pre_score
-from backend.agents.scoring_agent import run_scoring_agent
+from backend.scoring.runner import run_scoring
 
 logger = logging.getLogger(__name__)
+
+NOTIFY_MIN_SCORE = 7.5
+
+
+async def notify_scored(candidates: list[Listing], scored_ids: list[int], db) -> None:
+    """Avisa por WhatsApp solo los recién puntuados en esta corrida con score alto."""
+    scored = set(scored_ids)
+    for listing in candidates:
+        if listing.id not in scored or listing.score is None:
+            continue
+        if listing.score < NOTIFY_MIN_SCORE or listing.notified_at is not None:
+            continue
+        try:
+            await send_whatsapp_alerts([listing])
+            listing.notified_at = datetime.utcnow()
+            db.commit()
+        except Exception as e:
+            logger.error("Notification error for listing %s: %s", listing.id, e)
+            db.rollback()
 
 
 async def run_all():
@@ -63,25 +82,8 @@ async def run_all():
         db.commit()
         logger.info("%d candidatos para scoring Claude (pre-score >= 7.0)", len(candidatos_claude))
 
-        try:
-            from backend.pipeline.scoring_graph import run_scoring_graph
-            await run_scoring_graph(candidatos_claude, db)
-        except ImportError:
-            logger.warning("LangGraph not available — using legacy scoring pipeline")
-            await run_scoring_agent(listings=candidatos_claude)
-            to_notify = (
-                db.query(Listing)
-                .filter(
-                    Listing.score >= 7.5,
-                    Listing.is_active.is_(True),
-                    Listing.notified_at.is_(None),
-                )
-                .all()
-            )
-            await send_whatsapp_alerts(to_notify)
-            for listing in to_notify:
-                listing.notified_at = datetime.utcnow()
-            db.commit()
+        summary = await run_scoring(candidatos_claude, db)
+        await notify_scored(candidatos_claude, summary.scored_ids, db)
 
     finally:
         db.close()

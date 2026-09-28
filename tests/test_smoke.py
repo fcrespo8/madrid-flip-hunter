@@ -20,7 +20,7 @@ def test_listing_price_per_m2_sin_tamanyo():
 
 
 def test_score_tool_estructura():
-    from backend.agents.scoring_agent import SCORE_TOOL
+    from backend.scoring.prompt import SCORE_TOOL
     props = SCORE_TOOL["input_schema"]["properties"]
     assert "score" in props
     assert "reasoning" in props
@@ -29,7 +29,7 @@ def test_score_tool_estructura():
 
 
 def test_score_tool_campos_requeridos():
-    from backend.agents.scoring_agent import SCORE_TOOL
+    from backend.scoring.prompt import SCORE_TOOL
     required = set(SCORE_TOOL["input_schema"]["required"])
     assert required == {"score", "reasoning", "red_flags", "green_flags"}
 

@@ -20,7 +20,7 @@ poetry run pytest tests/test_smoke.py::test_listing_price_per_m2 -v
 # Run pipeline stages manually
 poetry run python -m backend.scrapers.run_scrapers
 poetry run python -m backend.agents.qa_agent
-poetry run python -m backend.agents.scoring_agent
+poetry run python -m backend.scoring.runner          # scores pending active listings (calls Claude)
 
 # API server (dev)
 poetry run uvicorn backend.api.main:app --reload --port 8000
@@ -39,8 +39,14 @@ Uses Playwright to intercept Wallapop's internal `/api/v3/search/section` API ca
 ### QA Agent (`backend/agents/qa_agent.py`)
 Runs after scraping. Filters out rentals (keyword detection), anomalous prices (50k–2M €), invalid sizes (15–1000 m²), and extreme price/m² ratios. Deletes flagged listings from the DB.
 
-### Scoring Agent (`backend/agents/scoring_agent.py`)
-Calls the Claude API with **tool use** (`SCORE_TOOL`) to get guaranteed structured output. Embeds a "Carlos Martínez" persona — an expert real estate flipper with 15 years of experience. Produces: score (0–10), reasoning, green_flags, red_flags. Estimates m² from room count when size is missing.
+### Scoring (`backend/scoring/`)
+Single module; public entry point is `runner.run_scoring(listings=None, db=None)`. Without `listings` it scores pending active listings (`score IS NULL`); without `db` it opens its own session. It does **not** notify — `run_scrapers.run_all` calls it on pre-score candidates, then `notify_scored()` sends WhatsApp for newly saved scores ≥ 7.5.
+- `prompt.py` — `SYSTEM_PROMPT` ("Carlos Martínez" flipper persona), `SCORE_TOOL`, `MODEL_ID` (env `SCORING_MODEL_ID`, default `claude-sonnet-4-6`), pure `build_listing_context()`.
+- `client.py` — lazy `AsyncAnthropic` singleton, `request_score()` with `tool_choice` forced to `score_listing`, strict `validate_score_result()` (required fields, score 0–10). Typed errors: `LLMCallError`, `NoToolUseError`, `ScoreValidationError`.
+- `rag.py` — neighborhood context from pgvector; on failure rolls back the session and continues without context.
+- `graph.py` — LangGraph `retrieve_rag → score → validate → save`; any error ends the graph without saving. Langfuse spans: `score_listing` (root), `retrieve_rag`, `llm_score`.
+- `backend/agents/reset_and_rescore.py` — dry-run by default; `--confirm` resets score + `scored_at` on active listings and rescores; `--limit N`.
+- Tests in `tests/test_scoring.py` inject a fake client/retriever/DB — never call the real API in tests.
 
 ### Database (`backend/models/`)
 SQLAlchemy 2.0 + Alembic migrations. The `listings` table has a unique constraint on `(source, external_id)`. `save_listing()` in the repository handles insert-or-skip logic.
