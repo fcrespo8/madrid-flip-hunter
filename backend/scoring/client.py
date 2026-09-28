@@ -9,6 +9,15 @@ from backend.scoring.prompt import MAX_TOKENS, MODEL_ID, SCORE_TOOL, SYSTEM_PROM
 
 _client = None
 
+# Prompt caching. El prefijo cacheado es tools → system (orden fijo de la API) y
+# se arma una sola vez al importar: nada dinámico adentro, así es idéntico byte a
+# byte entre llamadas. El contexto del piso va en messages, después del último
+# breakpoint, y no se cachea. TTL por defecto: 5 minutos.
+CACHE_CONTROL = {"type": "ephemeral"}
+CACHED_TOOLS = [{**SCORE_TOOL, "cache_control": CACHE_CONTROL}]
+CACHED_SYSTEM = [{"type": "text", "text": SYSTEM_PROMPT, "cache_control": CACHE_CONTROL}]
+TOOL_CHOICE = {"type": "tool", "name": SCORE_TOOL["name"]}
+
 
 class ScoringError(Exception):
     """Base de los errores de scoring."""
@@ -29,8 +38,20 @@ class ScoreValidationError(ScoringError):
 @dataclass
 class ScoreResponse:
     raw: dict[str, Any]
-    input_tokens: int | None = None
+    input_tokens: int | None = None           # sin cachear (lo que va después del breakpoint)
     output_tokens: int | None = None
+    cache_creation_input_tokens: int | None = None
+    cache_read_input_tokens: int | None = None
+
+    def usage_details(self) -> dict[str, int]:
+        """Usage para Langfuse; omite los valores que la API no devolvió."""
+        details = {
+            "input": self.input_tokens,
+            "output": self.output_tokens,
+            "cache_creation_input_tokens": self.cache_creation_input_tokens,
+            "cache_read_input_tokens": self.cache_read_input_tokens,
+        }
+        return {k: v for k, v in details.items() if isinstance(v, int)}
 
 
 @dataclass
@@ -54,18 +75,23 @@ def get_client():
     return _client
 
 
+def build_request_params(user_message: str) -> dict[str, Any]:
+    """Parámetros de messages.create. Solo `messages` cambia entre listings."""
+    return {
+        "model": MODEL_ID,
+        "max_tokens": MAX_TOKENS,
+        "system": CACHED_SYSTEM,
+        "tools": CACHED_TOOLS,
+        "tool_choice": TOOL_CHOICE,
+        "messages": [{"role": "user", "content": user_message}],
+    }
+
+
 async def request_score(user_message: str, client=None) -> ScoreResponse:
     """Pide el score a Claude. Devuelve el input crudo del tool_use."""
     client = client or get_client()
     try:
-        response = await client.messages.create(
-            model=MODEL_ID,
-            max_tokens=MAX_TOKENS,
-            system=SYSTEM_PROMPT,
-            tools=[SCORE_TOOL],
-            tool_choice={"type": "tool", "name": SCORE_TOOL["name"]},
-            messages=[{"role": "user", "content": user_message}],
-        )
+        response = await client.messages.create(**build_request_params(user_message))
     except Exception as e:
         raise LLMCallError(str(e)) from e
 
@@ -76,6 +102,8 @@ async def request_score(user_message: str, client=None) -> ScoreResponse:
                 raw=block.input,
                 input_tokens=getattr(usage, "input_tokens", None),
                 output_tokens=getattr(usage, "output_tokens", None),
+                cache_creation_input_tokens=getattr(usage, "cache_creation_input_tokens", None),
+                cache_read_input_tokens=getattr(usage, "cache_read_input_tokens", None),
             )
     raise NoToolUseError("Claude no devolvió tool_use de score_listing")
 

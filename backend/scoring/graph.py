@@ -96,7 +96,7 @@ def build_scoring_graph(client=None, retriever: Callable | None = None):
         if lf_gen:
             lf_gen.update(
                 output=response.raw,
-                usage_details={"input": response.input_tokens, "output": response.output_tokens},
+                usage_details=response.usage_details(),
                 metadata={"score": response.raw.get("score") if isinstance(response.raw, dict) else None},
             )
             lf_gen.end()

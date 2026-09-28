@@ -21,11 +21,13 @@ VALID_RESULT = {
 
 
 class FakeMessages:
-    def __init__(self, tool_input=None, raise_exc=None, block_type="tool_use", block_name="score_listing"):
+    def __init__(self, tool_input=None, raise_exc=None, block_type="tool_use", block_name="score_listing",
+                 usage=None):
         self.tool_input = tool_input
         self.raise_exc = raise_exc
         self.block_type = block_type
         self.block_name = block_name
+        self.usage = usage or SimpleNamespace(input_tokens=100, output_tokens=50)
         self.calls = []
 
     async def create(self, **kwargs):
@@ -33,7 +35,7 @@ class FakeMessages:
         if self.raise_exc:
             raise self.raise_exc
         block = SimpleNamespace(type=self.block_type, name=self.block_name, input=self.tool_input, text="")
-        return SimpleNamespace(content=[block], usage=SimpleNamespace(input_tokens=100, output_tokens=50))
+        return SimpleNamespace(content=[block], usage=self.usage)
 
 
 class FakeClient:
@@ -431,3 +433,59 @@ def test_notify_scored_solo_recien_puntuados_con_score_alto(monkeypatch):
     assert sent == [1]
     assert alto.notified_at is not None
     assert db.commits == 1
+
+
+# ── Prompt caching ─────────────────────────────────────────────────────────────
+
+def test_request_lleva_cache_control_en_tool_y_system():
+    from backend.scoring.client import request_score
+    fake = FakeClient(tool_input=VALID_RESULT)
+    asyncio.run(request_score("PISO X", client=fake))
+    call = fake.messages.calls[0]
+
+    assert call["tools"][-1]["cache_control"] == {"type": "ephemeral"}
+    assert call["system"][-1]["cache_control"] == {"type": "ephemeral"}
+    assert call["system"][-1]["type"] == "text"
+    # El contexto del piso va al final y sin cache_control.
+    assert call["messages"] == [{"role": "user", "content": "PISO X"}]
+
+
+def test_prefijo_cacheado_identico_entre_listings():
+    import json
+    from backend.scoring.client import build_request_params
+    from backend.scoring.prompt import build_user_message
+
+    a = build_request_params(build_user_message(make_listing(id=1, title="Piso A", price=150000.0)))
+    b = build_request_params(build_user_message(make_listing(id=2, title="Piso B", price=390000.0,
+                                                             neighborhood="Vallecas")))
+
+    def prefix(p):
+        return json.dumps({k: p[k] for k in ("model", "tools", "system", "tool_choice")}, ensure_ascii=False)
+
+    assert prefix(a) == prefix(b)
+    assert a["messages"] != b["messages"]
+    assert "Piso A" not in prefix(a) and "150,000" not in prefix(a)
+
+
+def test_score_tool_original_no_se_modifica():
+    from backend.scoring.client import CACHED_TOOLS
+    from backend.scoring.prompt import SCORE_TOOL
+    assert "cache_control" not in SCORE_TOOL
+    assert {k: v for k, v in CACHED_TOOLS[0].items() if k != "cache_control"} == SCORE_TOOL
+
+
+def test_usage_de_cache_llega_a_langfuse():
+    usage = SimpleNamespace(input_tokens=420, output_tokens=180,
+                            cache_creation_input_tokens=0, cache_read_input_tokens=1350)
+    lf = FakeLangfuse()
+    _run_graph(FakeClient(tool_input=VALID_RESULT, usage=usage), lf_span=lf)
+    gen = next(o for o in lf.log if o.name == "llm_score")
+    assert gen.updates[0]["usage_details"] == {
+        "input": 420, "output": 180,
+        "cache_creation_input_tokens": 0, "cache_read_input_tokens": 1350,
+    }
+
+
+def test_usage_sin_campos_de_cache_no_manda_none():
+    from backend.scoring.client import ScoreResponse
+    assert ScoreResponse(raw={}, input_tokens=10, output_tokens=5).usage_details() == {"input": 10, "output": 5}

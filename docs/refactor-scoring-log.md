@@ -176,3 +176,61 @@ El prompt que recibe Claude es **idéntico** al de antes; lo verifiqué byte a b
 - Borrar `backend/pipeline/__init__.py` si no se va a usar.
 - Hacer que `send_whatsapp_alerts` indique si realmente envió, para no marcar `notified_at` cuando faltan credenciales de Twilio.
 - Manejar `listing.price = None` en el prompt, si alguna vez el QA deja pasar uno.
+
+---
+
+## Prompt caching
+
+**Qué hice**
+- `backend/scoring/client.py`:
+  - Constantes `CACHE_CONTROL`, `CACHED_TOOLS`, `CACHED_SYSTEM` y `TOOL_CHOICE`, que se arman **una sola vez al importar**.
+  - `SCORE_TOOL` lleva `cache_control: {"type": "ephemeral"}` en la copia que se manda a la API; el original en `prompt.py` no se toca. El `SYSTEM_PROMPT` pasa a ser un bloque de texto con `cache_control`.
+  - Nueva función `build_request_params(user_message)`, que arma la request completa. El contexto del piso va solo en `messages`, sin `cache_control`.
+  - `ScoreResponse` ahora guarda `cache_creation_input_tokens` y `cache_read_input_tokens`, y tiene `usage_details()` para Langfuse. Descarta los valores `None`, porque Langfuse espera `Dict[str, int]`.
+- `backend/scoring/graph.py`: la generation `llm_score` manda `usage_details=response.usage_details()`, que incluye `input`, `output`, `cache_creation_input_tokens` y `cache_read_input_tokens`.
+- `tests/test_scoring.py`: 5 tests nuevos (50 passed, 1 skipped). `FakeMessages` ahora acepta un `usage` configurable.
+
+**Por qué**
+- Cada llamada de scoring repite el mismo system prompt y la misma tool; lo único que cambia es el piso. Con caché, desde la segunda llamada ese prefijo se cobra al 10 % del precio de input.
+
+**Lo que verifiqué en la doc oficial** (`platform.claude.com/docs/en/build-with-claude/prompt-caching`)
+- Mínimo cacheable para **Claude Sonnet 4.6: 1.024 tokens**. Si el prefijo tiene menos, simplemente no se cachea: no da error y `cache_creation_input_tokens` vuelve en 0.
+- El prefijo se arma en el orden `tools → system → messages`. `cache_control` en la última tool cachea todas las tools.
+- Se permiten hasta 4 breakpoints (usamos 2). El TTL por defecto es de 5 minutos.
+- En `usage`, `input_tokens` cuenta **solo** lo que no se leyó ni se escribió en caché, o sea, lo que va después del último breakpoint.
+- Aparte, la doc de tool use (`agents-and-tools/tool-use/overview`) dice que con `tool_choice` de tipo `tool` la API agrega **589 tokens** de system prompt propio en Sonnet 4.6.
+
+**¿El prefijo supera el mínimo? — Casi seguro que sí, pero no lo pude confirmar al 100 % offline**
+
+Lo medí sin llamar a la API:
+
+| Parte | Caracteres | Palabras + signos |
+|---|---|---|
+| `SYSTEM_PROMPT` | 2.577 | 622 |
+| `SCORE_TOOL` (JSON) | 661 | 217 |
+| **Total nuestro** | **3.238** | **839** |
+
+- El tokenizer de Claude no está disponible offline, y el conteo de `tiktoken` no sirve para Claude. Tomando entre 3 y 3,5 caracteres por token, que es lo típico para español, **nuestro contenido da entre ~925 y ~1.080 tokens**. Queda justo alrededor del mínimo de 1.024.
+- Si además cuentan los 589 tokens que agrega la API por la tool, el prefijo queda en **~1.500–1.700 tokens**, cómodo por encima. La doc no aclara si esos tokens cuentan para el mínimo, así que no lo doy por hecho.
+- **Cómo confirmarlo** (elegí la opción conservadora y no lo corrí, porque pediste no llamar a la API):
+  - Opción A, que no genera texto: una llamada a `client.messages.count_tokens(...)` con `build_request_params(...)` sin `max_tokens` devuelve el total exacto.
+  - Opción B: en la primera corrida real, mirar en Langfuse que `cache_creation_input_tokens > 0` en la primera generation y que `cache_read_input_tokens > 0` en las siguientes.
+  - Si da 0 en las dos, el prefijo no llega al mínimo. No se rompe nada, solo no hay ahorro. En ese caso se podría ampliar el prompt, por ejemplo con más criterios, o dejarlo así.
+
+**El prefijo es idéntico entre llamadas**
+- `SYSTEM_PROMPT` y `SCORE_TOOL` son literales fijos, sin fechas, IDs ni nada del listing.
+- `MODEL_ID` se lee de la variable de entorno una sola vez, al importar. `TOOL_CHOICE` es constante.
+- Los dicts de Python mantienen el orden de inserción, así que la serialización JSON es estable.
+- Un test lo cubre (`test_prefijo_cacheado_identico_entre_listings`): arma la request para dos pisos distintos y compara byte a byte `model`, `tools`, `system` y `tool_choice`. También verifica que nada del piso aparezca en el prefijo.
+- Única salvedad: el texto del prompt dice "Idealista abr 2026", pero eso está en el contexto del piso (en `messages`), no en el prefijo cacheado.
+
+**Qué mirar en el diff**
+- `client.py`: las 4 constantes nuevas y `build_request_params`.
+- `test_request_lleva_cache_control_en_tool_y_system`: verifica que `cache_control` esté en la tool y en el system, y que **no** esté en `messages`.
+
+**Dudas / decisiones**
+1. **Dos breakpoints (tool y system), como pediste.** El de `system` ya cubre `tools + system` porque el prefijo es acumulativo. El de la tool sola queda por debajo del mínimo y en la práctica no crea una entrada propia. No hace daño y deja explícita la intención. Si querés simplificar, alcanza con el del `system`.
+2. **TTL de 5 minutos, el default.** El scoring corre en serie dentro de `run_all`, así que dentro de un lote la caché queda caliente. No usé `ttl: "1h"`: la escritura cuesta más (2x en vez de 1,25x) y el scheduler corre una vez por día, así que no hay nada que reutilizar entre corridas.
+3. **Costo cuando hay un solo candidato:** si en una corrida Claude puntúa **un solo** piso, ese prefijo se cobra a 1,25x (escritura sin lectura posterior). El punto de equilibrio son 2 llamadas dentro de 5 minutos. Con Sonnet 4.6 a 3 US$/M de input y un prefijo de ~1.600 tokens, el ahorro es de ~0,004 US$ por llamada cacheada, y el sobrecosto en el peor caso es de ~0,001 US$ por corrida. En los dos casos el monto es chico.
+4. **Nombres en Langfuse:** usé `cache_creation_input_tokens` y `cache_read_input_tokens`, los mismos que devuelve Anthropic, como pediste. `usage_details` en Langfuse acepta claves libres (`Dict[str, int]`). **No verifiqué** que el cálculo de costos de Langfuse Cloud reconozca esas claves para aplicar el precio reducido. Los números aparecen igual en la traza; si el costo mostrado sale mal, hay que ajustar la definición del modelo en Langfuse.
+5. Confirmé en el SDK instalado (`anthropic` 0.91.0) que `ToolParam` y `TextBlockParam` aceptan `cache_control`.
