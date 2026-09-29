@@ -7,6 +7,25 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+PRODUCTION_DB_MARKER = "rlwy.net"
+
+
+class ProductionDatabaseError(RuntimeError):
+    """Se intentó usar la DB de producción (Railway) fuera de producción."""
+
+
+def check_database_url(url: str | None, env: str | None) -> None:
+    """Corta si la URL apunta a Railway y ENV no es 'production'. Evita que un
+    script o test local escriba en producción por heredar el DATABASE_URL del .env."""
+    if url and PRODUCTION_DB_MARKER in url and env != "production":
+        raise ProductionDatabaseError(
+            f"DATABASE_URL apunta a producción ({PRODUCTION_DB_MARKER}) pero ENV={env!r}. "
+            "Usá una DB local, o definí ENV=production si de verdad corresponde."
+        )
+
+
+check_database_url(DATABASE_URL, os.getenv("ENV"))
+
 engine = create_engine(
     DATABASE_URL,
     echo=False,

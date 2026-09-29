@@ -72,3 +72,15 @@ def test_partner_create_schema():
     from backend.api.partners import PartnerCreate
     p = PartnerCreate(name="Francisco", participation_pct=50.0)
     assert p.participation_pct == 50.0
+
+
+def test_db_de_produccion_bloqueada_fuera_de_produccion():
+    import pytest
+    from backend.models.database import ProductionDatabaseError, check_database_url
+    prod = "postgresql://u:p@turntable.proxy.rlwy.net:48610/railway"
+    for env in (None, "", "development", "Production"):
+        with pytest.raises(ProductionDatabaseError):
+            check_database_url(prod, env)
+    check_database_url(prod, "production")                              # prod real: permitido
+    check_database_url("postgresql://u@localhost/madrid_flip_hunter", None)  # local: permitido
+    check_database_url(None, None)

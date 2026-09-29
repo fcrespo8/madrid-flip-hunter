@@ -232,7 +232,8 @@ def lookup(neighborhood: str) -> tuple[float, float] | None:
     return None
 
 
-def enrich_locations() -> None:
+def enrich_locations() -> int:
+    """Geocodifica por barrio/distrito. Devuelve cuántos listings geocodificó."""
     db = SessionLocal()
     try:
         listings = (
@@ -246,7 +247,7 @@ def enrich_locations() -> None:
 
         print(f"[enrich_location] {len(listings)} listings sin coordenadas")
         if not listings:
-            return
+            return 0
 
         found = 0
         not_found = []
@@ -269,6 +270,7 @@ def enrich_locations() -> None:
             print(f"[enrich_location] ✗ {len(unique)} barrios no encontrados:")
             for b in unique:
                 print(f"  - {b}")
+        return found
 
     finally:
         db.close()

@@ -8,7 +8,8 @@ logger = logging.getLogger(__name__)
 STALE_DAYS = 30
 
 
-def deactivate_stale() -> None:
+def deactivate_stale() -> int:
+    """Marca inactivos los listings no vistos en STALE_DAYS. Devuelve cuántos."""
     db = SessionLocal()
     try:
         cutoff = datetime.utcnow() - timedelta(days=STALE_DAYS)
@@ -20,6 +21,7 @@ def deactivate_stale() -> None:
             listing.is_active = False
         db.commit()
         logger.info("[deactivate_stale] %d listings marcados como inactivos", len(stale))
+        return len(stale)
     finally:
         db.close()
 
