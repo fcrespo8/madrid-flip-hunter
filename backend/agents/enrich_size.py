@@ -31,6 +31,18 @@ def _extract_from_html(html: str) -> float | None:
     return None
 
 
+def apply_size(listing: Listing, size_m2: float) -> bool:
+    """Guarda size_m2. Si el listing era 'unscorable' por falta de tamaño, lo vuelve
+    a 'pending' para que el próximo run_all lo pase por QA y pre_score.
+    Devuelve True si hubo ese cambio de estado. No hace commit."""
+    listing.size_m2 = size_m2
+    if listing.score_status == "unscorable" and listing.score_status_reason == "no_size":
+        listing.score_status = "pending"
+        listing.score_status_reason = None
+        return True
+    return False
+
+
 async def enrich_sizes() -> None:
     db = SessionLocal()
     try:
@@ -55,9 +67,10 @@ async def enrich_sizes() -> None:
                     size_m2 = _extract_from_html(html)
 
                     if size_m2 is not None:
-                        listing.size_m2 = size_m2
+                        reset = apply_size(listing, size_m2)
                         db.commit()
-                        print(f"[enrich_size] ✓ {listing.external_id}: {size_m2} m²")
+                        suffix = " (unscorable → pending)" if reset else ""
+                        print(f"[enrich_size] ✓ {listing.external_id}: {size_m2} m²{suffix}")
                     else:
                         print(f"[enrich_size] ✗ {listing.external_id}: tamaño no encontrado")
 

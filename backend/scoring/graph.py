@@ -121,6 +121,8 @@ def build_scoring_graph(client=None, retriever: Callable | None = None):
             listing.score_green_flags = ", ".join(result.green_flags)
             listing.score_red_flags = ", ".join(result.red_flags)
             listing.scored_at = datetime.utcnow()
+            listing.score_status = "llm"
+            listing.score_status_reason = None
             db.commit()
         except Exception as e:
             logger.error("DB error saving score for listing %s: %s", listing.id, e)

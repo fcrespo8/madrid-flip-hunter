@@ -3,7 +3,7 @@ import logging
 from datetime import datetime
 from backend.models.database import SessionLocal
 from backend.models.listing import Listing
-from backend.models.repository import save_listing
+from backend.models.repository import pending_listings_query, save_listing
 from backend.scrapers.wallapop_scraper import WallapopScraper
 from backend.scrapers.donpiso_scraper import DonpisoScraper
 from backend.scrapers.remax_scraper import RemaxScraper        # ← nuevo
@@ -13,7 +13,7 @@ from backend.agents.qa_agent import QAAgent
 from backend.agents.enrich_location import enrich_locations
 from backend.agents.deactivate_stale import deactivate_stale
 from backend.agents.notifier import send_whatsapp_alerts
-from backend.agents.pre_scorer import pre_score
+from backend.agents.pre_scorer import apply_pre_scores
 from backend.scoring.runner import run_scoring
 
 logger = logging.getLogger(__name__)
@@ -64,23 +64,23 @@ async def run_all():
             total_new += new_count
             total_dup += dup_count
 
+        # Antes de seleccionar pendientes: así QA, pre-score y Claude no gastan
+        # trabajo en anuncios que ya no están publicados.
+        deactivate_stale()
+        db.expire_all()  # deactivate_stale usa su propia sesión
+
         qa = QAAgent()
         qa.run(db)
         enrich_locations()
-        deactivate_stale()
+        db.expire_all()  # enrich_locations usa su propia sesión
 
         # Pre-scoring: filtra candidatos para Claude sin coste de API
-        unscored = db.query(Listing).filter(Listing.score.is_(None)).all()
-        candidatos_claude = []
-        for listing in unscored:
-            ps = pre_score(listing)
-            if ps is not None and ps >= 7.0:
-                candidatos_claude.append(listing)
-            else:
-                listing.score = ps
-                listing.score_reasoning = "Score automático: precio vs mercado"
-        db.commit()
-        logger.info("%d candidatos para scoring Claude (pre-score >= 7.0)", len(candidatos_claude))
+        pre = apply_pre_scores(db, pending_listings_query(db).all())
+        candidatos_claude = pre.candidates
+        logger.info(
+            "Pre-score: %d candidatos para Claude, %d auto, %d no puntuables",
+            len(candidatos_claude), len(pre.auto_ids), len(pre.unscorable_ids),
+        )
 
         summary = await run_scoring(candidatos_claude, db)
         await notify_scored(candidatos_claude, summary.scored_ids, db)

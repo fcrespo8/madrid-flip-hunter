@@ -91,6 +91,8 @@ def make_listing(**overrides):
         id=1, source="wallapop", external_id="x1", url="https://example.com/1",
         title="Piso a reformar en Lavapiés", price=200000.0, size_m2=50.0, rooms=2,
         neighborhood="Lavapiés", district="Centro", description="Herencia, urgente.",
+        # Defaults de la DB (en un objeto sin insertar, SQLAlchemy no los aplica).
+        score_status="pending", score_attempts=0, qa_rejected=False, is_active=True,
     )
     data.update(overrides)
     return Listing(**data)
@@ -326,7 +328,10 @@ def test_runner_lote_mixto(monkeypatch):
     assert summary.scored_ids == [1]
     assert summary.failed[0][0] == 2
     assert ok.score == 8.5 and bad.score is None
-    assert db.commits == 1
+    assert ok.score_status == "llm"
+    assert bad.score_status == "pending"          # primer fallo: se reintenta en la próxima corrida
+    assert ok.score_attempts == 1 and bad.score_attempts == 1
+    assert db.commits == 3                         # 2 intentos contados + 1 score guardado
     root_spans = [o for o in lf.log if o.name == "score_listing"]
     assert len(root_spans) == 2 and all(o.ended for o in root_spans)
     assert lf.flushed

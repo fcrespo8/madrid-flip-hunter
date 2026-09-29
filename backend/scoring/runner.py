@@ -9,10 +9,13 @@ from typing import Callable
 from sqlalchemy.orm import Session
 
 from backend.models.listing import Listing
+from backend.models.repository import pending_listings_query
 from backend.observability.tracing import get_langfuse
 from backend.scoring.graph import build_scoring_graph
 
 logger = logging.getLogger(__name__)
+
+MAX_SCORE_ATTEMPTS = 3
 
 
 @dataclass
@@ -22,13 +25,18 @@ class ScoringSummary:
     failed: list[tuple[int, str]] = field(default_factory=list)  # (listing_id, error)
 
 
-def pending_listings_query(db: Session):
-    """Listings activos sin score, del más viejo al más nuevo."""
-    return (
-        db.query(Listing)
-        .filter(Listing.score.is_(None), Listing.is_active.is_(True))
-        .order_by(Listing.id)
-    )
+def _record_failure(db: Session, listing: Listing, error: str) -> None:
+    """Tras un intento fallido: al llegar a MAX_SCORE_ATTEMPTS, marca 'failed'.
+    Antes de eso queda en 'pending' y la próxima corrida lo reintenta."""
+    if (listing.score_attempts or 0) < MAX_SCORE_ATTEMPTS:
+        return
+    try:
+        listing.score_status = "failed"
+        listing.score_status_reason = error[:500]
+        db.commit()
+    except Exception as e:
+        logger.error("DB error marking listing %s as failed: %s", listing.id, e)
+        db.rollback()
 
 
 async def run_scoring(
@@ -41,7 +49,10 @@ async def run_scoring(
 ) -> ScoringSummary:
     """Puntúa listings uno por uno con el grafo. No notifica.
 
-    - Sin `listings`: busca los pendientes (activos con score NULL), hasta `limit`.
+    - Sin `listings`: busca los pendientes (ver pending_listings_query), hasta `limit`.
+    - Cada intento suma score_attempts (con commit antes de llamar a Claude, así
+      cuenta aunque el proceso se caiga). Éxito → 'llm'; al fallar el intento
+      MAX_SCORE_ATTEMPTS → 'failed'.
     - Sin `db`: abre y cierra su propia sesión. Si pasás `listings`, pasá también
       la `db` a la que pertenecen, para que el commit los incluya.
     """
@@ -86,6 +97,8 @@ async def run_scoring(
                     },
                 )
             try:
+                listing.score_attempts = (listing.score_attempts or 0) + 1
+                db.commit()
                 final = await graph.ainvoke({"listing": listing, "db": db, "_lf_span": lf_span})
                 error = final.get("error")
             except Exception as e:  # red de seguridad: un listing no frena el lote
@@ -100,6 +113,7 @@ async def run_scoring(
                     lf_span.update(output={"score": result.score, "reasoning": result.reasoning})
             else:
                 summary.failed.append((listing_id, error or "unknown"))
+                _record_failure(db, listing, error or "unknown")
                 if lf_span:
                     lf_span.update(metadata={"error": error})
             if lf_span:

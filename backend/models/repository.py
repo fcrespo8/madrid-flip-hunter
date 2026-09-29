@@ -46,3 +46,17 @@ def save_listing(db: Session, raw: RawListing) -> tuple[Listing, bool]:
             source=raw.source,
             external_id=raw.external_id
         ).first(), False
+
+
+def pending_listings_query(db: Session):
+    """Listings que el pipeline tiene que procesar: pendientes, no rechazados por QA
+    y activos, del más viejo al más nuevo. Usa el índice parcial ix_listings_pending."""
+    return (
+        db.query(Listing)
+        .filter(
+            Listing.score_status == "pending",
+            Listing.qa_rejected.is_(False),
+            Listing.is_active.is_(True),
+        )
+        .order_by(Listing.id)
+    )

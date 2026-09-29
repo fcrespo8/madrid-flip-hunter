@@ -1,6 +1,9 @@
 # backend/agents/reset_and_rescore.py
 """Resetea el score de listings activos y los vuelve a puntuar con Claude.
 
+Excluye los rechazados por QA y los no puntuables (unscorable). Los 'failed'
+entran: el reset les devuelve los intentos a 0.
+
 Por defecto es dry-run: solo muestra cuántos listings se puntuarían, sin tocar
 la DB ni llamar a Claude. Para ejecutar de verdad: --confirm.
 
@@ -21,8 +24,17 @@ PREVIEW_ROWS = 10
 
 
 def select_targets(db, limit: int | None = None) -> list[Listing]:
-    """Listings activos, por id. Con limit, solo esos N se resetean y puntúan."""
-    query = db.query(Listing).filter(Listing.is_active.is_(True)).order_by(Listing.id)
+    """Listings activos, no rechazados por QA y puntuables, por id.
+    Con limit, solo esos N se resetean y puntúan."""
+    query = (
+        db.query(Listing)
+        .filter(
+            Listing.is_active.is_(True),
+            Listing.qa_rejected.is_(False),
+            Listing.score_status != "unscorable",
+        )
+        .order_by(Listing.id)
+    )
     if limit is not None:
         query = query.limit(limit)
     return query.all()
@@ -35,6 +47,9 @@ def reset_scores(db, listings: list[Listing]) -> None:
         listing.score_green_flags = None
         listing.score_red_flags = None
         listing.scored_at = None
+        listing.score_status = "pending"
+        listing.score_status_reason = None
+        listing.score_attempts = 0
     db.commit()
 
 
@@ -49,9 +64,10 @@ async def main(confirm: bool, limit: int | None, db=None, client=None) -> int:
         targets = select_targets(db, limit)
 
         if not confirm:
-            print(f"[dry-run] Se resetearían y puntuarían {len(targets)} listings activos con Claude.")
+            print(f"[dry-run] Se resetearían y puntuarían {len(targets)} listings activos con Claude "
+                  "(excluye rechazados por QA y no puntuables).")
             for listing in targets[:PREVIEW_ROWS]:
-                print(f"  - #{listing.id} score={listing.score} {(listing.title or '')[:60]}")
+                print(f"  - #{listing.id} {listing.score_status} score={listing.score} {(listing.title or '')[:60]}")
             if len(targets) > PREVIEW_ROWS:
                 print(f"  ... y {len(targets) - PREVIEW_ROWS} más")
             print("Nada se modificó. Para ejecutar: --confirm")

@@ -1,7 +1,15 @@
-from sqlalchemy import String, Float, Integer, DateTime, Text, UniqueConstraint, Boolean
+from sqlalchemy import String, Float, Integer, DateTime, Text, UniqueConstraint, Boolean, CheckConstraint, Index, text
 from sqlalchemy.orm import Mapped, mapped_column
 from datetime import datetime
 from .database import Base
+
+# Ciclo de vida del score:
+#   pending    → nuevo o reseteado; lo toma el pipeline
+#   auto       → puntuado por pre_score (sin Claude)
+#   llm        → puntuado por Claude
+#   unscorable → pre_score no puede puntuarlo (score_status_reason: no_price / no_size / no_market_price)
+#   failed     → Claude falló MAX_SCORE_ATTEMPTS veces
+SCORE_STATUSES = ("pending", "auto", "llm", "unscorable", "failed")
 
 
 class Listing(Base):
@@ -35,8 +43,25 @@ class Listing(Base):
     notified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     scored_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
+    qa_rejected: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"), nullable=False)
+    qa_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    score_status: Mapped[str] = mapped_column(
+        String(20), default="pending", server_default="pending", nullable=False
+    )
+    score_status_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    score_attempts: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"), nullable=False)
+
     __table_args__ = (
         UniqueConstraint("source", "external_id", name="uq_source_external_id"),
+        CheckConstraint(
+            "score_status IN ('pending', 'auto', 'llm', 'unscorable', 'failed')",
+            name="ck_listings_score_status",
+        ),
+        Index(
+            "ix_listings_pending",
+            "id",
+            postgresql_where=text("score_status = 'pending' AND NOT qa_rejected AND is_active"),
+        ),
     )
 
     def price_per_m2(self) -> float | None:

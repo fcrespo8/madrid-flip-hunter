@@ -37,10 +37,19 @@ poetry run alembic upgrade head
 Uses Playwright to intercept Wallapop's internal `/api/v3/search/section` API calls rather than parsing HTML — more resilient to UI changes. Returns `RawListing` objects. Uses `playwright-stealth` to avoid bot detection.
 
 ### QA Agent (`backend/agents/qa_agent.py`)
-Runs after scraping. Filters out rentals (keyword detection), anomalous prices (50k–2M €), invalid sizes (15–1000 m²), and extreme price/m² ratios. Deletes flagged listings from the DB.
+Runs after scraping (and after `deactivate_stale`) on pending listings. Flags rentals (keyword detection), non-residential listings, anomalous prices (50k–2M €), invalid sizes (15–1000 m²), and extreme price/m² ratios. It **marks, never deletes**: sets `qa_rejected = true` and `qa_reason` (issues joined with `"; "`). Rejected listings stay excluded from the pipeline even if they're scraped again.
+
+### Score lifecycle (`listings.score_status`)
+- `pending` — new or reset; the only status the pipeline picks up (`repository.pending_listings_query`: `pending AND NOT qa_rejected AND is_active`).
+- `auto` — scored by `pre_scorer.apply_pre_scores` without Claude (pre-score < 7).
+- `llm` — scored by Claude (pre-score ≥ 7 candidates).
+- `unscorable` — pre-score can't run; `score_status_reason` is `no_price`, `no_size` or `no_market_price`. Only exit: `enrich_size.apply_size` moves `no_size` back to `pending` when it fills `size_m2`.
+- `failed` — Claude failed 3 times (`score_attempts`, incremented before each call); reason holds the last error. `reset_and_rescore` resets these to `pending` with 0 attempts.
+
+A DB `CHECK` constraint enforces these five values.
 
 ### Scoring (`backend/scoring/`)
-Single module; public entry point is `runner.run_scoring(listings=None, db=None)`. Without `listings` it scores pending active listings (`score IS NULL`); without `db` it opens its own session. It does **not** notify — `run_scrapers.run_all` calls it on pre-score candidates, then `notify_scored()` sends WhatsApp for newly saved scores ≥ 7.5.
+Single module; public entry point is `runner.run_scoring(listings=None, db=None)`. Without `listings` it scores `pending_listings_query`; without `db` it opens its own session. It does **not** notify — `run_scrapers.run_all` calls it on pre-score candidates, then `notify_scored()` sends WhatsApp for newly saved scores ≥ 7.5.
 - `prompt.py` — `SYSTEM_PROMPT` ("Carlos Martínez" flipper persona), `SCORE_TOOL`, `MODEL_ID` (env `SCORING_MODEL_ID`, default `claude-sonnet-4-6`), pure `build_listing_context()`.
 - `client.py` — lazy `AsyncAnthropic` singleton, `request_score()` with `tool_choice` forced to `score_listing`, strict `validate_score_result()` (required fields, score 0–10). Typed errors: `LLMCallError`, `NoToolUseError`, `ScoreValidationError`.
 - `rag.py` — neighborhood context from pgvector; on failure rolls back the session and continues without context.

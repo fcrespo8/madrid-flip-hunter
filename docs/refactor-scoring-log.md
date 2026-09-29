@@ -310,3 +310,103 @@ Uso el puerto 5433 para no chocar con el Postgres del `docker-compose`.
 - En ninguno de los dos casos se borran los datos viejos: quedan en el volumen anónimo anterior, sin usar. Pero tampoco se migran solos.
 - **No pude revisar si tenés datos locales**: el daemon de Docker no está corriendo.
 - Hay un problema que ya existía: sin un volumen con nombre, un `docker compose down` seguido de `up` crea un volumen anónimo nuevo, así que los datos locales ya se "perdían" en cada recreación. No lo cambié porque no me lo pediste.
+
+---
+
+## Pipeline — Parte A: estados en la DB (sin grafo)
+
+**⚠️ Antes de deployar:** corré `alembic upgrade head` contra producción **antes** de subir este código. El `Dockerfile` no ejecuta migraciones, y el código nuevo consulta columnas (`score_status`, `qa_rejected`, …) que sin la migración no existen: `run_all` fallaría al seleccionar pendientes.
+
+**Qué hice**
+
+| Archivo | Cambio |
+|---|---|
+| `alembic/versions/b7e2d9a4c1f0_add_score_status_and_qa_rejected.py` | Migración nueva: agrega `qa_rejected`, `qa_reason`, `score_status`, `score_status_reason` y `score_attempts`; hace el backfill; agrega el `CHECK` y el índice parcial `ix_listings_pending`. Incluye `downgrade`. |
+| `backend/models/listing.py` | Las 5 columnas nuevas, la constante `SCORE_STATUSES`, y el `CHECK` y el índice también en `__table_args__`, para que el modelo y la migración coincidan. |
+| `backend/models/repository.py` | `pending_listings_query(db)`: `score_status='pending' AND NOT qa_rejected AND is_active`, ordenado por id. Es la **única** definición de "pendiente"; la usan el QA, `run_all` y el runner. |
+| `backend/agents/qa_agent.py` | Marca `qa_rejected=True` y `qa_reason` (los motivos unidos con `"; "`) en vez de borrar. Revisa solo los pendientes. Devuelve también `rejected_ids`. |
+| `backend/agents/pre_scorer.py` | Nuevo: `unscorable_reason()` (`no_price` → `no_size` → `no_market_price`) y `apply_pre_scores(db, listings)`. Marca `unscorable` con el motivo, o `auto` con el score, y deja a los candidatos en `pending`. La lógica de `pre_score()` no cambió. |
+| `backend/scoring/graph.py` | `save` marca `score_status='llm'` y limpia el motivo. |
+| `backend/scoring/runner.py` | Cada intento suma `score_attempts`, con commit **antes** de llamar a Claude. Si el intento que falla es el número 3 (`MAX_SCORE_ATTEMPTS`), marca `failed` con el error como motivo; antes de eso el listing queda en `pending`. La consulta de pendientes pasó a `repository`. |
+| `backend/agents/reset_and_rescore.py` | Excluye los listings `qa_rejected` y `unscorable`. El reset vuelve `score_status` a `pending`, limpia el motivo y pone `score_attempts=0`. El dry-run muestra el estado de cada listing. |
+| `backend/scrapers/run_scrapers.py` | `deactivate_stale()` ahora corre **antes** del QA y de seleccionar pendientes. El pre-score usa `pending_listings_query` + `apply_pre_scores`. |
+| `tests/test_pipeline_status.py` | Nuevo: 21 tests offline. |
+| `tests/test_pipeline_db.py` | Nuevo: 7 tests contra una DB real (`@requires_test_db`, corren en CI). |
+| `tests/test_scoring.py` | `make_listing` ahora incluye los defaults de la DB. Ajusté `test_runner_lote_mixto`, que ahora espera 3 commits: 2 intentos + 1 guardado. |
+
+**Tests:** 71 passed y 8 skipped (los 7 de DB y el de operaciones, que corren en CI). `ruff`: sin errores.
+
+**Qué verifiqué y cómo**
+- **Migración:** la renderizo offline con `alembic upgrade --sql` y `downgrade --sql`, y hay tests que revisan el SQL generado. Otro test confirma que es la única cabeza, y otro que el `CHECK` y el índice del modelo coinciden con los de la migración.
+- **Los 7 tests de DB los corrí contra un SQLite descartable** (tabla creada desde el modelo): pasan los 7.
+  - **No los pude correr contra Postgres local**, porque el binario de Postgres de Homebrew está roto (le falta la librería ICU 71) y el daemon de Docker está apagado. No toqué tu instalación.
+  - **La primera ejecución de la migración real sobre Postgres va a ser en CI**, con `alembic upgrade head` desde cero y los 7 tests después.
+- El orden de `run_all` lo cubre un test que reemplaza cada paso por un stub y verifica la secuencia completa.
+
+**Dudas / decisiones**
+1. **`enrich_sizes` no lo toqué.** Pediste que la salida de `unscorable` a `pending` sea solo desde `enrich_sizes`, pero `enrich_sizes` no estaba en la lista de la parte A y hoy no corre en el pipeline. Mientras tanto, **un listing `unscorable` no tiene salida automática**: correr `enrich_sizes` a mano completa `size_m2`, pero el estado sigue en `unscorable`. Queda para la parte B, junto con la regla de 15–1.000 m².
+2. **Un intento cuenta aunque falle la DB al guardar**, porque el commit del contador se hace antes de llamar a Claude. Es a propósito: si el proceso se cae a la mitad, el intento igual quedó registrado.
+3. **`auto` no llena `scored_at`**, igual que antes. `scored_at` sigue significando "puntuado por Claude".
+4. **`reset_and_rescore` incluye a los `failed`** y les devuelve los intentos a 0. Es la forma manual de reintentarlos.
+5. **Rechazados por QA:** si un anuncio rechazado reaparece en el scraping, `save_listing` solo actualiza `last_seen_at` y sigue rechazado. No hay una forma automática de "des-rechazarlo". Si el QA cambia de reglas, hay que limpiar `qa_rejected` a mano.
+6. **El texto de `CLAUDE.md` sobre el QA** ("Deletes flagged listings") quedó desactualizado. No lo cambié porque no estaba en el alcance.
+7. `apply_pre_scores` no filtra por su cuenta: confía en que le pasen pendientes. `run_all` siempre le pasa `pending_listings_query`.
+
+---
+
+## Pipeline — Parte B: diseño del State (aprobado, sin implementar)
+
+Grafo LangGraph con checkpointer para orquestar `run_all()`. **Criterio:** el state lleva solo referencias (IDs, contadores, errores y `run_id`); la DB es la fuente de verdad.
+
+**Orden de los nodos**
+
+`START → scrape (las 5 fuentes en serie) → deactivate_stale → select_pending → qa → [enrich_location ∥ enrich_sizes] → pre_score → score_one (Send, uno por candidato) → notify → finalize`
+
+- `max_concurrency` va en el config de la invocación (`graph.ainvoke(state, config={"max_concurrency": N, "configurable": {"thread_id": run_id}})`) y limita los `score_one` simultáneos.
+- Checkpointer: `PostgresSaver`, con `thread_id = run_id`.
+
+```python
+class NodeError(TypedDict):
+    node: str; error: str; listing_id: int | None; source: str | None
+
+class SourceStats(TypedDict):
+    new: int; dup: int; found: int
+```
+
+| Campo | Tipo | Lo escribe | Lo lee | Reducer |
+|---|---|---|---|---|
+| `run_id` | `str` | la entrada | todos (logs, Langfuse, `thread_id`) | — |
+| `sources` | `list[str]` | la entrada | `scrape` | — |
+| `source_stats` | `dict[str, SourceStats]` | `scrape` | `finalize` | — |
+| `new_ids` | `list[int]` | `scrape` | `finalize` | — |
+| `deactivated_count` | `int` | `deactivate_stale` | `finalize` | — |
+| `pending_ids` | `list[int]` | `select_pending` (= `pending_listings_query`); `qa` lo vuelve a escribir sin los rechazados | `qa`, `enrich_location`, `enrich_sizes`, `pre_score` | — (dos escritores en serie) |
+| `qa_rejected_ids` | `list[int]` | `qa` | `finalize` | — |
+| `counts` | `dict[str, int]` (`located`, `sized`, `size_rejected`, `unscorable_reset`) | `enrich_location`, `enrich_sizes` | `finalize` | **sí**: merge de dicts (los dos nodos corren en paralelo) |
+| `unscorable_ids` | `list[int]` | `pre_score` | `finalize` | — |
+| `auto_scored_ids` | `list[int]` | `pre_score` | `finalize` | — |
+| `candidate_ids` | `list[int]` | `pre_score` | la arista que hace el fan-out a `score_one` | — |
+| `scored_ids` | `list[int]` | `score_one` (en paralelo) | `notify`, `finalize` | **sí**: `operator.add` |
+| `failed_ids` | `list[int]` | `score_one`, cuando el listing llega a `failed` | `finalize` | **sí**: `operator.add` |
+| `notified_ids` | `list[int]` | `notify` | `finalize` | — |
+| `errors` | `list[NodeError]` | todos los nodos | `finalize` | **sí**: `operator.add` |
+
+**Reglas para la parte B**
+- Nada de ORM ni `Session` en el state. Cada nodo abre su propia sesión y usa del state solo el alcance (los IDs).
+- **Cada nodo tiene que poder re-ejecutarse**, porque al reanudar arranca desde el principio del nodo. Por eso cada uno vuelve a filtrar contra la DB:
+  - `pre_score` y `score_one` solo procesan `score_status='pending'`;
+  - `notify` solo avisa si `notified_at IS NULL`;
+  - `scrape` ya hace upsert.
+- **`enrich_sizes`** corre después del QA. Solo guarda `size_m2` si está entre 15 y 1.000 m²; si no, suma `size_rejected`. Cuando guarda un tamaño en un listing `unscorable` con motivo `no_size`, lo vuelve a `pending` y suma `unscorable_reset`. **Es la única salida de `unscorable`.**
+- `score_one`: el runner ya cuenta los intentos y marca `failed` al tercero (parte A). El nodo solo tiene que mapear el resultado a `scored_ids`, `failed_ids` o `errors`.
+- Sin `usage` en el state: los tokens los registra Langfuse.
+
+---
+
+## Pipeline — Parte A: cierre de pendientes
+
+- **`enrich_sizes`** (`backend/agents/enrich_size.py`): nueva función `apply_size(listing, size_m2)`. Guarda el tamaño y, si el listing estaba `unscorable` con motivo `no_size`, lo vuelve a `pending` y pone `score_status_reason` en null. Otros estados y motivos no los toca. Resuelve la duda 1 de la parte A.
+  - El rango de extracción de `_extract_from_html` sigue siendo 10–1.000 m² (la regla de 15–1.000 queda para la parte B). Igual, un listing de 10 a 14 m² que vuelve a `pending` pasa de nuevo por el QA en el próximo `run_all` y queda rechazado por "tamaño muy pequeño".
+  - Tests: 5 offline (`test_pipeline_status.py`) y 1 de DB (`test_pipeline_db.py`). Suite: 76 passed y 9 skipped; los 8 tests de DB pasan contra SQLite descartable.
+- **`CLAUDE.md`:** actualicé la sección del QA ("marca, nunca borra") y agregué "Score lifecycle" con los 5 estados. También corregí la línea de scoring que decía `score IS NULL`. Resuelve la duda 6.
+- **Pre-deploy en Railway:** `poetry run alembic upgrade head`, desde `/app` (el `WORKDIR` del `Dockerfile`).

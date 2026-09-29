@@ -1,6 +1,7 @@
 import logging
 from sqlalchemy.orm import Session
 from backend.models.listing import Listing
+from backend.models.repository import pending_listings_query
 
 logger = logging.getLogger(__name__)
 
@@ -15,10 +16,13 @@ PRICE_PER_M2_MAX = 20_000
 class QAAgent:
 
     def run(self, db: Session) -> dict:
-        listings = db.query(Listing).filter(Listing.score.is_(None)).all()
+        """Marca qa_rejected + qa_reason en los pendientes inválidos. No borra nada:
+        si el anuncio reaparece en el scraping, save_listing solo actualiza last_seen_at
+        y sigue rechazado."""
+        listings = pending_listings_query(db).all()
         print(f"[QA] Analizando {len(listings)} listings...")
 
-        results = {"valid": 0, "flagged": 0, "issues": []}
+        results = {"valid": 0, "flagged": 0, "issues": [], "rejected_ids": []}
 
         for listing in listings:
             issues = self._validate(listing)
@@ -29,12 +33,14 @@ class QAAgent:
                     "title": listing.title,
                     "issues": issues
                 })
-                db.delete(listing)
+                results["rejected_ids"].append(listing.id)
+                listing.qa_rejected = True
+                listing.qa_reason = "; ".join(issues)
             else:
                 results["valid"] += 1
 
         db.commit()
-        print(f"[QA] {results['valid']} válidos, {results['flagged']} eliminados.")
+        print(f"[QA] {results['valid']} válidos, {results['flagged']} rechazados.")
         return results
 
     def _validate(self, listing: Listing) -> list[str]:
