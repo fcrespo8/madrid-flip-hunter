@@ -6,6 +6,7 @@ from backend.models.listing import Listing
 
 MODEL_ID = os.getenv("SCORING_MODEL_ID", "claude-sonnet-4-6")
 MAX_TOKENS = 1024
+TEMPERATURE = 0  # scoring determinista: mismo piso → mismo score
 
 SCORE_TOOL = {
     "name": "score_listing",

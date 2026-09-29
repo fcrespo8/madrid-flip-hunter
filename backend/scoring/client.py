@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from numbers import Real
 from typing import Any
 
-from backend.scoring.prompt import MAX_TOKENS, MODEL_ID, SCORE_TOOL, SYSTEM_PROMPT
+from backend.scoring.prompt import MAX_TOKENS, MODEL_ID, SCORE_TOOL, SYSTEM_PROMPT, TEMPERATURE
 
 _client = None
 
@@ -80,6 +80,7 @@ def build_request_params(user_message: str) -> dict[str, Any]:
     return {
         "model": MODEL_ID,
         "max_tokens": MAX_TOKENS,
+        "temperature": TEMPERATURE,
         "system": CACHED_SYSTEM,
         "tools": CACHED_TOOLS,
         "tool_choice": TOOL_CHOICE,

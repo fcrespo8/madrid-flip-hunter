@@ -194,6 +194,7 @@ def test_request_fuerza_tool_choice():
     call = fake.messages.calls[0]
     assert call["tool_choice"] == {"type": "tool", "name": "score_listing"}
     assert call["model"] == MODEL_ID
+    assert call["temperature"] == 0
 
 
 def test_request_errores_tipados():

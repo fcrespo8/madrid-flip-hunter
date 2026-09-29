@@ -1,20 +1,10 @@
-import os
-import pytest
-from dotenv import load_dotenv
-
-load_dotenv()
-os.environ.setdefault("ANTHROPIC_API_KEY", "test-key")
-
 from datetime import date
 from decimal import Decimal
 
-
-def _has_real_db() -> bool:
-    url = os.environ.get("DATABASE_URL", "")
-    return bool(url) and "test@localhost" not in url
+from tests.conftest import requires_test_db
 
 
-@pytest.mark.skipif(not _has_real_db(), reason="No real DB available")
+@requires_test_db
 def test_operation_with_expense():
     from backend.models.database import SessionLocal
     from backend.models.operation import Operation, OperationExpense, OperationStatus, ExpenseCategory, PaidBy

@@ -234,3 +234,79 @@ Lo medí sin llamar a la API:
 3. **Costo cuando hay un solo candidato:** si en una corrida Claude puntúa **un solo** piso, ese prefijo se cobra a 1,25x (escritura sin lectura posterior). El punto de equilibrio son 2 llamadas dentro de 5 minutos. Con Sonnet 4.6 a 3 US$/M de input y un prefijo de ~1.600 tokens, el ahorro es de ~0,004 US$ por llamada cacheada, y el sobrecosto en el peor caso es de ~0,001 US$ por corrida. En los dos casos el monto es chico.
 4. **Nombres en Langfuse:** usé `cache_creation_input_tokens` y `cache_read_input_tokens`, los mismos que devuelve Anthropic, como pediste. `usage_details` en Langfuse acepta claves libres (`Dict[str, int]`). **No verifiqué** que el cálculo de costos de Langfuse Cloud reconozca esas claves para aplicar el precio reducido. Los números aparecen igual en la traza; si el costo mostrado sale mal, hay que ajustar la definición del modelo en Langfuse.
 5. Confirmé en el SDK instalado (`anthropic` 0.91.0) que `ToolParam` y `TextBlockParam` aceptan `cache_control`.
+
+---
+
+## Tests aislados de la DB real
+
+**Qué cambió:** ya **no hace falta pasar `DATABASE_URL` a mano** para correr los tests. Alcanza con:
+
+```bash
+poetry run pytest tests/ -q
+```
+
+Esto reemplaza el comando largo del principio de este log (con `DATABASE_URL=...` y demás). El comando largo sigue funcionando, pero ya no hace falta.
+
+**Qué hice**
+- `tests/conftest.py` (nuevo). pytest lo carga antes que cualquier test y:
+  - siempre **reemplaza** `DATABASE_URL`, así que nunca se usa la del `.env` ni la del shell. `load_dotenv()` no pisa variables que ya existen, por eso no puede volver a traer la real;
+  - si definís `TEST_DATABASE_URL`, los tests de DB corren contra esa base; si no, se saltean;
+  - aborta antes de correr nada si:
+    - el nombre de la base de `TEST_DATABASE_URL` no contiene "test";
+    - es la misma base que la del `.env`. Compara host, puerto y nombre ya normalizados con `make_url`: `localhost`, `127.0.0.1`, `::1` y el socket local cuentan como iguales, el puerto por defecto (5432) se completa, y no se tienen en cuenta usuario, password ni driver;
+    - el engine de SQLAlchemy terminó apuntando a otra base;
+    - se está en CI (`CI` definida) y falta `TEST_DATABASE_URL`.
+- `tests/test_operations_model.py`: saqué el `load_dotenv()` y la heurística `_has_real_db()`, y ahora usa `@requires_test_db` del conftest. **Este era el test que podía escribir en la base real.**
+- `backend/scoring/`: `temperature=0` en la llamada a Claude (constante `TEMPERATURE` en `prompt.py`).
+- `.github/workflows/ci.yml`:
+  - agregué un servicio Postgres `pgvector/pgvector:pg18` con la base `flip_test`, y definí `TEST_DATABASE_URL` a nivel del job;
+  - agregué el paso `alembic upgrade head` antes de los tests;
+  - saqué el `DATABASE_URL` ficticio.
+  - Con esto, el test de DB corre en CI y no se saltea.
+
+**Cómo correr el test de DB localmente (opcional)**
+
+Necesitás un Postgres con pgvector y una base cuyo nombre contenga "test". Por ejemplo, con Docker:
+
+```bash
+docker run -d --name flip-test-db -p 5433:5432 \
+  -e POSTGRES_USER=flipuser -e POSTGRES_PASSWORD=flippass -e POSTGRES_DB=flip_test \
+  pgvector/pgvector:pg18
+DATABASE_URL=postgresql://flipuser:flippass@localhost:5433/flip_test poetry run alembic upgrade head
+TEST_DATABASE_URL=postgresql://flipuser:flippass@localhost:5433/flip_test poetry run pytest tests/ -v
+```
+
+Uso el puerto 5433 para no chocar con el Postgres del `docker-compose`.
+
+**Qué verifiqué**
+- Sin variables: 50 passed y 1 skipped (el test de DB, con un motivo claro).
+- Con `DATABASE_URL` exportada apuntando a una base "de prod": se reemplaza y todo corre igual.
+- Con un `TEST_DATABASE_URL` sin "test" en el nombre, y simulando CI sin `TEST_DATABASE_URL`: pytest aborta con exit code 4 y no corre ningún test.
+- La normalización de URLs, con casos que deben dar igual y casos que deben dar distinto.
+- El YAML del workflow parsea bien, y `alembic heads` devuelve una sola cabeza (`f3a1b2c4d5e6`).
+
+**Lo que NO pude verificar**
+- **El workflow nuevo no lo corrí.** Acá el daemon de Docker no está levantado, y el Postgres de Homebrew no tiene pgvector. La primera ejecución real va a ser en GitHub Actions. Lo más probable que falle, si algo falla, es la migración desde cero (`alembic upgrade head` sobre una base vacía), porque nunca se probó en CI.
+- El check de "misma base que el `.env`" no lo probé con tu `.env` real. Es una comparación directa de URLs normalizadas.
+
+**Dudas / decisiones**
+1. ~~Elegí `pg14` para que coincida con `docker-compose.yml`.~~ **Actualizado:** producción usa PostgreSQL 18, así que CI y `docker-compose.yml` pasaron a `pgvector/pgvector:pg18` (ver la sección siguiente).
+2. Agregué la regla de que en CI falte `TEST_DATABASE_URL` aborta: no la pediste, pero es lo que garantiza que el test de DB no se saltee en silencio si alguien después borra la variable.
+3. `pytest.exit(..., returncode=2)` durante la carga del conftest termina con código 4 (error de uso de pytest). Igual es distinto de 0, así que CI falla, que es lo que importa.
+
+---
+
+## Postgres 18 en CI y docker-compose
+
+**Qué hice**
+- `.github/workflows/ci.yml`: el servicio pasó de `pgvector/pgvector:pg14` a `pgvector/pgvector:pg18`, igual que producción.
+- `docker-compose.yml`: el servicio `db` pasó de `postgres:14` a `pgvector/pgvector:pg18`. Además de alinear la versión, esto arregla algo que ya estaba roto: `postgres:14` no trae pgvector, así que `alembic upgrade head` fallaba contra la base de compose en la migración que hace `CREATE EXTENSION vector`.
+
+**Impacto en los datos locales de docker-compose**
+- **Los datos de un Postgres 14 no se pueden abrir con Postgres 18.** Cambiar de versión mayor exige hacer dump y restore (o `pg_upgrade`).
+- El `db` de compose **no tiene un volumen con nombre**: los datos viven en el volumen anónimo que crea la imagen. Al cambiar de imagen, según cómo Docker reasigne ese volumen, pueden pasar dos cosas:
+  - **Postgres 18 arranca con una base vacía.** La imagen 18 guarda los datos en `/var/lib/postgresql`, no en `/var/lib/postgresql/data`, así que no ve los datos viejos.
+  - **No arranca**, porque detecta datos viejos o incompatibles.
+- En ninguno de los dos casos se borran los datos viejos: quedan en el volumen anónimo anterior, sin usar. Pero tampoco se migran solos.
+- **No pude revisar si tenés datos locales**: el daemon de Docker no está corriendo.
+- Hay un problema que ya existía: sin un volumen con nombre, un `docker compose down` seguido de `up` crea un volumen anónimo nuevo, así que los datos locales ya se "perdían" en cada recreación. No lo cambié porque no me lo pediste.
