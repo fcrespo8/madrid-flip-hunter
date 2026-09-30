@@ -8,6 +8,8 @@ Dependencias inyectables vía config["configurable"] (tests / prueba manual):
 """
 from __future__ import annotations
 
+import asyncio
+import contextvars
 import logging
 from contextlib import contextmanager
 
@@ -54,6 +56,14 @@ def _session():
 
 def _configurable(config: RunnableConfig | None) -> dict:
     return (config or {}).get("configurable", {})
+
+
+async def _run_detached(coro):
+    """Corre `coro` en un contexto de contextvars vacío. Sin esto, el grafo de
+    scoring invocado dentro de un nodo hereda el config del pipeline (incluido el
+    checkpointer) y LangGraph intenta checkpointear su ScoringState, que tiene
+    objetos ORM y no se puede serializar. Así es una ejecución independiente."""
+    return await asyncio.create_task(coro, context=contextvars.Context())
 
 
 async def scrape(state: PipelineState, config: RunnableConfig) -> dict:
@@ -148,8 +158,8 @@ async def score_one(payload: ScoreOneInput, config: RunnableConfig) -> dict:
             logger.info("score_one: listing %s ya está en '%s', se omite", listing_id, listing.score_status)
             return {}
 
-        summary = await run_scoring([listing], db, client=conf.get("scoring_client"),
-                                    retriever=conf.get("retriever"))
+        summary = await _run_detached(run_scoring([listing], db, client=conf.get("scoring_client"),
+                                                  retriever=conf.get("retriever")))
         if listing_id in summary.scored_ids:
             return {"scored_ids": [listing_id]}
 

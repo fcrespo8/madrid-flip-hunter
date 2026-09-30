@@ -5,6 +5,7 @@ import operator
 import typing
 
 import pytest
+from langgraph.checkpoint.memory import InMemorySaver
 
 from tests.conftest import requires_test_db
 from tests.test_scoring import VALID_RESULT, FakeClient, _offline, no_docs_retriever  # noqa: F401
@@ -136,7 +137,8 @@ def test_pipeline_de_punta_a_punta(cleanup, _no_whatsapp):
         _raw(4, title="Piso en alquiler"),         # QA lo rechaza
     ]
     fake = FakeClient(tool_input=VALID_RESULT)
-    state = asyncio.run(run_pipeline(["fake", "broken"], run_id="t1", scrapers=_scrapers(raws, fail=True),
+    state = asyncio.run(run_pipeline(["fake", "broken"], run_id="t1", checkpointer=InMemorySaver(),
+                                     scrapers=_scrapers(raws, fail=True),
                                      scoring_client=fake, retriever=no_docs_retriever))
     rows = _by_external_id()
     ids = {k: v.id for k, v in rows.items()}
@@ -165,7 +167,8 @@ def test_pipeline_segunda_corrida_no_repite_trabajo(cleanup, _no_whatsapp):
     raws = [_raw(1, price=_raw(0).price * 0.65)]
     fake = FakeClient(tool_input=VALID_RESULT)
     for _ in range(2):
-        state = asyncio.run(run_pipeline(["fake"], scrapers=_scrapers(raws), scoring_client=fake,
+        state = asyncio.run(run_pipeline(["fake"], checkpointer=InMemorySaver(), scrapers=_scrapers(raws),
+                                         scoring_client=fake,
                                          retriever=no_docs_retriever))
 
     assert state["source_stats"] == {"fake": {"new": 0, "dup": 1, "found": 1}}
@@ -178,7 +181,7 @@ def test_pipeline_fallo_de_claude_queda_pendiente(cleanup):
     from backend.pipeline.graph import run_pipeline
 
     raws = [_raw(1, price=_raw(0).price * 0.65)]
-    state = asyncio.run(run_pipeline(["fake"], scrapers=_scrapers(raws),
+    state = asyncio.run(run_pipeline(["fake"], checkpointer=InMemorySaver(), scrapers=_scrapers(raws),
                                      scoring_client=FakeClient(raise_exc=RuntimeError("503")),
                                      retriever=no_docs_retriever))
     row = _by_external_id()["g1"]
