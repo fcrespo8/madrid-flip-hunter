@@ -87,6 +87,8 @@
     /* ── Deal Finder layout ── */
     #app { display: grid; grid-template-columns: 1fr 1fr; height: calc(100vh - 196px); }
     #map { height: 100%; z-index: 1; }
+    /* Tiles OSM en modo oscuro: el filtro va solo en la capa de tiles, no en los marcadores. */
+    .map-tiles-dark { filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9); }
     #sidebar { overflow-y: auto; background: #1a1d27; }
 
     /* ── Tables ── */
@@ -2630,7 +2632,11 @@
 
   // ── Deal Finder ───────────────────────────────────────────────────────────
   const map = L.map('map').setView([40.416, -3.703], 13);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© CartoDB' }).addTo(map);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    className: 'map-tiles-dark',
+  }).addTo(map);
 
   function scoreColor(s) { return s >= 7 ? '#4ade80' : s >= 4 ? '#facc15' : '#f87171'; }
   function scoreBadgeClass(s) { return s >= 7 ? 'score-high' : s >= 4 ? 'score-mid' : 'score-low'; }
