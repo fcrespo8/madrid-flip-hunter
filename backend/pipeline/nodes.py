@@ -5,6 +5,8 @@ Dependencias inyectables vía config["configurable"] (tests / prueba manual):
   scrapers        dict nombre → clase de scraper (default: SCRAPERS)
   scoring_client  cliente Anthropic (default: el real)
   retriever       función RAG (default: la real)
+  fetch_html      async url → html para enrich_sizes (default: Playwright)
+  max_size_fetches  tope de páginas que baja enrich_sizes (default: DEFAULT_MAX_FETCHES)
 """
 from __future__ import annotations
 
@@ -18,6 +20,8 @@ from langgraph.types import Send
 
 from backend.agents.deactivate_stale import deactivate_stale as _deactivate_stale
 from backend.agents.enrich_location import enrich_locations
+from backend.agents.enrich_size import DEFAULT_MAX_FETCHES
+from backend.agents.enrich_size import enrich_sizes as _enrich_sizes
 from backend.agents.pre_scorer import apply_pre_scores
 from backend.agents.qa_agent import QAAgent
 from backend.models.database import SessionLocal
@@ -117,21 +121,37 @@ def enrich_location(state: PipelineState) -> dict:
     return {"counts": {"located": enrich_locations()}}   # usa su propia sesión
 
 
-# TODO(parte B): nodo enrich_sizes en paralelo con enrich_location, con la regla
-# 15–1.000 m² y el contador unscorable_reset (ver docs/refactor-scoring-log.md).
+async def enrich_sizes(state: PipelineState, config: RunnableConfig) -> dict:
+    """En paralelo con enrich_location. Completa size_m2 (15–1.000 m²) de los
+    pendientes de esta corrida y de los 'unscorable' por no_size, a los que vuelve
+    a 'pending'. Esos entran en la próxima corrida (pasando por QA), no en esta."""
+    conf = _configurable(config)
+    counts = await _enrich_sizes(
+        pending_ids=state.get("pending_ids", []),
+        max_fetches=conf.get("max_size_fetches", DEFAULT_MAX_FETCHES),
+        fetch_html=conf.get("fetch_html"),
+    )
+    return {"counts": counts}
 
 
 def pre_score(state: PipelineState) -> dict:
-    """Relee de la DB los pendientes del alcance (re-ejecutable: ignora lo ya puntuado)."""
+    """Relee de la DB los pendientes del alcance (re-ejecutable: ignora lo ya puntuado).
+    Con max_llm_calls, solo los primeros N candidatos (por id) van a Claude; el resto
+    queda en 'pending' para la próxima corrida."""
     ids = state.get("pending_ids", [])
     with _session() as db:
         listings = pending_listings_query(db).filter(Listing.id.in_(ids)).all() if ids else []
         result = apply_pre_scores(db, listings)
         candidate_ids = [x.id for x in result.candidates]
-    logger.info("Pre-score: %d candidatos, %d auto, %d no puntuables",
-                len(candidate_ids), len(result.auto_ids), len(result.unscorable_ids))
+
+    cap = state.get("max_llm_calls")
+    deferred_ids = candidate_ids[cap:] if cap is not None else []
+    candidate_ids = candidate_ids[:cap] if cap is not None else candidate_ids
+    logger.info("Pre-score: %d candidatos (%d diferidos por max_llm_calls), %d auto, %d no puntuables",
+                len(candidate_ids), len(deferred_ids), len(result.auto_ids), len(result.unscorable_ids))
     return {
         "candidate_ids": candidate_ids,
+        "deferred_ids": deferred_ids,
         "auto_scored_ids": result.auto_ids,
         "unscorable_ids": result.unscorable_ids,
     }
@@ -186,13 +206,14 @@ async def notify(state: PipelineState) -> dict:
 def finalize(state: PipelineState) -> dict:
     logger.info(
         "Pipeline %s terminado: fuentes=%s nuevos=%d desactivados=%d pendientes=%d "
-        "rechazados_qa=%d auto=%d no_puntuables=%d candidatos=%d puntuados=%d failed=%d "
-        "notificados=%d errores=%d",
+        "rechazados_qa=%d auto=%d no_puntuables=%d candidatos=%d diferidos=%d puntuados=%d failed=%d "
+        "notificados=%d counts=%s errores=%d",
         state.get("run_id"), state.get("source_stats", {}), len(state.get("new_ids", [])),
         state.get("deactivated_count", 0), len(state.get("pending_ids", [])),
         len(state.get("qa_rejected_ids", [])), len(state.get("auto_scored_ids", [])),
         len(state.get("unscorable_ids", [])), len(state.get("candidate_ids", [])),
+        len(state.get("deferred_ids", [])),
         len(state.get("scored_ids", [])), len(state.get("failed_ids", [])),
-        len(state.get("notified_ids", [])), len(state.get("errors", [])),
+        len(state.get("notified_ids", [])), state.get("counts", {}), len(state.get("errors", [])),
     )
     return {}

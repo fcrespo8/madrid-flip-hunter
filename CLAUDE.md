@@ -43,7 +43,7 @@ Runs after scraping (and after `deactivate_stale`) on pending listings. Flags re
 - `pending` — new or reset; the only status the pipeline picks up (`repository.pending_listings_query`: `pending AND NOT qa_rejected AND is_active`).
 - `auto` — scored by `pre_scorer.apply_pre_scores` without Claude (pre-score < 7).
 - `llm` — scored by Claude (pre-score ≥ 7 candidates).
-- `unscorable` — pre-score can't run; `score_status_reason` is `no_price`, `no_size` or `no_market_price`. Only exit: `enrich_size.apply_size` moves `no_size` back to `pending` when it fills `size_m2`.
+- `unscorable` — pre-score can't run; `score_status_reason` is `no_price`, `no_size` or `no_market_price`. Only exit: `enrich_sizes` moves `no_size` back to `pending` when it fills `size_m2` (15–1000 m²). If the page downloads fine but has no usable size, the reason becomes `no_size_final` and it's never retried (set it back to `no_size` to force a retry); failed downloads don't count.
 - `failed` — Claude failed 3 times (`score_attempts`, incremented before each call); reason holds the last error. `reset_and_rescore` resets these to `pending` with 0 attempts.
 
 A DB `CHECK` constraint enforces these five values.

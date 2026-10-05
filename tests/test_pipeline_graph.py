@@ -34,7 +34,8 @@ def test_aristas_del_grafo():
     edges = {(e.source, e.target) for e in build_pipeline_graph().get_graph().edges}
     assert edges == {
         ("__start__", "scrape"), ("scrape", "deactivate_stale"), ("deactivate_stale", "select_pending"),
-        ("select_pending", "qa"), ("qa", "enrich_location"), ("enrich_location", "pre_score"),
+        ("select_pending", "qa"), ("qa", "enrich_location"), ("qa", "enrich_sizes"),
+        ("enrich_location", "pre_score"), ("enrich_sizes", "pre_score"),
         ("pre_score", "score_one"), ("pre_score", "notify"), ("score_one", "notify"),
         ("notify", "finalize"), ("finalize", "__end__"),
     }
@@ -51,8 +52,12 @@ def test_reducers_del_state():
 
 def test_state_sin_orm_ni_session():
     from backend.pipeline.state import PipelineState
+    import types
     allowed = {str, int, list, dict}
     for name, hint in typing.get_type_hints(PipelineState).items():
+        if typing.get_origin(hint) in (typing.Union, types.UnionType):      # p. ej. int | None
+            assert set(typing.get_args(hint)) <= allowed | {type(None)}, name
+            continue
         assert typing.get_origin(hint) in allowed or hint in allowed, name
 
 
@@ -103,6 +108,11 @@ def _scrapers(raws, fail=False):
     return scrapers
 
 
+async def _no_page(url):
+    """fetch_html de enrich_sizes que nunca encuentra la página (sin Playwright)."""
+    return None
+
+
 @pytest.fixture
 def cleanup():
     yield
@@ -139,7 +149,7 @@ def test_pipeline_de_punta_a_punta(cleanup, _no_whatsapp):
     fake = FakeClient(tool_input=VALID_RESULT)
     state = asyncio.run(run_pipeline(["fake", "broken"], run_id="t1", checkpointer=InMemorySaver(),
                                      scrapers=_scrapers(raws, fail=True),
-                                     scoring_client=fake, retriever=no_docs_retriever))
+                                     scoring_client=fake, retriever=no_docs_retriever, fetch_html=_no_page))
     rows = _by_external_id()
     ids = {k: v.id for k, v in rows.items()}
 
@@ -169,7 +179,7 @@ def test_pipeline_segunda_corrida_no_repite_trabajo(cleanup, _no_whatsapp):
     for _ in range(2):
         state = asyncio.run(run_pipeline(["fake"], checkpointer=InMemorySaver(), scrapers=_scrapers(raws),
                                          scoring_client=fake,
-                                         retriever=no_docs_retriever))
+                                         retriever=no_docs_retriever, fetch_html=_no_page))
 
     assert state["source_stats"] == {"fake": {"new": 0, "dup": 1, "found": 1}}
     assert state["candidate_ids"] == [] and state["scored_ids"] == [] and state["notified_ids"] == []
@@ -183,7 +193,7 @@ def test_pipeline_fallo_de_claude_queda_pendiente(cleanup):
     raws = [_raw(1, price=_raw(0).price * 0.65)]
     state = asyncio.run(run_pipeline(["fake"], checkpointer=InMemorySaver(), scrapers=_scrapers(raws),
                                      scoring_client=FakeClient(raise_exc=RuntimeError("503")),
-                                     retriever=no_docs_retriever))
+                                     retriever=no_docs_retriever, fetch_html=_no_page))
     row = _by_external_id()["g1"]
     assert state["scored_ids"] == [] and state["failed_ids"] == []      # 1er intento: sigue pending
     assert [(e["node"], e["listing_id"]) for e in state["errors"]] == [("score_one", row.id)]
@@ -208,3 +218,48 @@ def test_score_one_omite_listing_ya_puntuado(cleanup):
     out = asyncio.run(score_one({"run_id": "r", "listing_id": listing_id},
                                 RunnableConfig(configurable={"scoring_client": fake})))
     assert out == {} and fake.messages.calls == []
+
+
+@requires_test_db
+def test_pipeline_unscorable_por_tamano_vuelve_y_se_puntua(cleanup):
+    """1ª corrida: sin m² y sin página → unscorable. 2ª: enrich_sizes encuentra 50 m²
+    → pending (no se puntúa en esa corrida). 3ª: pasa QA y pre_score → Claude."""
+    from backend.pipeline.graph import run_pipeline
+
+    cheap = _raw(0).price * 0.65
+    raws = [_raw(1, price=cheap, size_m2=None)]
+    fake = FakeClient(tool_input=VALID_RESULT)
+    kwargs = dict(checkpointer=InMemorySaver(), scrapers=_scrapers(raws), scoring_client=fake,
+                  retriever=no_docs_retriever)
+
+    asyncio.run(run_pipeline(["fake"], fetch_html=_no_page, **kwargs))
+    assert _by_external_id()["g1"].score_status == "unscorable"
+
+    async def page_50m2(url):
+        return "<span>50 m²</span>"
+
+    second = asyncio.run(run_pipeline(["fake"], fetch_html=page_50m2, **kwargs))
+    row = _by_external_id()["g1"]
+    assert second["counts"]["unscorable_reset"] == 1
+    assert (row.size_m2, row.score_status) == (50.0, "pending") and fake.messages.calls == []
+
+    third = asyncio.run(run_pipeline(["fake"], fetch_html=page_50m2, **kwargs))
+    assert third["scored_ids"] == [row.id] and _by_external_id()["g1"].score_status == "llm"
+
+
+@requires_test_db
+def test_pipeline_max_llm_calls_difiere_el_resto(cleanup):
+    from backend.pipeline.graph import run_pipeline
+
+    cheap = _raw(0).price * 0.65
+    raws = [_raw(1, price=cheap), _raw(2, price=cheap), _raw(3, price=cheap)]
+    fake = FakeClient(tool_input=VALID_RESULT)
+    state = asyncio.run(run_pipeline(["fake"], max_llm_calls=1, checkpointer=InMemorySaver(),
+                                     scrapers=_scrapers(raws), scoring_client=fake,
+                                     retriever=no_docs_retriever, fetch_html=_no_page))
+    rows = _by_external_id()
+
+    assert len(fake.messages.calls) == 1
+    assert state["candidate_ids"] == [rows["g1"].id]
+    assert state["deferred_ids"] == [rows["g2"].id, rows["g3"].id]
+    assert [rows[k].score_status for k in ("g1", "g2", "g3")] == ["llm", "pending", "pending"]

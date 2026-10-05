@@ -30,6 +30,7 @@ def merge_dicts(left: dict, right: dict) -> dict:
 class PipelineState(TypedDict, total=False):
     run_id: str
     sources: list[str]
+    max_llm_calls: int | None                                # tope de score_one por corrida (None = sin tope)
 
     source_stats: dict[str, SourceStats]
     new_ids: list[int]
@@ -37,11 +38,12 @@ class PipelineState(TypedDict, total=False):
 
     pending_ids: list[int]                                   # select_pending; qa lo reescribe
     qa_rejected_ids: list[int]
-    counts: Annotated[dict[str, int], merge_dicts]           # enrich_location (∥ enrich_sizes, TODO)
+    counts: Annotated[dict[str, int], merge_dicts]           # enrich_location ∥ enrich_sizes
 
     unscorable_ids: list[int]
     auto_scored_ids: list[int]
-    candidate_ids: list[int]
+    candidate_ids: list[int]                                 # los que van a Claude en esta corrida
+    deferred_ids: list[int]                                  # candidatos que no entraron por max_llm_calls (siguen 'pending')
 
     scored_ids: Annotated[list[int], operator.add]           # score_one ×N en paralelo
     failed_ids: Annotated[list[int], operator.add]

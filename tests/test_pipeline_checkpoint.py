@@ -9,65 +9,21 @@ from collections import Counter
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 
-from tests.conftest import TEST_DATABASE_URL, requires_test_db
+from tests.conftest import TEST_DATABASE_URL, Boom, requires_test_db
 from tests.test_scoring import VALID_RESULT, FakeClient, _offline, no_docs_retriever  # noqa: F401
-
-
-class Boom(RuntimeError):
-    pass
-
-
-@pytest.fixture
-def fake_nodes(monkeypatch):
-    """Reemplaza cada nodo por un fake que registra sus llamadas. `fail_once` hace
-    que un nodo (o un score_one de un listing) falle la primera vez."""
-    from backend.pipeline import nodes
-    calls = Counter()
-    fail_once = set()
-
-    def maybe_fail(key):
-        calls[key] += 1
-        if key in fail_once:
-            fail_once.discard(key)
-            raise Boom(f"falla simulada en {key}")
-
-    def sync(name, out):
-        def node(state):
-            maybe_fail(name)
-            return out(state) if callable(out) else out
-        return node
-
-    async def scrape(state, config):
-        maybe_fail("scrape")
-        return {"source_stats": {"fake": {"new": 3, "dup": 0, "found": 3}}, "new_ids": [1, 2, 3]}
-
-    async def score_one(payload, config):
-        maybe_fail(f"score_one:{payload['listing_id']}")
-        return {"scored_ids": [payload["listing_id"]]}
-
-    async def notify(state):
-        maybe_fail("notify")
-        return {"notified_ids": sorted(state.get("scored_ids", []))}
-
-    monkeypatch.setattr(nodes, "scrape", scrape)
-    monkeypatch.setattr(nodes, "deactivate_stale", sync("deactivate_stale", {"deactivated_count": 0}))
-    monkeypatch.setattr(nodes, "select_pending", sync("select_pending", {"pending_ids": [1, 2, 3]}))
-    monkeypatch.setattr(nodes, "qa", sync("qa", lambda s: {"qa_rejected_ids": [], "pending_ids": s["pending_ids"]}))
-    monkeypatch.setattr(nodes, "enrich_location", sync("enrich_location", {"counts": {"located": 3}}))
-    monkeypatch.setattr(nodes, "pre_score", sync("pre_score", {
-        "candidate_ids": [1, 2, 3], "auto_scored_ids": [], "unscorable_ids": []}))
-    monkeypatch.setattr(nodes, "score_one", score_one)
-    monkeypatch.setattr(nodes, "notify", notify)
-    monkeypatch.setattr(nodes, "finalize", sync("finalize", {}))
-    return calls, fail_once
 
 
 def _run(saver, **kwargs):
     from backend.pipeline.graph import run_pipeline
+    kwargs.setdefault("scrapers", {"fake": object})
     return asyncio.run(run_pipeline(["fake"], checkpointer=saver, **kwargs))
 
 
-BEFORE_PRE_SCORE = ("scrape", "deactivate_stale", "select_pending", "qa", "enrich_location")
+def _thread_ids(saver):
+    return {cp.config["configurable"]["thread_id"] for cp in saver.list(None)}
+
+
+BEFORE_PRE_SCORE = ("scrape", "deactivate_stale", "select_pending", "qa", "enrich_location", "enrich_sizes")
 
 
 def test_retomar_no_reejecuta_nodos_previos(fake_nodes):
@@ -86,6 +42,7 @@ def test_retomar_no_reejecuta_nodos_previos(fake_nodes):
     assert calls["pre_score"] == 2                     # el que falló se reintenta
     assert sorted(state["scored_ids"]) == [1, 2, 3]
     assert state["notified_ids"] == [1, 2, 3] and calls["finalize"] == 1
+    assert state["counts"] == {"located": 3, "sized": 1}       # merge de los dos enrich en paralelo
 
 
 def test_retomar_solo_repite_el_score_one_que_fallo(fake_nodes):
@@ -103,21 +60,35 @@ def test_retomar_solo_repite_el_score_one_que_fallo(fake_nodes):
     assert sorted(state["scored_ids"]) == [1, 2, 3]    # sin duplicados por el reducer operator.add
 
 
-def test_retomar_corrida_terminada_no_ejecuta_nada(fake_nodes):
+def test_corrida_ok_borra_su_thread(fake_nodes):
     calls, _ = fake_nodes
     saver = InMemorySaver()
-    first = _run(saver, run_id="r3")
+    _run(saver, run_id="r3")
+    assert "r3" not in _thread_ids(saver)
     before = dict(calls)
 
-    again = _run(saver, run_id="r3", resume=True)
-
+    with pytest.raises(ValueError, match="No hay checkpoint"):     # terminada: no hay nada que retomar
+        _run(saver, run_id="r3", resume=True)
     assert dict(calls) == before
-    assert again["notified_ids"] == first["notified_ids"]
+
+
+def test_corrida_fallida_conserva_su_thread(fake_nodes):
+    _, fail_once = fake_nodes
+    saver = InMemorySaver()
+    fail_once.add("notify")
+    with pytest.raises(Boom):
+        _run(saver, run_id="r3b")
+    assert "r3b" in _thread_ids(saver)
+    _run(saver, run_id="r3b", resume=True)
+    assert "r3b" not in _thread_ids(saver)                         # al terminar el resume, se borra
 
 
 def test_run_id_existente_sin_resume_falla(fake_nodes):
+    _, fail_once = fake_nodes
     saver = InMemorySaver()
-    _run(saver, run_id="r4")
+    fail_once.add("notify")
+    with pytest.raises(Boom):
+        _run(saver, run_id="r4")
     with pytest.raises(ValueError, match="ya existe"):
         _run(saver, run_id="r4")
 
@@ -137,14 +108,17 @@ def test_objetos_de_configurable_no_van_al_checkpoint(fake_nodes):
     import typing
     from backend.pipeline.state import PipelineState
     state_keys = set(typing.get_type_hints(PipelineState))
+    calls, fail_once = fake_nodes
     saver = InMemorySaver()
-    _run(saver, run_id="r5", scrapers={"fake": object}, scoring_client=FakeClient(tool_input=VALID_RESULT),
-         retriever=no_docs_retriever)
+    fail_once.add("finalize")      # que falle al final, para que el thread quede y se pueda inspeccionar
+    with pytest.raises(Boom):
+        _run(saver, run_id="r5", scrapers={"fake": object}, scoring_client=FakeClient(tool_input=VALID_RESULT),
+             retriever=no_docs_retriever, fetch_html=lambda url: None)
 
     checkpoints = list(saver.list({"configurable": {"thread_id": "r5"}}))
     assert checkpoints
     for cp in checkpoints:
-        assert not {"scrapers", "scoring_client", "retriever"} & set(cp.metadata)
+        assert not {"scrapers", "scoring_client", "retriever", "fetch_html"} & set(cp.metadata)
         json.dumps(cp.metadata)
         assert saver.serde.loads_typed(saver.serde.dumps_typed(cp.checkpoint)) == cp.checkpoint
         json.dumps({k: v for k, v in cp.checkpoint["channel_values"].items() if k in state_keys})
@@ -212,8 +186,11 @@ def test_postgres_saver_retoma_despues_de_un_fallo(monkeypatch):
 
     monkeypatch.setattr(nodes, "pre_score", flaky_pre_score)
     monkeypatch.setattr(run_scrapers, "send_whatsapp_alerts", no_send)
+    async def no_page(url):
+        return None
+
     kwargs = dict(scrapers={"fake": FakeScraper}, scoring_client=FakeClient(tool_input=VALID_RESULT),
-                  retriever=no_docs_retriever)
+                  retriever=no_docs_retriever, fetch_html=no_page)
     try:
         with pytest.raises(Boom):
             asyncio.run(run_pipeline(["fake"], run_id=run_id, **kwargs))
@@ -221,6 +198,9 @@ def test_postgres_saver_retoma_despues_de_un_fallo(monkeypatch):
 
         assert scrape_calls["run"] == 1, "scrape no se re-ejecuta al retomar"
         assert len(state["scored_ids"]) == 1 and state["candidate_ids"] == state["scored_ids"]
+        with psycopg.connect(checkpointer_conn_string(TEST_DATABASE_URL)) as conn:
+            left = conn.execute("SELECT count(*) FROM checkpoints WHERE thread_id = %s", (run_id,)).fetchone()[0]
+        assert left == 0, "al terminar bien, el thread se borra"
     finally:
         with psycopg.connect(checkpointer_conn_string(TEST_DATABASE_URL), autocommit=True) as conn:
             for table in ("checkpoint_writes", "checkpoint_blobs", "checkpoints"):
@@ -253,3 +233,33 @@ def test_alembic_ignora_tablas_del_checkpointer():
         assert include(t, name, "table", True, None) is expected
         assert include(t.c.thread_id, "thread_id", "column", True, None) is expected
         assert include(next(iter(t.indexes)), f"ix_{name}", "index", True, None) is expected
+
+
+@requires_test_db
+@requires_postgres
+def test_postgres_prune_borra_threads_viejos():
+    from datetime import datetime, timedelta, timezone
+    from langgraph.checkpoint.base import empty_checkpoint
+    from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+    from backend.pipeline.graph import checkpointer_conn_string, prune_old_threads
+
+    async def scenario():
+        async with AsyncPostgresSaver.from_conn_string(checkpointer_conn_string(TEST_DATABASE_URL)) as saver:
+            await saver.setup()
+            now = datetime.now(timezone.utc)
+            for thread_id, age in (("pytest-prune-viejo", 10), ("pytest-prune-nuevo", 1)):
+                cp = empty_checkpoint()
+                cp["ts"] = (now - timedelta(days=age)).isoformat()
+                await saver.aput({"configurable": {"thread_id": thread_id, "checkpoint_ns": ""}}, cp,
+                                 {"source": "input", "step": -1, "parents": {}}, {})
+            try:
+                deleted = await prune_old_threads(saver, now=now)
+                remaining = {c.config["configurable"]["thread_id"] async for c in saver.alist(None)}
+            finally:
+                await saver.adelete_thread("pytest-prune-nuevo")
+                await saver.adelete_thread("pytest-prune-viejo")
+            return deleted, remaining
+
+    deleted, remaining = asyncio.run(scenario())
+    assert "pytest-prune-viejo" in deleted and "pytest-prune-viejo" not in remaining
+    assert "pytest-prune-nuevo" in remaining

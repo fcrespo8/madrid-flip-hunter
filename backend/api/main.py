@@ -20,10 +20,28 @@ from backend.api.investor import router as investor_router
 scheduler = AsyncIOScheduler()
 
 
+async def scheduled_pipeline():
+    """Job diario: el grafo del pipeline. PIPELINE_MAX_LLM_CALLS (opcional) pone tope
+    a las llamadas a Claude por corrida."""
+    from backend.pipeline.graph import run_pipeline
+
+    max_llm_calls = os.environ.get("PIPELINE_MAX_LLM_CALLS")
+    await run_pipeline(max_llm_calls=int(max_llm_calls) if max_llm_calls else None)
+
+
+def schedule_daily_pipeline(sched) -> None:
+    """07:00, una corrida a la vez (max_instances=1) y sin ponerse al día con las
+    perdidas (coalesce=True). Rollback sin deploy de código: SCHEDULER_PIPELINE=legacy
+    vuelve a run_all."""
+    job = run_all if os.environ.get("SCHEDULER_PIPELINE") == "legacy" else scheduled_pipeline
+    sched.add_job(job, "cron", hour=7, minute=0, id="daily_pipeline", replace_existing=True,
+                  max_instances=1, coalesce=True)
+
+
 @asynccontextmanager
 async def lifespan(app):
     if os.environ.get("ENABLE_SCHEDULER") == "true":
-        scheduler.add_job(run_all, "cron", hour=7, minute=0)
+        schedule_daily_pipeline(scheduler)
         scheduler.start()
     yield
     if scheduler.running:
