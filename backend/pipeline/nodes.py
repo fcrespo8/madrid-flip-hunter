@@ -96,8 +96,14 @@ async def scrape(state: PipelineState, config: RunnableConfig) -> dict:
     return {"source_stats": stats, "new_ids": new_ids, "errors": errors}
 
 
+def scraped_ok_sources(state: PipelineState) -> list[str]:
+    """Fuentes que en esta corrida no fallaron y trajeron al menos un listing.
+    Un scraper bloqueado que devuelve [] no cuenta: desactivaría toda su fuente."""
+    return [src for src, stats in state.get("source_stats", {}).items() if stats.get("found", 0) > 0]
+
+
 def deactivate_stale(state: PipelineState) -> dict:
-    return {"deactivated_count": _deactivate_stale()}   # usa su propia sesión
+    return {"deactivated_count": _deactivate_stale(scraped_ok_sources(state))}   # usa su propia sesión
 
 
 def select_pending(state: PipelineState) -> dict:

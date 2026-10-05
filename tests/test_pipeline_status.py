@@ -275,7 +275,7 @@ def test_run_all_desactiva_antes_de_seleccionar_pendientes(monkeypatch):
     for name in ("WallapopScraper", "DonpisoScraper", "RemaxScraper", "RedpisoScraper", "TecnocasaScraper"):
         monkeypatch.setattr(rs, name, FakeScraper)
     monkeypatch.setattr(rs, "SessionLocal", RunAllDB)
-    monkeypatch.setattr(rs, "deactivate_stale", lambda: calls.append("deactivate_stale"))
+    monkeypatch.setattr(rs, "deactivate_stale", lambda sources: calls.append("deactivate_stale"))
     monkeypatch.setattr(rs.QAAgent, "run", lambda self, db: calls.append("qa"))
     monkeypatch.setattr(rs, "enrich_locations", lambda: calls.append("enrich_locations"))
     monkeypatch.setattr(rs, "pending_listings_query", lambda db: calls.append("select_pending") or FakeQuery([]))

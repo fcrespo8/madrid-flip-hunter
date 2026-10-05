@@ -49,10 +49,13 @@ async def run_all():
 
     db = SessionLocal()
     total_new, total_dup = 0, 0
+    scraped_ok = []   # fuentes que trajeron listings: solo esas se revisan en deactivate_stale
 
     try:
         for scraper in scrapers:
             listings = await scraper.run()
+            if listings:
+                scraped_ok.append(scraper.source_name)
             new_count, dup_count = 0, 0
             for raw in listings:
                 _, created = save_listing(db, raw)
@@ -66,7 +69,7 @@ async def run_all():
 
         # Antes de seleccionar pendientes: así QA, pre-score y Claude no gastan
         # trabajo en anuncios que ya no están publicados.
-        deactivate_stale()
+        deactivate_stale(scraped_ok)
         db.expire_all()  # deactivate_stale usa su propia sesión
 
         qa = QAAgent()

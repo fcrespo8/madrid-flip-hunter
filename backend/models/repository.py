@@ -9,6 +9,8 @@ def save_listing(db: Session, raw: RawListing) -> tuple[Listing, bool]:
     """
     Guarda un RawListing en la DB.
     Retorna (listing, created) — created=False si ya existía.
+    Si ya existía, actualiza last_seen_at y lo reactiva: si el scraper lo vio,
+    sigue publicado (aunque deactivate_stale o un admin lo hayan desactivado).
     """
     existing = db.query(Listing).filter_by(
         source=raw.source,
@@ -17,6 +19,7 @@ def save_listing(db: Session, raw: RawListing) -> tuple[Listing, bool]:
 
     if existing:
         existing.last_seen_at = datetime.utcnow()
+        existing.is_active = True
         db.commit()
         return existing, False
 
