@@ -20,12 +20,13 @@ def stale_listings_query(db, sources: list[str], cutoff: datetime):
 
 def deactivate_stale(sources: Iterable[str]) -> int:
     """Marca inactivos los listings no vistos en STALE_DAYS, **solo de `sources`**:
-    las fuentes que se scrapearon bien en esta corrida. Si una fuente no se scrapeó,
-    no hay forma de saber si sus listings siguen publicados, así que no se tocan.
+    las fuentes cuyo barrido de esta corrida fue completo (ScrapeResult.complete).
+    Si el scraper no vio todo el catálogo (tope de páginas, página repetida, error,
+    cobertura baja), que un listing no haya aparecido no dice nada: no se toca.
     Sin fuentes no desactiva nada. Devuelve cuántos desactivó."""
     sources = sorted(set(sources))
     if not sources:
-        logger.warning("[deactivate_stale] ninguna fuente se scrapeó bien: no se desactiva nada")
+        logger.warning("[deactivate_stale] ninguna fuente con barrido completo: no se desactiva nada")
         return 0
     db = SessionLocal()
     try:

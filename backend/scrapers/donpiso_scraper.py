@@ -3,7 +3,7 @@ import re
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
-from .base_scraper import BaseScraper, RawListing
+from .base_scraper import NO_PAGINATION, BaseScraper, RawListing, ScrapeResult
 
 # Known municipalities that are NOT Madrid capital
 _NON_MADRID = re.compile(
@@ -24,7 +24,7 @@ class DonpisoScraper(BaseScraper):
     def __init__(self):
         super().__init__(source_name="donpiso")
 
-    async def fetch_listings(self) -> list[RawListing]:
+    async def fetch_listings(self) -> ScrapeResult:
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
             context = await browser.new_context(
@@ -42,7 +42,13 @@ class DonpisoScraper(BaseScraper):
             html = await page.content()
             await browser.close()
 
-        return self._parse_html(html)
+        return self._build_result(html)
+
+    def _build_result(self, html: str) -> ScrapeResult:
+        # TODO: el scraper solo lee la primera página del listado; la web enlaza
+        # pagina-2.html, pagina-3.html, ... Hasta que recorra todas, el barrido
+        # nunca es exhaustivo y no se puede usar para desactivar listings.
+        return ScrapeResult.finish(self._parse_html(html), reached_end=False, stop_reason=NO_PAGINATION)
 
     def _parse_html(self, html: str) -> list[RawListing]:
         soup = BeautifulSoup(html, "html.parser")

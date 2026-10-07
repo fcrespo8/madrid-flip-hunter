@@ -97,7 +97,9 @@ def fake_nodes(monkeypatch):
 
     async def scrape(state, config):
         maybe_fail("scrape")
-        return {"source_stats": {"fake": {"new": 3, "dup": 0, "found": 3}}, "new_ids": [1, 2, 3]}
+        return {"source_stats": {"fake": {"new": 3, "dup": 0, "found": 3, "complete": True,
+                                          "total_reported": None, "incomplete_reason": None}},
+                "new_ids": [1, 2, 3]}
 
     async def score_one(payload, config):
         maybe_fail(f"score_one:{payload['listing_id']}")

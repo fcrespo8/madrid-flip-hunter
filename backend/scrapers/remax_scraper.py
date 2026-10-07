@@ -12,7 +12,9 @@ from typing import Optional
 import requests
 from bs4 import BeautifulSoup
 
-from .base_scraper import BaseScraper, RawListing
+from .base_scraper import (
+    PAGE_CAP, REPEATED_PAGE, UNPARSEABLE, BaseScraper, PageWalk, RawListing, ScrapeResult, as_count,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -28,16 +30,33 @@ HEADERS = {
 }
 
 
+_TOTAL_RE = re.compile(r"Propiedades\s+encontradas:\s*([\d.]+)", re.IGNORECASE)
+
+
+def parse_total(soup: BeautifulSoup) -> Optional[int]:
+    """Total que informa el sitio: 'Propiedades encontradas: 142' → 142."""
+    m = _TOTAL_RE.search(soup.get_text(" ", strip=True))
+    return as_count(m.group(1)) if m else None
+
+
+def count_site_items(soup: BeautifulSoup) -> int:
+    """Tarjetas que muestra la página, antes de descartar las que no se pueden parsear."""
+    return len(soup.select("div.listingRow"))
+
+
 class RemaxScraper(BaseScraper):
 
     def __init__(self):
         super().__init__(source_name="remax")
 
-    async def fetch_listings(self) -> list[RawListing]:
+    async def fetch_listings(self) -> ScrapeResult:
         return await asyncio.to_thread(self._fetch_sync)
 
-    def _fetch_sync(self) -> list[RawListing]:
-        listings = []
+    def _fetch_sync(self) -> ScrapeResult:
+        walk = PageWalk()
+        total = None
+        # Si el for termina sin break, se agotó el tope y quedaba catálogo.
+        reached_end, stop_reason, error = False, PAGE_CAP, None
         session = requests.Session()
         session.headers.update(HEADERS)
 
@@ -51,20 +70,35 @@ class RemaxScraper(BaseScraper):
                 resp.raise_for_status()
             except requests.RequestException as e:
                 logger.error(f"[remax] Error: {e}")
+                error = f"página {page + 1}: {e}"
                 break
 
             soup = BeautifulSoup(resp.text, "html.parser")
+            total = total or parse_total(soup)
             cards = self._parse_page(soup)
+            site_items = count_site_items(soup)
 
             if not cards:
                 logger.info(f"[remax] Sin resultados en página {page + 1}, parando.")
+                # Sin tarjetas en la página: fin del catálogo. Con tarjetas que no se pudieron leer, no.
+                if site_items == 0:
+                    reached_end = True
+                else:
+                    stop_reason = UNPARSEABLE
                 break
 
-            listings.extend(cards)
+            if not walk.add_page(cards, site_items):
+                logger.warning(f"[remax] Página {page + 1} repetida (el sitio ignora ?start), parando.")
+                stop_reason = REPEATED_PAGE
+                break
+
             logger.info(f"[remax] {len(cards)} pisos encontrados")
             time.sleep(1.5)
 
-        return listings
+        return ScrapeResult.finish(
+            walk.listings, reached_end=reached_end, stop_reason=stop_reason,
+            total_reported=total, items_seen=walk.items_seen, error=error,
+        )
 
     def _parse_page(self, soup: BeautifulSoup) -> list[RawListing]:
         results = []

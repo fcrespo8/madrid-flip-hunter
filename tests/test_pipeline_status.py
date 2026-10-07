@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Session
 
+from backend.scrapers.base_scraper import ScrapeResult
 from tests.test_scoring import (  # noqa: F401  (_offline es un fixture autouse)
     VALID_RESULT,
     FakeClient,
@@ -31,17 +32,21 @@ def _render_migration(direction: str) -> str:
     from alembic import command
     from alembic.config import Config
 
+    from unittest.mock import patch
     buf = io.StringIO()
     cfg = Config("alembic.ini", stdout=buf, output_buffer=buf)
     rng = f"{PREV_MIGRATION}:{MIGRATION}" if direction == "upgrade" else f"{MIGRATION}:{PREV_MIGRATION}"
-    getattr(command, direction)(cfg, rng, sql=True)
+    with patch.dict("os.environ", {"DATABASE_URL": "postgresql://x@localhost/render_only"}):   # dialecto Postgres siempre
+        getattr(command, direction)(cfg, rng, sql=True)
     return buf.getvalue()
 
 
 def test_migracion_es_la_unica_cabeza():
     from alembic.config import Config
     from alembic.script import ScriptDirectory
-    assert ScriptDirectory.from_config(Config("alembic.ini")).get_heads() == [MIGRATION]
+    script = ScriptDirectory.from_config(Config("alembic.ini"))
+    (head,) = script.get_heads()                       # una sola cabeza
+    assert MIGRATION in {r.revision for r in script.walk_revisions()}   # y esta migración sigue en la cadena
 
 
 def test_migracion_upgrade_sql():
@@ -253,7 +258,7 @@ def test_run_all_desactiva_antes_de_seleccionar_pendientes(monkeypatch):
 
         async def run(self):
             calls.append("scrape")
-            return []
+            return ScrapeResult.finish([], reached_end=True)
 
     class Summary:
         scored_ids = []
@@ -275,6 +280,7 @@ def test_run_all_desactiva_antes_de_seleccionar_pendientes(monkeypatch):
     for name in ("WallapopScraper", "DonpisoScraper", "RemaxScraper", "RedpisoScraper", "TecnocasaScraper"):
         monkeypatch.setattr(rs, name, FakeScraper)
     monkeypatch.setattr(rs, "SessionLocal", RunAllDB)
+    monkeypatch.setattr(rs, "record_scrape_run", lambda *a: None)
     monkeypatch.setattr(rs, "deactivate_stale", lambda sources: calls.append("deactivate_stale"))
     monkeypatch.setattr(rs.QAAgent, "run", lambda self, db: calls.append("qa"))
     monkeypatch.setattr(rs, "enrich_locations", lambda: calls.append("enrich_locations"))

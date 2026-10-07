@@ -26,9 +26,10 @@ from backend.agents.pre_scorer import apply_pre_scores
 from backend.agents.qa_agent import QAAgent
 from backend.models.database import SessionLocal
 from backend.models.listing import Listing
-from backend.models.repository import pending_listings_query, save_listing
+from backend.models.repository import pending_listings_query, record_scrape_run, save_listing
 from backend.pipeline.state import NodeError, PipelineState, ScoreOneInput, node_error
 from backend.scoring.runner import run_scoring
+from backend.scrapers.base_scraper import ScrapeResult
 from backend.scrapers.donpiso_scraper import DonpisoScraper
 from backend.scrapers.redpiso_scraper import RedpisoScraper
 from backend.scrapers.remax_scraper import RemaxScraper
@@ -71,39 +72,54 @@ async def _run_detached(coro):
 
 
 async def scrape(state: PipelineState, config: RunnableConfig) -> dict:
-    """Fuentes en serie. Si una falla, se registra y se sigue con la siguiente."""
+    """Fuentes en serie. Si una falla, se registra y se sigue con la siguiente.
+    Cada barrido queda en scrape_runs, con su `complete` y el motivo si no lo fue."""
     scrapers = _configurable(config).get("scrapers", SCRAPERS)
     stats, new_ids, errors = {}, [], []
 
     for source in state.get("sources") or DEFAULT_SOURCES:
         try:
-            raws = await scrapers[source]().run()
+            result = await scrapers[source]().run()
             new, dup = 0, 0
             with _session() as db:
-                for raw in raws:
+                for raw in result.listings:
                     listing, created = save_listing(db, raw)
                     if created:
                         new += 1
                         new_ids.append(listing.id)
                     else:
                         dup += 1
-            stats[source] = {"new": new, "dup": dup, "found": len(raws)}
-            logger.info("[%s] %d nuevos, %d duplicados", source, new, dup)
+                record_scrape_run(db, source, result, new)
+            stats[source] = {
+                "new": new, "dup": dup, "found": len(result.listings), "complete": result.complete,
+                "total_reported": result.total_reported, "incomplete_reason": result.incomplete_reason,
+            }
+            if result.error:   # el scraper cortó por un error pero devolvió lo que alcanzó a ver
+                errors.append(node_error("scrape", result.error, source=source))
+            logger.info("[%s] %d nuevos, %d duplicados, barrido %s", source, new, dup,
+                        "completo" if result.complete else f"incompleto ({result.incomplete_reason})")
         except Exception as e:
             logger.error("Scraper %s failed: %s", source, e)
             errors.append(node_error("scrape", e, source=source))
+            with _session() as db:
+                record_scrape_run(db, source, ScrapeResult.failed(f"{type(e).__name__}: {e}"), 0)
 
     return {"source_stats": stats, "new_ids": new_ids, "errors": errors}
 
 
-def scraped_ok_sources(state: PipelineState) -> list[str]:
-    """Fuentes que en esta corrida no fallaron y trajeron al menos un listing.
-    Un scraper bloqueado que devuelve [] no cuenta: desactivaría toda su fuente."""
-    return [src for src, stats in state.get("source_stats", {}).items() if stats.get("found", 0) > 0]
+def complete_sources(state: PipelineState) -> list[str]:
+    """Fuentes cuyo barrido de esta corrida fue exhaustivo (complete=True).
+    Solo de esas se puede inferir que lo que no apareció ya no está publicado."""
+    return [src for src, stats in state.get("source_stats", {}).items() if stats.get("complete") is True]
 
 
 def deactivate_stale(state: PipelineState) -> dict:
-    return {"deactivated_count": _deactivate_stale(scraped_ok_sources(state))}   # usa su propia sesión
+    sources = complete_sources(state)
+    skipped = {src: stats.get("incomplete_reason") for src, stats in state.get("source_stats", {}).items()
+               if src not in sources}
+    if skipped:
+        logger.info("deactivate_stale: se omiten fuentes con barrido incompleto: %s", skipped)
+    return {"deactivated_count": _deactivate_stale(sources)}   # usa su propia sesión
 
 
 def select_pending(state: PipelineState) -> dict:

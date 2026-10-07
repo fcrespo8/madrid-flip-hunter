@@ -11,6 +11,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 
 from tests.conftest import TEST_DATABASE_URL, Boom, requires_test_db
 from tests.test_scoring import VALID_RESULT, FakeClient, _offline, no_docs_retriever  # noqa: F401
+from backend.scrapers.base_scraper import ScrapeResult
 
 
 def _run(saver, **kwargs):
@@ -171,7 +172,7 @@ def test_postgres_saver_retoma_despues_de_un_fallo(monkeypatch):
     class FakeScraper:
         async def run(self):
             scrape_calls["run"] += 1
-            return raws
+            return ScrapeResult.finish(raws, reached_end=True)
 
     async def no_send(listings):
         pass

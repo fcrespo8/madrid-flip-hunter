@@ -12,7 +12,9 @@ from typing import Optional
 import requests
 from bs4 import BeautifulSoup
 
-from .base_scraper import BaseScraper, RawListing
+from .base_scraper import (
+    PAGE_CAP, REPEATED_PAGE, UNPARSEABLE, BaseScraper, PageWalk, RawListing, ScrapeResult, as_count,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,16 +38,37 @@ _NON_MADRID = re.compile(
 )
 
 
+_TOTAL_RE = re.compile(r"(\d[\d.]*)\s+viviendas\s+en\s+venta", re.IGNORECASE)
+
+
+def parse_total(soup: BeautifulSoup) -> Optional[int]:
+    """Total que informa el sitio: '1.342 viviendas en venta en Madrid' → 1342."""
+    h1 = soup.find("h1")
+    for text in (h1.get_text(" ", strip=True) if h1 else "", soup.get_text(" ", strip=True)):
+        m = _TOTAL_RE.search(text)
+        if m:
+            return as_count(m.group(1))
+    return None
+
+
+def count_site_items(soup: BeautifulSoup) -> int:
+    """Ítems que muestra la página, antes de descartar otros municipios o sin precio."""
+    return len({a.get("href") for a in soup.select("a[href*='/inmueble/']") if a.get("href")})
+
+
 class RedpisoScraper(BaseScraper):
 
     def __init__(self):
         super().__init__(source_name="redpiso")
 
-    async def fetch_listings(self) -> list[RawListing]:
+    async def fetch_listings(self) -> ScrapeResult:
         return await asyncio.to_thread(self._fetch_sync)
 
-    def _fetch_sync(self) -> list[RawListing]:
-        listings = []
+    def _fetch_sync(self) -> ScrapeResult:
+        walk = PageWalk()
+        total = None
+        # Si el for termina sin break, se agotó el tope y quedaba catálogo.
+        reached_end, stop_reason, error = False, PAGE_CAP, None
         session = requests.Session()
         session.headers.update(HEADERS)
 
@@ -58,20 +81,35 @@ class RedpisoScraper(BaseScraper):
                 resp.raise_for_status()
             except requests.RequestException as e:
                 logger.error(f"[redpiso] Error: {e}")
+                error = f"página {page}: {e}"
                 break
 
             soup = BeautifulSoup(resp.text, "html.parser")
+            total = total or parse_total(soup)
             cards = self._parse_page(soup)
+            site_items = count_site_items(soup)
 
             if not cards:
                 logger.info(f"[redpiso] Sin resultados en página {page}, parando.")
+                # Sin ítems en la página: fin del catálogo. Con ítems que no se pudieron leer, no.
+                if site_items == 0:
+                    reached_end = True
+                else:
+                    stop_reason = UNPARSEABLE
                 break
 
-            listings.extend(cards)
+            if not walk.add_page(cards, site_items):
+                logger.warning(f"[redpiso] Página {page} repetida (el sitio ignora ?page), parando.")
+                stop_reason = REPEATED_PAGE
+                break
+
             logger.info(f"[redpiso] {len(cards)} pisos encontrados")
             time.sleep(1.5)
 
-        return listings
+        return ScrapeResult.finish(
+            walk.listings, reached_end=reached_end, stop_reason=stop_reason,
+            total_reported=total, items_seen=walk.items_seen, error=error,
+        )
 
     def _parse_page(self, soup: BeautifulSoup) -> list[RawListing]:
         results = []

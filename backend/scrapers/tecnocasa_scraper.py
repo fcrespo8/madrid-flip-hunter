@@ -11,7 +11,7 @@ from typing import Optional
 
 import requests
 
-from .base_scraper import BaseScraper, RawListing
+from .base_scraper import PAGE_CAP, REPEATED_PAGE, BaseScraper, RawListing, ScrapeResult, as_count
 
 logger = logging.getLogger(__name__)
 
@@ -42,10 +42,10 @@ class TecnocasaScraper(BaseScraper):
     def __init__(self):
         super().__init__(source_name="tecnocasa")
 
-    async def fetch_listings(self) -> list[RawListing]:
+    async def fetch_listings(self) -> ScrapeResult:
         return await asyncio.to_thread(self._fetch_sync)
 
-    def _fetch_sync(self) -> list[RawListing]:
+    def _fetch_sync(self) -> ScrapeResult:
         session = requests.Session()
         session.headers.update(HEADERS)
 
@@ -56,7 +56,11 @@ class TecnocasaScraper(BaseScraper):
         # 2. Paginar listings y cruzar con coordenadas
         listings = []
         seen = set()
+        site_ids = set()   # ids que el sitio listó, antes de descartar los que no se pueden parsear
+        total_items = None
         max_pages = 20  # máx ~300 pisos por ejecución
+        # Si el for termina sin break, se agotó el tope y quedaba catálogo.
+        reached_end, stop_reason, error = False, PAGE_CAP, None
 
         for page in range(1, max_pages + 1):
             params = dict(BASE_PARAMS)
@@ -69,12 +73,21 @@ class TecnocasaScraper(BaseScraper):
                 data = resp.json()
             except requests.RequestException as e:
                 logger.error(f"[tecnocasa] Error página {page}: {e}")
+                error = f"página {page}: {e}"
                 break
 
             estates = data.get("estates", [])
             if not estates:
                 logger.info(f"[tecnocasa] Sin resultados en página {page}, parando.")
+                reached_end = True
                 break
+
+            page_ids = {e["id"] for e in estates if e.get("id")}
+            if page_ids and page_ids <= site_ids:
+                logger.warning(f"[tecnocasa] Página {page} repetida, parando.")
+                stop_reason = REPEATED_PAGE
+                break
+            site_ids |= page_ids
 
             for estate in estates:
                 listing = self._parse_estate(estate, coords)
@@ -82,15 +95,21 @@ class TecnocasaScraper(BaseScraper):
                     seen.add(listing.external_id)
                     listings.append(listing)
 
-            total_pages = data.get("pagination", {}).get("total_pages", 1)
+            pagination = data.get("pagination", {})
+            total_pages = pagination.get("total_pages", 1)
+            total_items = as_count(pagination.get("total_items")) or total_items
             logger.info(f"[tecnocasa] Página {page}/{min(max_pages, total_pages)}: {len(estates)} pisos")
 
             if page >= total_pages:
+                reached_end = True
                 break
 
             time.sleep(1.0)
 
-        return listings
+        return ScrapeResult.finish(
+            listings, reached_end=reached_end, stop_reason=stop_reason,
+            total_reported=total_items, items_seen=len(site_ids), error=error,
+        )
 
     def _fetch_coords(self, session: requests.Session) -> dict[int, tuple[float, float]]:
         """Obtiene {id: (lat, lon)} para todos los pisos en una sola llamada."""

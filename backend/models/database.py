@@ -49,4 +49,4 @@ def get_db():
 
 
 # Import all models so Alembic autogenerate can detect them
-from backend.models import listing, operation  # noqa: E402, F401
+from backend.models import listing, operation, scrape_run  # noqa: E402, F401

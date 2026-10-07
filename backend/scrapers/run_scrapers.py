@@ -3,7 +3,7 @@ import logging
 from datetime import datetime
 from backend.models.database import SessionLocal
 from backend.models.listing import Listing
-from backend.models.repository import pending_listings_query, save_listing
+from backend.models.repository import pending_listings_query, record_scrape_run, save_listing
 from backend.scrapers.wallapop_scraper import WallapopScraper
 from backend.scrapers.donpiso_scraper import DonpisoScraper
 from backend.scrapers.remax_scraper import RemaxScraper        # ← nuevo
@@ -49,27 +49,28 @@ async def run_all():
 
     db = SessionLocal()
     total_new, total_dup = 0, 0
-    scraped_ok = []   # fuentes que trajeron listings: solo esas se revisan en deactivate_stale
+    complete_sources = []   # fuentes con barrido completo: solo esas se revisan en deactivate_stale
 
     try:
         for scraper in scrapers:
-            listings = await scraper.run()
-            if listings:
-                scraped_ok.append(scraper.source_name)
+            result = await scraper.run()
+            if result.complete:
+                complete_sources.append(scraper.source_name)
             new_count, dup_count = 0, 0
-            for raw in listings:
+            for raw in result.listings:
                 _, created = save_listing(db, raw)
                 if created:
                     new_count += 1
                 else:
                     dup_count += 1
+            record_scrape_run(db, scraper.source_name, result, new_count)
             print(f"[{scraper.source_name}] {new_count} nuevos, {dup_count} duplicados.")
             total_new += new_count
             total_dup += dup_count
 
         # Antes de seleccionar pendientes: así QA, pre-score y Claude no gastan
         # trabajo en anuncios que ya no están publicados.
-        deactivate_stale(scraped_ok)
+        deactivate_stale(complete_sources)
         db.expire_all()  # deactivate_stale usa su propia sesión
 
         qa = QAAgent()

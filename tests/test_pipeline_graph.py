@@ -9,6 +9,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 
 from tests.conftest import requires_test_db
 from tests.test_scoring import VALID_RESULT, FakeClient, _offline, no_docs_retriever  # noqa: F401
+from backend.scrapers.base_scraper import ScrapeResult
 
 SRC = "pytest-graph"
 
@@ -96,7 +97,7 @@ def _raw(n, **overrides):
 def _scrapers(raws, fail=False):
     class FakeScraper:
         async def run(self):
-            return raws
+            return ScrapeResult.finish(raws, reached_end=True)
 
     class BrokenScraper:
         async def run(self):
@@ -153,7 +154,8 @@ def test_pipeline_de_punta_a_punta(cleanup, _no_whatsapp):
     rows = _by_external_id()
     ids = {k: v.id for k, v in rows.items()}
 
-    assert state["source_stats"] == {"fake": {"new": 4, "dup": 0, "found": 4}}
+    assert state["source_stats"] == {"fake": {"new": 4, "dup": 0, "found": 4, "complete": True,
+                                              "total_reported": None, "incomplete_reason": None}}
     assert [(e["node"], e["source"]) for e in state["errors"]] == [("scrape", "broken")]
     assert sorted(state["new_ids"]) == sorted(ids.values())
     assert ids["g4"] in state["qa_rejected_ids"] and ids["g4"] not in state["pending_ids"]
@@ -181,7 +183,8 @@ def test_pipeline_segunda_corrida_no_repite_trabajo(cleanup, _no_whatsapp):
                                          scoring_client=fake,
                                          retriever=no_docs_retriever, fetch_html=_no_page))
 
-    assert state["source_stats"] == {"fake": {"new": 0, "dup": 1, "found": 1}}
+    assert state["source_stats"] == {"fake": {"new": 0, "dup": 1, "found": 1, "complete": True,
+                                              "total_reported": None, "incomplete_reason": None}}
     assert state["candidate_ids"] == [] and state["scored_ids"] == [] and state["notified_ids"] == []
     assert len(fake.messages.calls) == 1 and len(_no_whatsapp) == 1
 

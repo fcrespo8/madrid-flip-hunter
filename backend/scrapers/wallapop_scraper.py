@@ -2,7 +2,7 @@ import asyncio
 import re
 from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
-from .base_scraper import BaseScraper, RawListing
+from .base_scraper import NO_PAGINATION, BaseScraper, RawListing, ScrapeResult
 
 
 class WallapopScraper(BaseScraper):
@@ -19,7 +19,7 @@ class WallapopScraper(BaseScraper):
     def __init__(self):
         super().__init__(source_name="wallapop")
 
-    async def fetch_listings(self) -> list[RawListing]:
+    async def fetch_listings(self) -> ScrapeResult:
         api_data = None
 
         async with async_playwright() as p:
@@ -43,7 +43,7 @@ class WallapopScraper(BaseScraper):
 
         if not api_data:
             print("[wallapop] No se interceptó la API")
-            return []
+            return ScrapeResult.failed("no se interceptó la API de búsqueda")
 
         items = api_data.get("data", {}).get("section", {}).get("items", [])
         print(f"[wallapop] {len(items)} items encontrados en la API")
@@ -60,7 +60,8 @@ class WallapopScraper(BaseScraper):
             except Exception as e:
                 print(f"[wallapop] Error parseando item {item.get('id')}: {e}")
 
-        return listings
+        # Solo se lee la primera respuesta de la API: no se sabe si hay más resultados.
+        return ScrapeResult.finish(listings, reached_end=False, stop_reason=NO_PAGINATION, items_seen=len(items))
 
     def _parse_item(self, item: dict) -> RawListing | None:
         item_id = item.get("id")

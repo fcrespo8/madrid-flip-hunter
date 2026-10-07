@@ -1,8 +1,12 @@
+import logging
 from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from .listing import Listing
-from backend.scrapers.base_scraper import RawListing
+from .scrape_run import ScrapeRun
+from backend.scrapers.base_scraper import RawListing, ScrapeResult
+
+logger = logging.getLogger(__name__)
 
 
 def save_listing(db: Session, raw: RawListing) -> tuple[Listing, bool]:
@@ -63,3 +67,22 @@ def pending_listings_query(db: Session):
         )
         .order_by(Listing.id)
     )
+
+
+def record_scrape_run(db: Session, source: str, result: ScrapeResult, new_count: int) -> None:
+    """Guarda cómo fue el barrido de una fuente. Es contabilidad: si falla (p. ej. la
+    migración todavía no se aplicó) se loguea y el scraping sigue."""
+    try:
+        db.add(ScrapeRun(
+            source=source,
+            seen_count=len(result.listings),
+            new_count=new_count,
+            complete=result.complete,
+            total_reported=result.total_reported,
+            incomplete_reason=result.incomplete_reason,
+            error=(result.error or "")[:1000] or None,
+        ))
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.warning("No se pudo registrar el barrido de %s en scrape_runs: %s", source, e)

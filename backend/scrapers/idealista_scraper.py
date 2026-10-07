@@ -3,7 +3,7 @@
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
-from .base_scraper import BaseScraper, RawListing
+from .base_scraper import NO_PAGINATION, BaseScraper, RawListing, ScrapeResult
 import re
 import asyncio
 
@@ -15,7 +15,7 @@ class IdealistaScraper(BaseScraper):
     def __init__(self):
         super().__init__(source_name="idealista")
 
-    async def fetch_listings(self) -> list[RawListing]:
+    async def fetch_listings(self) -> ScrapeResult:
         listings = []
 
         async with async_playwright() as p:
@@ -44,7 +44,7 @@ class IdealistaScraper(BaseScraper):
                 print(f"[idealista] Error parseando artículo: {e}")
                 continue
 
-        return listings
+        return ScrapeResult.finish(listings, reached_end=False, stop_reason=NO_PAGINATION)
 
     def _parse_article(self, article) -> RawListing | None:
         title_el = article.select_one(".item-link")

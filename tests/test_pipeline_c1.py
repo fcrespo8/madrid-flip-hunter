@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from tests.conftest import Boom, requires_test_db
 from tests.test_pipeline_checkpoint import _run, _thread_ids
 from tests.test_scoring import VALID_RESULT, FakeClient, FakeDB, FakeQuery, _offline, make_listing  # noqa: F401
+from backend.scrapers.base_scraper import ScrapeResult
 
 
 def _html(m2):
@@ -329,7 +330,7 @@ def _recording_scrapers(called):
         class Scraper:
             async def run(self):
                 called.append(name)
-                return []
+                return ScrapeResult.finish([], reached_end=True)
         return Scraper
     return {name: make(name) for name in ("wallapop", "donpiso", "remax")}
 
@@ -340,7 +341,8 @@ def test_scrape_corre_solo_las_fuentes_pedidas():
     out = asyncio.run(nodes.scrape({"sources": ["donpiso"]},
                                    {"configurable": {"scrapers": _recording_scrapers(called)}}))
     assert called == ["donpiso"]
-    assert out["source_stats"] == {"donpiso": {"new": 0, "dup": 0, "found": 0}}
+    assert out["source_stats"] == {"donpiso": {"new": 0, "dup": 0, "found": 0, "complete": False,
+                                               "total_reported": None, "incomplete_reason": "empty"}}
 
 
 def test_run_pipeline_rechaza_fuente_desconocida():

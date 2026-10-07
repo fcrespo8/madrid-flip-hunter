@@ -42,16 +42,27 @@ def test_deactivate_stale_exige_fuentes():
         deactivate_stale()   # sin argumento ya no existe "todas las fuentes"
 
 
-def test_nodo_usa_solo_fuentes_que_trajeron_listings(monkeypatch):
+def test_nodo_usa_solo_fuentes_con_barrido_completo(monkeypatch):
     from backend.pipeline import nodes
     seen = {}
     monkeypatch.setattr(nodes, "_deactivate_stale", lambda sources: seen.setdefault("sources", sources) and 7)
+    stats = {"new": 0, "dup": 0, "total_reported": None}
     state = {"source_stats": {
-        "donpiso": {"new": 1, "dup": 4, "found": 5},
-        "remax": {"new": 0, "dup": 0, "found": 0},     # devolvió [] sin error: no cuenta
+        "tecnocasa": {**stats, "found": 926, "complete": True, "incomplete_reason": None},
+        "redpiso": {**stats, "found": 10, "complete": False, "incomplete_reason": "repeated_page"},
+        "remax": {**stats, "found": 20, "complete": False, "incomplete_reason": "low_coverage"},
+        "donpiso": {**stats, "found": 14, "complete": False, "incomplete_reason": "no_pagination"},
     }}                                                  # wallapop falló: ni aparece en source_stats
     assert nodes.deactivate_stale(state) == {"deactivated_count": 7}
-    assert seen["sources"] == ["donpiso"]
+    assert seen["sources"] == ["tecnocasa"]
+
+
+def test_traer_listings_ya_no_alcanza_para_desactivar(monkeypatch):
+    """Antes bastaba con found > 0; ahora hace falta complete=True."""
+    from backend.pipeline import nodes
+    assert nodes.complete_sources({"source_stats": {
+        "remax": {"found": 20, "complete": False, "incomplete_reason": "low_coverage"}}}) == []
+    assert nodes.complete_sources({"source_stats": {"remax": {"found": 20}}}) == []   # sin el campo: no es completo
 
 
 def test_nodo_sin_fuentes_ok_pasa_lista_vacia(monkeypatch):
@@ -67,17 +78,20 @@ def test_nodo_sin_fuentes_ok_pasa_lista_vacia(monkeypatch):
     assert seen["sources"] == []
 
 
-def test_run_all_pasa_solo_fuentes_con_listings(monkeypatch):
+def test_run_all_pasa_solo_fuentes_con_barrido_completo(monkeypatch):
     from backend.scrapers import run_scrapers as rs
+    from backend.scrapers.base_scraper import ScrapeResult
     from tests.test_scoring import FakeQuery
-    seen = {}
+    seen, recorded = {}, []
 
-    def scraper(name, n):
+    def scraper(name, n, complete):
         class S:
             source_name = name
 
             async def run(self):
-                return [object()] * n
+                raws = [SimpleNamespace(external_id=f"{name}{i}") for i in range(n)]
+                return ScrapeResult(listings=raws, complete=complete,
+                                    incomplete_reason=None if complete else "page_cap")
         return S
 
     class RunAllDB(FakeDB):
@@ -93,10 +107,12 @@ def test_run_all_pasa_solo_fuentes_con_listings(monkeypatch):
     async def fake_notify(*a):
         pass
 
-    for name, n in (("WallapopScraper", 2), ("DonpisoScraper", 0), ("RemaxScraper", 1),
-                    ("RedpisoScraper", 0), ("TecnocasaScraper", 3)):
-        monkeypatch.setattr(rs, name, scraper(name.removesuffix("Scraper").lower(), n))
+    for cls, n, complete in (("WallapopScraper", 2, False), ("DonpisoScraper", 0, False),
+                             ("RemaxScraper", 1, False), ("RedpisoScraper", 0, False),
+                             ("TecnocasaScraper", 3, True)):
+        monkeypatch.setattr(rs, cls, scraper(cls.removesuffix("Scraper").lower(), n, complete))
     monkeypatch.setattr(rs, "save_listing", lambda db, raw: (None, False))
+    monkeypatch.setattr(rs, "record_scrape_run", lambda db, source, result, new: recorded.append((source, result.complete)))
     monkeypatch.setattr(rs, "SessionLocal", RunAllDB)
     monkeypatch.setattr(rs, "deactivate_stale", lambda sources: seen.setdefault("sources", sources))
     monkeypatch.setattr(rs.QAAgent, "run", lambda self, db: None)
@@ -106,7 +122,9 @@ def test_run_all_pasa_solo_fuentes_con_listings(monkeypatch):
     monkeypatch.setattr(rs, "notify_scored", fake_notify)
 
     asyncio.run(rs.run_all())
-    assert seen["sources"] == ["wallapop", "remax", "tecnocasa"]
+    assert seen["sources"] == ["tecnocasa"]            # traer listings (wallapop, remax) no alcanza
+    assert recorded == [("wallapop", False), ("donpiso", False), ("remax", False),
+                        ("redpiso", False), ("tecnocasa", True)]
 
 
 # ── save_listing: reactivación ─────────────────────────────────────────────────

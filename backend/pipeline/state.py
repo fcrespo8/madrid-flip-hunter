@@ -19,7 +19,10 @@ class NodeError(TypedDict):
 class SourceStats(TypedDict):
     new: int
     dup: int
-    found: int
+    found: int                          # listings únicos que trajo el scraper
+    complete: bool                      # el barrido fue exhaustivo: se puede desactivar lo que no apareció
+    total_reported: int | None          # total que informa el sitio (None si no lo muestra)
+    incomplete_reason: str | None       # por qué no fue completo (None si complete)
 
 
 def merge_dicts(left: dict, right: dict) -> dict:

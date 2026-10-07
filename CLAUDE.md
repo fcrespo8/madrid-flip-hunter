@@ -34,7 +34,11 @@ poetry run alembic upgrade head
 **Pipeline**: Wallapop API → Scraper → QA Agent → PostgreSQL → Scoring Agent → FastAPI → React/Leaflet Dashboard
 
 ### Scraper (`backend/scrapers/`)
-Uses Playwright to intercept Wallapop's internal `/api/v3/search/section` API calls rather than parsing HTML — more resilient to UI changes. Returns `RawListing` objects. Uses `playwright-stealth` to avoid bot detection.
+Uses Playwright to intercept Wallapop's internal `/api/v3/search/section` API calls rather than parsing HTML — more resilient to UI changes. Uses `playwright-stealth` to avoid bot detection.
+
+Every scraper returns a `ScrapeResult` (`base_scraper.py`): the `RawListing`s plus `complete`, `total_reported`, `incomplete_reason` and `error`. Build it with `ScrapeResult.finish(...)`, which holds the rule: `complete=True` only if the sweep reached the natural end of the catalog (not a page cap, a repeated page, an error or a single-page read), found at least one listing, and — when the site reports a total — saw ≥ 90 % of it (counting the items the site showed, before our own filters). `deactivate_stale` only receives sources with `complete=True`, because "not seen" means "no longer published" only after a full sweep. Every sweep is recorded in `scrape_runs` (`record_scrape_run`, which never raises).
+
+Known gap: pagination is not fixed yet, so no source reaches `complete=True` today — tecnocasa stops at `max_pages=20` of 62, redpiso and remax ignore their page parameter (a repeated page is detected and stops the walk), donpiso and wallapop read one page. Until that is fixed nothing is deactivated automatically; check `scrape_runs.incomplete_reason`.
 
 ### QA Agent (`backend/agents/qa_agent.py`)
 Runs after scraping (and after `deactivate_stale`) on pending listings. Flags rentals (keyword detection), non-residential listings, anomalous prices (50k–2M €), invalid sizes (15–1000 m²), and extreme price/m² ratios. It **marks, never deletes**: sets `qa_rejected = true` and `qa_reason` (issues joined with `"; "`). Rejected listings stay excluded from the pipeline even if they're scraped again.
@@ -58,7 +62,7 @@ Single module; public entry point is `runner.run_scoring(listings=None, db=None)
 - Tests in `tests/test_scoring.py` inject a fake client/retriever/DB — never call the real API in tests.
 
 ### Database (`backend/models/`)
-SQLAlchemy 2.0 + Alembic migrations. The `listings` table has a unique constraint on `(source, external_id)`. `save_listing()` in the repository handles insert-or-skip logic.
+SQLAlchemy 2.0 + Alembic migrations. The `listings` table has a unique constraint on `(source, external_id)`. `save_listing()` in the repository handles insert-or-skip logic, and reactivates a listing (`is_active = true`) when the scraper sees it again. `scrape_runs` has one row per source sweep (`seen_count`, `new_count`, `complete`, `total_reported`, `incomplete_reason`, `error`).
 
 ### API + Frontend (`backend/api/main.py`, `frontend/index.html`)
 FastAPI serves `/api/listings` (ordered by score descending) and the React frontend as static files. The frontend is a single HTML file — no build step — with a split table/map view. Markers are color-coded: green (score ≥ 7), yellow (4–6), red (< 4).
