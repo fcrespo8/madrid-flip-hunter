@@ -141,10 +141,11 @@ def test_remax_parse_total():
 class FakeResp:
     def __init__(self, text="", json_data=None, status=200):
         self.text, self._json, self.status = text, json_data, status
+        self.status_code = status
 
     def raise_for_status(self):
         if self.status >= 400:
-            raise requests.HTTPError(f"HTTP {self.status}")
+            raise requests.HTTPError(f"HTTP {self.status}", response=self)
 
     def json(self):
         return self._json
@@ -161,13 +162,16 @@ class FakeSession:
 
 @pytest.fixture
 def http(monkeypatch):
-    """http(handler) instala una sesión falsa en requests y devuelve la sesión (con .calls)."""
-    monkeypatch.setattr("time.sleep", lambda s: None)
+    """http(handler) instala una sesión falsa en requests y devuelve la sesión (con .calls).
+    http.sleeps lista las esperas pedidas con time.sleep (nada duerme de verdad)."""
+    sleeps = []
+    monkeypatch.setattr("time.sleep", sleeps.append)
 
     def install(handler):
         session = FakeSession(handler)
         monkeypatch.setattr(requests, "Session", lambda: session)
         return session
+    install.sleeps = sleeps
     return install
 
 
@@ -178,18 +182,30 @@ def estate(n, price=True):
             "rooms": "2 dorm.", "subtitle": "Madrid, Tetuán", "title": f"Piso {n}"}
 
 
-def tecnocasa_api(pages, total_items, total_pages=None, fail_page=None, repeat_from=None):
-    """pages: dict página → lista de estates. Páginas fuera de `pages` vienen vacías."""
+def tecnocasa_api(pages, total_items, total_pages=None, failures=None, repeat_from=None, pagination="auto"):
+    """pages: dict página → lista de estates (las que no están vienen vacías).
+    failures: dict página → (status o excepción, veces): esa página falla `veces` veces y después responde bien.
+    pagination: "auto" arma {total_items, total_pages}; un dict se usa tal cual; None omite el bloque."""
+    hits = {}
+
     def handler(url, params):
         if url.endswith("/search-map-list"):
             return FakeResp(json_data={"collection": {"features": []}})
         page = params.get("page", 1)
-        if page == fail_page:
-            return FakeResp(status=500)
+        hits[page] = hits.get(page, 0) + 1
+        code, times = (failures or {}).get(page, (None, 0))
+        if code is not None and hits[page] <= times:
+            if isinstance(code, Exception):
+                raise code
+            return FakeResp(status=code)
         if repeat_from and page >= repeat_from:
             page = 1
-        return FakeResp(json_data={"estates": pages.get(page, []), "pagination": {
-            "total_items": total_items, "total_pages": total_pages or max(pages, default=1)}})
+        body = {"estates": pages.get(page, [])}
+        if pagination == "auto":
+            body["pagination"] = {"total_items": total_items, "total_pages": total_pages or max(pages, default=1)}
+        elif pagination is not None:
+            body["pagination"] = pagination
+        return FakeResp(json_data=body)
     return handler
 
 
@@ -199,6 +215,17 @@ def run_tecnocasa(http, **api):
     return TecnocasaScraper()._fetch_sync(), session
 
 
+def search_calls(session, page=None):
+    calls = [c for c in session.calls if c[0].endswith("/search")]
+    return calls if page is None else [c for c in calls if c[1].get("page", 1) == page]
+
+
+def full_pages(n, per_page=15):
+    return {p: [estate(p * 100 + i) for i in range(1, per_page + 1)] for p in range(1, n + 1)}
+
+
+# --- tecnocasa: hasta dónde recorre ---
+
 def test_tecnocasa_barrido_completo(http):
     pages = {p: [estate(p * 100 + i, price=i != 0) for i in range(15)] for p in (1, 2, 3)}   # 1 sin precio por página
     result, _ = run_tecnocasa(http, pages=pages, total_items=45)
@@ -207,13 +234,39 @@ def test_tecnocasa_barrido_completo(http):
     assert (result.complete, result.total_reported) == (True, 45)
 
 
-def test_tecnocasa_tope_de_20_paginas_no_es_completo(http):
-    """La situación real hoy: 62 páginas anunciadas, el scraper corta en 20."""
-    pages = {p: [estate(p * 100 + i) for i in range(15)] for p in range(1, 63)}
-    result, session = run_tecnocasa(http, pages=pages, total_items=926, total_pages=62)
-    assert len(result.listings) == 300
+def test_tecnocasa_recorre_hasta_total_pages_sin_tope_de_20(http):
+    """Antes cortaba en la página 20 de 62. Ahora llega hasta la que informa la API."""
+    result, session = run_tecnocasa(http, pages=full_pages(62), total_items=930, total_pages=62)
+    assert len(search_calls(session)) == 62
+    assert (len(result.listings), result.complete, result.incomplete_reason) == (930, True, None)
+
+
+def test_tecnocasa_sigue_a_total_pages_si_cambia_a_mitad_del_barrido(http):
+    """Si entran anuncios mientras se barre, total_pages crece: se usa el último valor informado."""
+    def handler(url, params):
+        if url.endswith("/search-map-list"):
+            return FakeResp(json_data={"collection": {"features": []}})
+        page = params.get("page", 1)
+        total_pages = 3 if page == 1 else 4
+        return FakeResp(json_data={"estates": [estate(page * 100 + i) for i in range(1, 16)],
+                                   "pagination": {"total_items": 60, "total_pages": total_pages}})
+    session = http(handler)
+    from backend.scrapers.tecnocasa_scraper import TecnocasaScraper
+    result = TecnocasaScraper()._fetch_sync()
+    assert len(search_calls(session)) == 4 and result.complete is True
+
+
+def test_tecnocasa_techo_de_seguridad_si_la_api_no_termina(http, monkeypatch):
+    from backend.scrapers import tecnocasa_scraper
+    monkeypatch.setattr(tecnocasa_scraper, "MAX_PAGES_SAFETY", 5)
+    result, session = run_tecnocasa(http, pages=full_pages(50), total_items=750, total_pages=50)
+    assert len(search_calls(session)) == 5 and len(result.listings) == 75
     assert (result.complete, result.incomplete_reason) == (False, "page_cap")
-    assert len([c for c in session.calls if c[0].endswith("/search")]) == 20
+
+
+def test_tecnocasa_delay_de_1s_entre_paginas_y_ninguno_despues_de_la_ultima(http):
+    run_tecnocasa(http, pages=full_pages(4), total_items=60)
+    assert http.sleeps == [1.0, 1.0, 1.0]                # entre 4 páginas hay 3 pausas
 
 
 def test_tecnocasa_pagina_repetida(http):
@@ -223,23 +276,101 @@ def test_tecnocasa_pagina_repetida(http):
     assert len(result.listings) == 15
 
 
-def test_tecnocasa_error_http_a_mitad(http):
-    pages = {p: [estate(p * 100 + i) for i in range(15)] for p in (1, 2, 3, 4)}
-    result, _ = run_tecnocasa(http, pages=pages, total_items=60, fail_page=3)
-    assert (result.complete, result.incomplete_reason) == (False, "error")
-    assert "página 3" in result.error and len(result.listings) == 30     # lo que alcanzó a ver, se conserva
-
-
 def test_tecnocasa_cobertura_baja(http):
-    pages = {p: [estate(p * 100 + i) for i in range(15)] for p in (1, 2)}
-    result, _ = run_tecnocasa(http, pages=pages, total_items=100, total_pages=2)    # termina, pero vio 30 de 100
+    result, _ = run_tecnocasa(http, pages=full_pages(2), total_items=100, total_pages=2)    # termina, pero vio 30 de 100
     assert (result.complete, result.incomplete_reason) == (False, "low_coverage")
 
 
 def test_tecnocasa_pagina_vacia_antes_de_lo_anunciado_es_fin(http):
-    pages = {p: [estate(p * 100 + i) for i in range(15)] for p in (1, 2)}
-    result, _ = run_tecnocasa(http, pages=pages, total_items=30, total_pages=5)     # la 3 viene vacía
+    result, _ = run_tecnocasa(http, pages=full_pages(2), total_items=30, total_pages=5)     # la 3 viene vacía
     assert (result.complete, result.items_seen) == (True, 30)
+
+
+# --- tecnocasa: la API no informa cuántas páginas hay ---
+
+@pytest.mark.parametrize("pagination", [
+    None,                                    # sin bloque de paginación
+    {},
+    {"total_items": 45},                     # sin total_pages
+    {"total_items": 45, "total_pages": 0},
+    {"total_items": 45, "total_pages": "n/d"},
+])
+def test_tecnocasa_sin_total_pages_valido_no_asume_que_termino(http, pagination):
+    """Antes se asumía total_pages=1: la página 1 pasaba por el fin del catálogo y, sin total,
+    el barrido salía COMPLETO con 15 listings (desactivación masiva)."""
+    result, session = run_tecnocasa(http, pages=full_pages(3), total_items=45, pagination=pagination)
+    assert (result.complete, result.incomplete_reason) == (False, "bad_pagination")
+    assert len(search_calls(session)) == 1 and len(result.listings) == 15      # lo de la página 1 se conserva
+
+
+# --- tecnocasa: reintentos ante error ---
+
+def test_tecnocasa_reintenta_un_fallo_transitorio_y_sigue(http):
+    result, session = run_tecnocasa(http, pages=full_pages(3), total_items=45, failures={2: (503, 1)})
+    assert len(search_calls(session, page=2)) == 2                       # falló una vez, la segunda anduvo
+    assert (result.complete, result.error) == (True, None) and len(result.listings) == 45
+    assert http.sleeps == [1.0, 2.0, 1.0]                                # pausa p1→p2, backoff de 2 s, pausa p2→p3
+
+
+def test_tecnocasa_corta_tras_agotar_los_reintentos_con_motivo_http_error(http):
+    pages = full_pages(4)
+    result, session = run_tecnocasa(http, pages=pages, total_items=60, failures={3: (503, 99)})
+    assert len(search_calls(session, page=3)) == 3                       # 1 intento + 2 reintentos
+    assert http.sleeps == [1.0, 1.0, 2.0, 4.0]                           # pausas p1→p2, p2→p3 y backoff 2 s, 4 s
+    assert (result.complete, result.incomplete_reason) == (False, "http_error")
+    assert result.error == "página 3 de 4: HTTPError: HTTP 503 (tras 3 intentos)"
+    assert len(result.listings) == 30                                    # lo visto antes del corte se conserva
+    assert len(search_calls(session, page=4)) == 0                       # y no sigue con la página 4
+
+
+@pytest.mark.parametrize("status", [400, 401, 403, 404])
+def test_tecnocasa_un_4xx_no_se_reintenta(http, status):
+    result, session = run_tecnocasa(http, pages=full_pages(3), total_items=45, failures={2: (status, 99)})
+    assert len(search_calls(session, page=2)) == 1
+    assert http.sleeps == [1.0]                                          # solo la pausa entre páginas, sin backoff
+    assert result.error == f"página 2 de 3: HTTPError: HTTP {status} (tras 1 intento)"
+    assert result.incomplete_reason == "http_error"
+
+
+@pytest.mark.parametrize("status", [408, 429, 500, 502, 503, 504])
+def test_tecnocasa_reintenta_estos_status(http, status):
+    result, session = run_tecnocasa(http, pages=full_pages(2), total_items=30, failures={2: (status, 1)})
+    assert len(search_calls(session, page=2)) == 2 and result.complete is True
+
+
+@pytest.mark.parametrize("exc", [requests.ConnectionError("reset"), requests.Timeout("timeout")])
+def test_tecnocasa_reintenta_errores_de_red(http, exc):
+    result, session = run_tecnocasa(http, pages=full_pages(2), total_items=30, failures={1: (exc, 2)})
+    assert len(search_calls(session, page=1)) == 3                       # falló 2 veces, anduvo a la tercera
+    assert http.sleeps == [2.0, 4.0, 1.0]
+    assert result.complete is True
+
+
+def test_tecnocasa_error_en_la_primera_pagina(http):
+    result, session = run_tecnocasa(http, pages=full_pages(3), total_items=45,
+                                    failures={1: (requests.ConnectionError("sin red"), 99)})
+    assert result.error == "página 1: ConnectionError: sin red (tras 3 intentos)"     # aún no se conoce el total
+    assert (result.listings, result.complete, result.incomplete_reason) == ([], False, "http_error")
+
+
+def test_tecnocasa_el_error_de_http_no_se_confunde_con_el_generico():
+    """'error' es de un scraper que tiró una excepción; 'http_error' es un corte con progreso parcial."""
+    generic = ScrapeResult.failed("boom")
+    http_cut = ScrapeResult.finish(raws(1), reached_end=False, error="página 3: HTTP 503", error_reason=bs.HTTP_ERROR)
+    assert (generic.incomplete_reason, http_cut.incomplete_reason) == ("error", "http_error")
+
+
+@pytest.mark.parametrize("status, expected", [(500, True), (502, True), (503, True), (429, True), (408, True),
+                                              (400, False), (401, False), (403, False), (404, False)])
+def test_is_retryable_por_status(status, expected):
+    from backend.scrapers.tecnocasa_scraper import _is_retryable
+    assert _is_retryable(requests.HTTPError("x", response=FakeResp(status=status))) is expected
+
+
+def test_is_retryable_errores_sin_respuesta():
+    from backend.scrapers.tecnocasa_scraper import _is_retryable
+    assert _is_retryable(requests.ConnectionError("x")) and _is_retryable(requests.Timeout("x"))
+    assert _is_retryable(requests.exceptions.JSONDecodeError("x", "doc", 0))
 
 
 # --- redpiso / remax ---

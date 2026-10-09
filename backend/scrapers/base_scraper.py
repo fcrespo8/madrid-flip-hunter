@@ -7,7 +7,9 @@ from typing import Optional
 COVERAGE_MIN = 0.9
 
 # Por qué un barrido no es completo (ScrapeResult.incomplete_reason).
-ERROR = "error"                    # falló la descarga o el scraper tiró una excepción
+ERROR = "error"                    # el scraper tiró una excepción
+HTTP_ERROR = "http_error"          # una página siguió fallando tras los reintentos; se conserva lo ya visto
+BAD_PAGINATION = "bad_pagination"  # la API no informó cuántas páginas hay: no se sabe si se llegó al final
 EMPTY = "empty"                    # no trajo ningún listing (p. ej. bloqueado)
 PAGE_CAP = "page_cap"              # cortó por el tope de páginas, quedaba catálogo
 REPEATED_PAGE = "repeated_page"    # una página no trajo nada nuevo (el sitio ignora el parámetro de página)
@@ -70,6 +72,7 @@ class ScrapeResult:
         total_reported: Optional[int] = None,
         items_seen: Optional[int] = None,
         error: Optional[str] = None,
+        error_reason: str = ERROR,
     ) -> "ScrapeResult":
         """Cierra un barrido y decide `complete`.
 
@@ -77,13 +80,14 @@ class ScrapeResult:
         página vacía); no cuenta si cortó por un tope, una página repetida o un error.
         items_seen: ítems que mostró el sitio, incluidos los que el scraper descarta
         por diseño (otros municipios, sin precio): es lo que se compara con el total.
+        error_reason: motivo a registrar si hay `error` (default: ERROR genérico).
         Precedencia de motivos: error > no llegó al final > vacío > cobertura baja."""
         unique = list({x.external_id: x for x in listings}.values())
         seen = max(items_seen if items_seen is not None else 0, len(unique))
 
         reason = None
         if error:
-            reason = ERROR
+            reason = error_reason
         elif not reached_end:
             reason = stop_reason or PAGE_CAP
         elif not unique:
