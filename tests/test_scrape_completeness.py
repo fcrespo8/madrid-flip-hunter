@@ -2,6 +2,7 @@
 Offline: los scrapers corren contra una sesión HTTP falsa; nada sale a la red."""
 import asyncio
 import io
+import re
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
@@ -469,12 +470,254 @@ def test_remax_barrido_completo(http):
     assert (result.complete, result.total_reported) == (True, 25)
 
 
-# --- donpiso / wallapop ---
+# --- donpiso: recorrido de pagina-N.html y fin del catálogo ---
 
-def test_donpiso_no_pagina_asi_que_nunca_es_completo():
+DP_BASE = "https://www.donpiso.com/venta-casas-y-pisos/madrid"
+DP_EMPTY_PAGE = ("<html><head><title>Casas y Pisos en venta en la provincia de MADRID | donpiso</title></head>"
+                 "<body><p>sin resultados</p></body></html>")           # lo que el sitio sirve fuera de rango (HTTP 200)
+
+
+def dp_card(n, town="Madrid"):
+    return (f'<div class="card"><a href="/pisos-y-casas/{n}_piso-en-venta"></a>'
+            f'<a href="/pisos-y-casas/{n}_piso-en-venta#video">ver</a>'             # dos enlaces por tarjeta, como el sitio real
+            f'<img alt="Imagen 1 Inmueble {n} - Piso en venta en {town}">'
+            f'<span class="item__zone">Chamberí</span><span class="item__price">250.000 €</span>'
+            f'<span>70 m² 3 hab</span></div>')
+
+
+def dp_page(page, cards, total=None, has_next=None, links=None, title=None):
+    """HTML con la forma del sitio real. Por defecto: título "(pag. N de M)" desde la página 2,
+    rel=next si hay una página siguiente y enlaces del cuerpo a las páginas 2..M (menos la actual)."""
+    if title is None and total is not None and page >= 2:
+        title = (page, total)
+    if has_next is None:
+        has_next = total is not None and page < total
+    if links is None:
+        links = [n for n in range(2, (total or 1) + 1) if n != page]
+    suffix = f"  (pag. {title[0]} de {title[1]})" if title else ""
+    head = f"<title>Casas y Pisos en venta en la provincia de MADRID | donpiso{suffix}</title>"
+    if has_next:
+        head += f'<link rel="next" href="{DP_BASE}/pagina-{page + 1}.html">'
+    body = "".join(f'<a href="{DP_BASE}/pagina-{n}.html">{n}</a>' for n in links) + "".join(cards)
+    return f"<html><head>{head}</head><body>{body}</body></html>"
+
+
+def dp_site(sizes=(18, 18, 18, 18, 4), non_madrid=0):
+    """pages: {N: html} para un catálogo de len(sizes) páginas; las primeras `non_madrid` tarjetas de cada una son de Las Rozas."""
+    total, pages, next_id = len(sizes), {}, 1
+    for page, size in enumerate(sizes, 1):
+        cards = [dp_card(next_id + i, "Las Rozas" if i < non_madrid else "Madrid") for i in range(size)]
+        next_id += size
+        pages[page] = dp_page(page, cards, total=total)
+    return pages
+
+
+def dp_handler(pages, failures=None):
+    hits = {}
+
+    def handler(url, params):
+        m = re.search(r"/pagina-(\d+)\.html$", url)
+        page = int(m.group(1)) if m else 1                  # /listado es la página 1
+        hits[page] = hits.get(page, 0) + 1
+        code, times = (failures or {}).get(page, (None, 0))
+        if code is not None and hits[page] <= times:
+            if isinstance(code, Exception):
+                raise code
+            return FakeResp(status=code)
+        return FakeResp(text=pages.get(page, DP_EMPTY_PAGE))
+    return handler
+
+
+def run_donpiso(http, pages, failures=None):
     from backend.scrapers.donpiso_scraper import DonpisoScraper
-    result = DonpisoScraper()._build_result("<html><body><p>sin tarjetas</p></body></html>")
-    assert (result.complete, result.incomplete_reason) == (False, "no_pagination")
+    session = http(dp_handler(pages, failures))
+    return DonpisoScraper()._fetch_sync(), session
+
+
+def dp_urls(session):
+    return [url.removeprefix(DP_BASE) for url, _ in session.calls]
+
+
+def test_donpiso_recorre_hasta_el_fin_natural(http):
+    """5 páginas (18+18+18+18+4 anuncios, 2 por página de otros municipios): el fin lo marca la
+    página 5 sin rel=next y con título 'pag. 5 de 5'. Nunca pide la 6."""
+    result, session = run_donpiso(http, dp_site(non_madrid=2))
+    assert dp_urls(session) == ["/listado"] + [f"/pagina-{n}.html" for n in range(2, 6)]
+    assert (result.complete, result.incomplete_reason, result.error) == (True, None, None)
+    assert result.items_seen == 76                          # anuncios que mostró el sitio, con los descartados
+    assert result.total_reported is None                    # el sitio no muestra el total de anuncios
+    assert http.sleeps == [1.0, 1.0, 1.0, 1.0]              # 1 s entre páginas, ninguna tras la última
+
+
+def test_donpiso_listings_descartados_por_ser_de_otro_municipio(http):
+    result, _ = run_donpiso(http, dp_site(non_madrid=2))
+    assert len(result.listings) == 76 - 2 * 5               # 2 de Las Rozas en cada una de las 5 páginas
+    assert all(x.source == "donpiso" and "Las Rozas" not in x.title for x in result.listings)
+
+
+def test_donpiso_catalogo_de_una_sola_pagina_es_completo(http):
+    pages = {1: dp_page(1, [dp_card(i) for i in range(1, 8)], total=None, has_next=False, links=[])}
+    result, session = run_donpiso(http, pages)
+    assert dp_urls(session) == ["/listado"] and http.sleeps == []
+    assert (result.complete, len(result.listings)) == (True, 7)
+
+
+def test_donpiso_no_depende_solo_de_rel_next(http):
+    """Si falta rel=next pero el cuerpo enlaza a páginas posteriores, el barrido sigue."""
+    pages = dp_site()
+    pages[1] = dp_page(1, [dp_card(i) for i in range(1, 19)], total=5, has_next=False)       # sin rel=next
+    result, session = run_donpiso(http, pages)
+    assert len(dp_urls(session)) == 5 and result.complete is True
+
+
+def test_donpiso_sigue_aunque_falten_los_enlaces_del_cuerpo(http):
+    pages = dp_site()
+    pages[1] = dp_page(1, [dp_card(i) for i in range(1, 19)], total=5, has_next=True, links=[])   # solo rel=next
+    result, session = run_donpiso(http, pages)
+    assert len(dp_urls(session)) == 5 and result.complete is True
+
+
+# --- donpiso: contradicciones de la paginación → no se asume que terminó ---
+
+def contradictory(page, **kwargs):
+    pages = dp_site()
+    pages[page] = dp_page(page, [dp_card(page * 100 + i) for i in range(1, 19)], total=5, **kwargs)
+    return pages
+
+
+@pytest.mark.parametrize("pages, stops_at", [
+    (contradictory(3, has_next=False, links=[]), 3),          # sin siguiente, pero el título dice "pag. 3 de 5"
+    (contradictory(3, title=(3, 3)), 3),                      # hay rel=next, pero el título dice que es la última
+    (contradictory(3, title=(4, 5)), 3),                      # se pidió la 3 y el sitio sirvió la 4
+])
+def test_donpiso_marcado_inconsistente_es_bad_pagination(http, pages, stops_at):
+    result, session = run_donpiso(http, pages)
+    assert (result.complete, result.incomplete_reason) == (False, "bad_pagination")
+    assert len(dp_urls(session)) == stops_at                  # corta ahí y no sigue pidiendo
+    assert len(result.listings) >= 2 * 18                     # lo visto antes del corte se conserva
+
+
+def test_donpiso_pagina_prometida_pero_vacia_no_es_el_fin(http):
+    """La página 2 prometía una 3 (rel=next) y la 3 viene sin listings con HTTP 200: puede ser un
+    bloqueo o un cambio del sitio, no el fin del catálogo."""
+    pages = dp_site()
+    pages[3] = DP_EMPTY_PAGE
+    result, session = run_donpiso(http, pages)
+    assert (result.complete, result.incomplete_reason) == (False, "bad_pagination")
+    assert len(dp_urls(session)) == 3 and len(result.listings) == 36
+
+
+def test_donpiso_primera_pagina_sin_listings_es_empty(http):
+    """Un desafío anti-bot con HTTP 200 se ve como una página sin listings."""
+    result, session = run_donpiso(http, {1: DP_EMPTY_PAGE})
+    assert (result.complete, result.incomplete_reason, result.listings) == (False, "empty", [])
+    assert len(dp_urls(session)) == 1
+
+
+def test_donpiso_pagina_repetida(http):
+    pages = dp_site()
+    pages[3] = pages[2].replace("pagina-3.html", "pagina-4.html").replace("(pag. 2 de 5)", "(pag. 3 de 5)")   # mismos IDs que la 2
+    result, session = run_donpiso(http, pages)
+    assert (result.complete, result.incomplete_reason) == (False, "repeated_page")
+    assert len(dp_urls(session)) == 3 and len(result.listings) == 36
+
+
+def test_donpiso_techo_de_seguridad(http, monkeypatch):
+    from backend.scrapers import donpiso_scraper
+    monkeypatch.setattr(donpiso_scraper, "MAX_PAGES_SAFETY", 3)
+    result, session = run_donpiso(http, dp_site(sizes=(18,) * 10))
+    assert len(dp_urls(session)) == 3 and len(result.listings) == 54
+    assert (result.complete, result.incomplete_reason) == (False, "page_cap")
+
+
+# --- donpiso: errores y reintentos (mismo patrón que tecnocasa) ---
+
+def test_donpiso_reintenta_un_fallo_transitorio_y_sigue(http):
+    result, session = run_donpiso(http, dp_site(), failures={2: (503, 1)})
+    assert dp_urls(session).count("/pagina-2.html") == 2
+    assert (result.complete, result.error) == (True, None) and len(result.listings) == 76
+    assert http.sleeps == [1.0, 2.0, 1.0, 1.0, 1.0]            # pausa, backoff de 2 s, y las pausas restantes
+
+
+def test_donpiso_corta_tras_agotar_los_reintentos_con_motivo_http_error(http):
+    result, session = run_donpiso(http, dp_site(), failures={3: (503, 99)})
+    assert dp_urls(session).count("/pagina-3.html") == 3          # 1 intento + 2 reintentos
+    assert "/pagina-4.html" not in dp_urls(session)
+    assert http.sleeps == [1.0, 1.0, 2.0, 4.0]
+    assert (result.complete, result.incomplete_reason) == (False, "http_error")
+    assert result.error == "página 3 de 5: HTTPError: HTTP 503 (tras 3 intentos)"
+    assert len(result.listings) == 36                              # páginas 1 y 2 se conservan
+
+
+@pytest.mark.parametrize("status", [403, 404])
+def test_donpiso_un_4xx_no_se_reintenta(http, status):
+    result, session = run_donpiso(http, dp_site(), failures={2: (status, 99)})
+    assert dp_urls(session).count("/pagina-2.html") == 1
+    assert http.sleeps == [1.0]
+    assert result.error == f"página 2: HTTPError: HTTP {status} (tras 1 intento)"     # el total aún no se conoce
+    assert result.incomplete_reason == "http_error"
+
+
+@pytest.mark.parametrize("exc", [requests.ConnectionError("reset"), requests.Timeout("timeout")])
+def test_donpiso_reintenta_errores_de_red(http, exc):
+    result, session = run_donpiso(http, dp_site(), failures={1: (exc, 2)})
+    assert dp_urls(session).count("/listado") == 3 and result.complete is True
+    assert http.sleeps[:2] == [2.0, 4.0]
+
+
+def test_donpiso_error_en_la_primera_pagina(http):
+    result, _ = run_donpiso(http, dp_site(), failures={1: (requests.ConnectionError("sin red"), 99)})
+    assert result.error == "página 1: ConnectionError: sin red (tras 3 intentos)"
+    assert (result.listings, result.complete, result.incomplete_reason) == ([], False, "http_error")
+
+
+def test_donpiso_fetch_listings_async(http):
+    from backend.scrapers.donpiso_scraper import DonpisoScraper
+    http(dp_handler(dp_site()))
+    result = asyncio.run(DonpisoScraper().fetch_listings())
+    assert result.complete is True and len(result.listings) == 76
+
+
+# --- donpiso: la lógica de corte, sin red ---
+
+def dp_soup(**kwargs):
+    from bs4 import BeautifulSoup
+    return BeautifulSoup(dp_page(kwargs.pop("page", 2), [dp_card(1)], **kwargs), "html.parser")
+
+
+def test_donpiso_page_item_ids_deduplica_los_enlaces_de_una_tarjeta():
+    from backend.scrapers.donpiso_scraper import page_item_ids
+    assert page_item_ids(dp_soup()) == {"1"}                                    # 2 enlaces, 1 anuncio
+    assert page_item_ids(soup("<p>nada</p><a href='/otra/cosa'>x</a>")) == set()
+
+
+def test_donpiso_parse_nav():
+    from backend.scrapers.donpiso_scraper import PageNav, parse_nav
+    assert parse_nav(dp_soup(page=3, total=5)) == PageNav(True, 5, 3, 5)
+    assert parse_nav(dp_soup(page=5, total=5)) == PageNav(False, 4, 5, 5)       # última: sin next, enlaza hacia atrás
+    assert parse_nav(dp_soup(page=1, total=5)) == PageNav(True, 5, None, None)  # la página 1 no lleva "pag. N de M"
+    assert parse_nav(soup(DP_EMPTY_PAGE)) == PageNav(False, 0, None, None)
+
+
+@pytest.mark.parametrize("nav, page, expected", [
+    # --- sigue ---
+    ((True, 5, None, None), 1, ("continue", None)),          # página 1 típica
+    ((True, 5, 3, 5), 3, ("continue", None)),
+    ((False, 5, None, None), 1, ("continue", None)),         # sin rel=next pero con enlaces posteriores
+    ((True, 0, None, None), 1, ("continue", None)),          # solo rel=next
+    # --- fin natural: todas las señales coinciden ---
+    ((False, 4, 5, 5), 5, ("end", None)),
+    ((False, 0, None, None), 1, ("end", None)),              # catálogo de una página
+    ((False, 4, None, None), 5, ("end", None)),              # sin título informativo
+    # --- contradicciones: no se asume el fin ---
+    ((False, 0, 3, 5), 3, ("stop", "bad_pagination")),       # sin siguiente pero "pag. 3 de 5"
+    ((True, 5, 3, 3), 3, ("stop", "bad_pagination")),        # hay siguiente pero "pag. 3 de 3"
+    ((True, 5, 4, 5), 3, ("stop", "bad_pagination")),        # título de otra página
+    ((False, 0, 2, 5), 3, ("stop", "bad_pagination")),
+])
+def test_donpiso_nav_verdict(nav, page, expected):
+    from backend.scrapers.donpiso_scraper import PageNav, nav_verdict
+    assert nav_verdict(PageNav(*nav), page) == expected
 
 
 def test_run_imprime_el_estado_del_barrido(capsys):
