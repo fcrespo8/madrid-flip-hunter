@@ -127,6 +127,53 @@ def test_run_all_pasa_solo_fuentes_con_barrido_completo(monkeypatch):
                         ("redpiso", False), ("tecnocasa", True)]
 
 
+def test_run_all_no_desactiva_fuentes_que_no_lo_admiten(monkeypatch):
+    """Wallapop tiene barrido completo, pero es una búsqueda por relevancia: no se usa para desactivar."""
+    from backend.scrapers import run_scrapers as rs
+    from backend.scrapers.base_scraper import ScrapeResult
+    from tests.test_scoring import FakeQuery
+    seen, recorded = {}, []
+
+    def scraper(name, supports):
+        class S:
+            source_name = name
+            supports_deactivation = supports
+
+            async def run(self):
+                return ScrapeResult(listings=[SimpleNamespace(external_id=f"{name}1")], complete=True)
+        return S
+
+    class RunAllDB(FakeDB):
+        def expire_all(self):
+            pass
+
+        def close(self):
+            pass
+
+    async def fake_run_scoring(candidates, db):
+        return SimpleNamespace(scored_ids=[])
+
+    async def fake_notify(*a):
+        pass
+
+    for cls, supports in (("WallapopScraper", False), ("DonpisoScraper", True), ("RemaxScraper", True),
+                          ("RedpisoScraper", True), ("TecnocasaScraper", True)):
+        monkeypatch.setattr(rs, cls, scraper(cls.removesuffix("Scraper").lower(), supports))
+    monkeypatch.setattr(rs, "save_listing", lambda db, raw: (None, False))
+    monkeypatch.setattr(rs, "record_scrape_run", lambda db, source, result, new: recorded.append((source, result.complete)))
+    monkeypatch.setattr(rs, "SessionLocal", RunAllDB)
+    monkeypatch.setattr(rs, "deactivate_stale", lambda sources: seen.setdefault("sources", sources))
+    monkeypatch.setattr(rs.QAAgent, "run", lambda self, db: None)
+    monkeypatch.setattr(rs, "enrich_locations", lambda: 0)
+    monkeypatch.setattr(rs, "pending_listings_query", lambda db: FakeQuery([]))
+    monkeypatch.setattr(rs, "run_scoring", fake_run_scoring)
+    monkeypatch.setattr(rs, "notify_scored", fake_notify)
+
+    asyncio.run(rs.run_all())
+    assert seen["sources"] == ["donpiso", "remax", "redpiso", "tecnocasa"]      # wallapop completo, pero fuera
+    assert ("wallapop", True) in recorded                                       # y su barrido sí queda registrado
+
+
 # ── save_listing: reactivación ─────────────────────────────────────────────────
 
 class _OneRowQuery:

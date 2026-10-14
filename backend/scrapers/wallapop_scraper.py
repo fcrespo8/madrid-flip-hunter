@@ -15,6 +15,7 @@ Verificado contra el sitio (2026-10):
 import asyncio
 import json
 import logging
+import math
 import re
 from dataclasses import dataclass
 from typing import Optional
@@ -67,6 +68,21 @@ def failure_reason(status: Optional[int]) -> str:
     return BLOCKED if status in BLOCK_STATUSES else HTTP_ERROR
 
 
+def parse_surface(value) -> Optional[float]:
+    """type_attributes.surface → m². None si falta o no es un número finito y positivo (un 0 o un
+    texto raro como tamaño haría que el QA rechace el listing en vez de dejarlo sin dato)."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, str):
+        try:
+            value = float(value.replace(",", "."))
+        except ValueError:
+            return None
+    if isinstance(value, (int, float)) and math.isfinite(value) and value > 0:
+        return float(value)
+    return None
+
+
 @dataclass
 class SectionPage:
     """Lo que interesa de una respuesta de search/section."""
@@ -91,6 +107,12 @@ def parse_section(body) -> SectionPage:
 
 
 class WallapopScraper(BaseScraper):
+
+    # Wallapop NO es un catálogo: es una búsqueda por palabras clave ordenada por relevancia
+    # (~2.270 resultados en 61 páginas). Que un anuncio no aparezca en los resultados no prueba
+    # que se haya despublicado: puede haber salido del ranking o dejar de coincidir con la
+    # búsqueda. Por eso un barrido completo (complete=True) no se usa para desactivar listings.
+    supports_deactivation = False
 
     SEARCH_URL = (
         "https://es.wallapop.com/app/search"
@@ -286,8 +308,10 @@ class WallapopScraper(BaseScraper):
         lat = location.get("latitude")
         lon = location.get("longitude")
 
-        type_attrs = item.get("type_attributes", {})
+        type_attrs = item.get("type_attributes") or {}
         rooms = type_attrs.get("rooms")
+        # La API trae `surface` solo en ~1/3 de los anuncios; en el resto queda None (enrich_sizes).
+        size_m2 = parse_surface(type_attrs.get("surface"))
 
         neighborhood = None
         match = re.search(r"Piso en (?:venta|alquiler) en (.+?) en Madrid", title, re.IGNORECASE)
@@ -300,7 +324,7 @@ class WallapopScraper(BaseScraper):
             url=url,
             title=title,
             price=price,
-            size_m2=None,
+            size_m2=size_m2,
             rooms=rooms,
             neighborhood=neighborhood,
             district=None,

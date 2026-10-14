@@ -98,6 +98,7 @@ def fake_nodes(monkeypatch):
     async def scrape(state, config):
         maybe_fail("scrape")
         return {"source_stats": {"fake": {"new": 3, "dup": 0, "found": 3, "complete": True,
+                                          "supports_deactivation": True,
                                           "total_reported": None, "incomplete_reason": None}},
                 "new_ids": [1, 2, 3]}
 

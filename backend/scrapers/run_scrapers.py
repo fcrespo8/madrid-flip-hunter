@@ -49,12 +49,12 @@ async def run_all():
 
     db = SessionLocal()
     total_new, total_dup = 0, 0
-    complete_sources = []   # fuentes con barrido completo: solo esas se revisan en deactivate_stale
+    complete_sources = []   # fuentes con barrido completo que admiten desactivación: solo esas se revisan en deactivate_stale
 
     try:
         for scraper in scrapers:
             result = await scraper.run()
-            if result.complete:
+            if result.complete and getattr(scraper, "supports_deactivation", True):
                 complete_sources.append(scraper.source_name)
             new_count, dup_count = 0, 0
             for raw in result.listings:

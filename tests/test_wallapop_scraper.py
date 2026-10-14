@@ -20,10 +20,13 @@ FIRST_HEADERS = {":authority": "api.wallapop.com", ":method": "GET", "user-agent
 EXPECTED_FORWARDED = {k: v for k, v in FIRST_HEADERS.items() if k in ws.API_HEADERS}
 
 
-def item(n, title="Piso en venta en Chueca en Madrid"):
+def item(n, title="Piso en venta en Chueca en Madrid", surface=None):
+    type_attributes = {"operation": "Venta", "type": "Piso", "rooms": 2, "bathrooms": 1}
+    if surface is not None:
+        type_attributes["surface"] = surface
     return {"id": f"w{n}", "title": title, "description": "reformar", "web_slug": f"piso-{n}",
             "price": {"amount": 250000.0, "currency": "EUR"}, "location": {"latitude": 40.4, "longitude": -3.7},
-            "type_attributes": {"rooms": 2}}
+            "type_attributes": type_attributes}
 
 
 class FakeApi:
@@ -31,15 +34,16 @@ class FakeApi:
     ?next_page=tok{k}. `end` es cómo marca la última página: null | empty-string | missing-key | no-meta.
     failures: {página: (status | Exception | "badjson", veces)}."""
 
-    def __init__(self, pages, end="null", failures=None, first_status=200, first_body=None):
+    def __init__(self, pages, end="null", failures=None, first_status=200, first_body=None, surfaces=None):
         self.pages, self.end, self.failures = pages, end, failures or {}
+        self.surfaces = surfaces or {}                                  # {id: surface}
         self.first_status, self.first_body = first_status, first_body
         self.hits = {}
         self.first_enabled = True
 
     def body(self, k):
         last = k == len(self.pages)
-        body = {"data": {"section": {"items": [item(int(i)) for i in self.pages[k - 1]], "title": "x"}}}
+        body = {"data": {"section": {"items": [item(int(i), surface=self.surfaces.get(i)) for i in self.pages[k - 1]], "title": "x"}}}
         if last and self.end == "no-meta":
             return body
         token = {"null": None, "empty-string": "", "missing-key": ...}[self.end] if last else f"tok{k + 1}"
@@ -472,3 +476,59 @@ def test_parse_item_no_cambio():
     assert (listing.neighborhood, listing.lat, listing.lon) == ("Justicia - Chueca", 40.4, -3.7)
     assert listing.url == "https://es.wallapop.com/item/piso-7"
     assert WallapopScraper()._parse_item({"title": "sin id"}) is None
+
+
+# ── 6. Superficie: type_attributes.surface → size_m2 ──────────────────────────
+
+@pytest.mark.parametrize("value, expected", [
+    (50.0, 50.0), (62, 62.0), (232.0, 232.0), (41.5, 41.5),
+    ("70.5", 70.5), ("70,5", 70.5), (" 55 ", 55.0),                    # texto numérico (la API hoy manda float)
+    (None, None), ("", None), ("abc", None), ("55 m2", None),
+    (0, None), (0.0, None), (-5, None), ("-5", None),                  # un 0 o negativo no es un tamaño
+    (True, None), (False, None),                                       # bool es int en Python: no vale
+    (float("nan"), None), (float("inf"), None), ([], None), ({}, None),
+])
+def test_parse_surface(value, expected):
+    assert ws.parse_surface(value) == expected
+
+
+def test_parse_item_lee_surface_como_size_m2():
+    listing = WallapopScraper()._parse_item(item(7, surface=62.0))
+    assert (listing.size_m2, listing.rooms, listing.price) == (62.0, 2, 250000.0)
+    assert isinstance(listing.size_m2, float)
+
+
+def test_parse_item_sin_surface_deja_size_m2_en_none():
+    """La API la trae en ~1/3 de los anuncios; en el resto queda sin dato (lo completa enrich_sizes)."""
+    assert WallapopScraper()._parse_item(item(7)).size_m2 is None
+
+
+@pytest.mark.parametrize("type_attributes", [None, {}, {"surface": None}, {"surface": 0}, {"surface": "n/d"}])
+def test_parse_item_tolera_type_attributes_raros(type_attributes):
+    raw_item = item(7)
+    raw_item["type_attributes"] = type_attributes
+    listing = WallapopScraper()._parse_item(raw_item)
+    assert listing is not None and listing.size_m2 is None             # no revienta ni inventa un tamaño
+
+
+def test_el_recorrido_completo_conserva_la_superficie(sleeps):
+    api = FakeApi(THREE_PAGES, surfaces={1: 50.0, 41: 80.0, 63: 120.0})
+    result = crawl(FakePage(api))
+    by_id = {x.external_id: x.size_m2 for x in result.listings}
+    assert (by_id["w1"], by_id["w41"], by_id["w63"]) == (50.0, 80.0, 120.0)
+    assert by_id["w2"] is None and sum(v is not None for v in by_id.values()) == 3
+
+
+def test_un_listing_con_surface_ya_se_puede_puntuar():
+    """El motivo del cambio: sin m², pre_score lo marcaba 'unscorable' (no_size)."""
+    from backend.agents.pre_scorer import unscorable_reason
+    from backend.models.listing import Listing
+
+    def as_listing(raw):
+        return Listing(source=raw.source, external_id=raw.external_id, url=raw.url, title=raw.title, price=raw.price,
+                       size_m2=raw.size_m2, rooms=raw.rooms, neighborhood=raw.neighborhood, district=raw.district)
+
+    scraper = WallapopScraper()
+    con = as_listing(scraper._parse_item(item(1, title="Piso en venta en Chueca en Madrid", surface=62.0)))
+    sin = as_listing(scraper._parse_item(item(2, title="Piso en venta en Chueca en Madrid")))
+    assert (unscorable_reason(con), unscorable_reason(sin)) == (None, "no_size")

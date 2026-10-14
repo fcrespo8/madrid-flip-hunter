@@ -79,7 +79,8 @@ async def scrape(state: PipelineState, config: RunnableConfig) -> dict:
 
     for source in state.get("sources") or DEFAULT_SOURCES:
         try:
-            result = await scrapers[source]().run()
+            scraper = scrapers[source]()
+            result = await scraper.run()
             new, dup = 0, 0
             with _session() as db:
                 for raw in result.listings:
@@ -92,6 +93,7 @@ async def scrape(state: PipelineState, config: RunnableConfig) -> dict:
                 record_scrape_run(db, source, result, new)
             stats[source] = {
                 "new": new, "dup": dup, "found": len(result.listings), "complete": result.complete,
+                "supports_deactivation": getattr(scraper, "supports_deactivation", True),
                 "total_reported": result.total_reported, "incomplete_reason": result.incomplete_reason,
             }
             if result.error:   # el scraper cortó por un error pero devolvió lo que alcanzó a ver
@@ -108,17 +110,19 @@ async def scrape(state: PipelineState, config: RunnableConfig) -> dict:
 
 
 def complete_sources(state: PipelineState) -> list[str]:
-    """Fuentes cuyo barrido de esta corrida fue exhaustivo (complete=True).
-    Solo de esas se puede inferir que lo que no apareció ya no está publicado."""
-    return [src for src, stats in state.get("source_stats", {}).items() if stats.get("complete") is True]
+    """Fuentes sobre las que se puede desactivar: barrido exhaustivo en esta corrida (complete=True)
+    Y una fuente que lo permita (supports_deactivation, default True). Solo entonces se puede inferir
+    que lo que no apareció ya no está publicado."""
+    return [src for src, stats in state.get("source_stats", {}).items()
+            if stats.get("complete") is True and stats.get("supports_deactivation", True) is not False]
 
 
 def deactivate_stale(state: PipelineState) -> dict:
     sources = complete_sources(state)
-    skipped = {src: stats.get("incomplete_reason") for src, stats in state.get("source_stats", {}).items()
-               if src not in sources}
+    skipped = {src: (stats.get("incomplete_reason") or "supports_deactivation=False")
+               for src, stats in state.get("source_stats", {}).items() if src not in sources}
     if skipped:
-        logger.info("deactivate_stale: se omiten fuentes con barrido incompleto: %s", skipped)
+        logger.info("deactivate_stale: se omiten fuentes (barrido incompleto o sin desactivación): %s", skipped)
     return {"deactivated_count": _deactivate_stale(sources)}   # usa su propia sesión
 
 

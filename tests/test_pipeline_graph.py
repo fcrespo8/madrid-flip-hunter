@@ -155,6 +155,7 @@ def test_pipeline_de_punta_a_punta(cleanup, _no_whatsapp):
     ids = {k: v.id for k, v in rows.items()}
 
     assert state["source_stats"] == {"fake": {"new": 4, "dup": 0, "found": 4, "complete": True,
+                                              "supports_deactivation": True,
                                               "total_reported": None, "incomplete_reason": None}}
     assert [(e["node"], e["source"]) for e in state["errors"]] == [("scrape", "broken")]
     assert sorted(state["new_ids"]) == sorted(ids.values())
@@ -184,6 +185,7 @@ def test_pipeline_segunda_corrida_no_repite_trabajo(cleanup, _no_whatsapp):
                                          retriever=no_docs_retriever, fetch_html=_no_page))
 
     assert state["source_stats"] == {"fake": {"new": 0, "dup": 1, "found": 1, "complete": True,
+                                              "supports_deactivation": True,
                                               "total_reported": None, "incomplete_reason": None}}
     assert state["candidate_ids"] == [] and state["scored_ids"] == [] and state["notified_ids"] == []
     assert len(fake.messages.calls) == 1 and len(_no_whatsapp) == 1

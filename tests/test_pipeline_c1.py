@@ -342,6 +342,7 @@ def test_scrape_corre_solo_las_fuentes_pedidas():
                                    {"configurable": {"scrapers": _recording_scrapers(called)}}))
     assert called == ["donpiso"]
     assert out["source_stats"] == {"donpiso": {"new": 0, "dup": 0, "found": 0, "complete": False,
+                                               "supports_deactivation": True,
                                                "total_reported": None, "incomplete_reason": "empty"}}
 
 

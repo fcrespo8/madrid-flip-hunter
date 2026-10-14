@@ -128,6 +128,11 @@ class PageWalk:
 
 class BaseScraper(ABC):
 
+    # ¿Un barrido completo de esta fuente permite inferir que lo que no apareció ya no está
+    # publicado? Es True para los listados exhaustivos. Una fuente que lo apague (False) sigue
+    # registrando `complete` en scrape_runs, pero deactivate_stale nunca actúa sobre ella.
+    supports_deactivation: bool = True
+
     def __init__(self, source_name: str):
         self.source_name = source_name
 

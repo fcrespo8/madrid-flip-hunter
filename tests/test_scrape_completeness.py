@@ -852,9 +852,10 @@ def test_nodo_scrape_registra_cada_fuente_y_expone_complete(scrape_node):
                                    {"configurable": {"scrapers": scrapers}}))
 
     assert out["source_stats"] == {
-        "tecnocasa": {"new": 2, "dup": 0, "found": 2, "complete": True, "total_reported": 2, "incomplete_reason": None},
-        "redpiso": {"new": 1, "dup": 0, "found": 1, "complete": False, "total_reported": 1342,
-                    "incomplete_reason": "repeated_page"},
+        "tecnocasa": {"new": 2, "dup": 0, "found": 2, "complete": True, "supports_deactivation": True,
+                      "total_reported": 2, "incomplete_reason": None},
+        "redpiso": {"new": 1, "dup": 0, "found": 1, "complete": False, "supports_deactivation": True,
+                    "total_reported": 1342, "incomplete_reason": "repeated_page"},
     }
     assert recorded == [("tecnocasa", True, None, None, 2),
                         ("redpiso", False, "repeated_page", None, 1),
@@ -872,6 +873,76 @@ def test_nodo_scrape_corte_por_error_http_queda_en_errors(scrape_node):
     assert out["source_stats"]["tecnocasa"]["incomplete_reason"] == "error"
     assert [(e["source"], e["error"]) for e in out["errors"]] == [("tecnocasa", "página 3: HTTP 500")]
     assert out["new_ids"] == [1, 2, 3]                  # lo que alcanzó a ver se guarda igual
+
+
+# ── supports_deactivation: fuentes que nunca se usan para desactivar ───────────
+
+def no_deactivation(scraper_cls):
+    class Wrapped(scraper_cls):
+        supports_deactivation = False
+    return Wrapped
+
+
+def test_supports_deactivation_por_fuente():
+    from backend.scrapers.donpiso_scraper import DonpisoScraper
+    from backend.scrapers.idealista_scraper import IdealistaScraper
+    from backend.scrapers.redpiso_scraper import RedpisoScraper
+    from backend.scrapers.remax_scraper import RemaxScraper
+    from backend.scrapers.tecnocasa_scraper import TecnocasaScraper
+    from backend.scrapers.wallapop_scraper import WallapopScraper
+
+    class Nueva(bs.BaseScraper):
+        async def fetch_listings(self):
+            return ScrapeResult()
+
+    assert bs.BaseScraper.supports_deactivation is True and Nueva("x").supports_deactivation is True   # default
+    assert WallapopScraper.supports_deactivation is False                  # búsqueda por relevancia, no un catálogo
+    for cls in (TecnocasaScraper, DonpisoScraper, RedpisoScraper, RemaxScraper, IdealistaScraper):
+        assert cls.supports_deactivation is True, cls.__name__
+
+
+def test_complete_sources_excluye_las_que_no_admiten_desactivacion():
+    from backend.pipeline import nodes
+    state = {"source_stats": {
+        "tecnocasa": {"complete": True, "supports_deactivation": True},
+        "wallapop": {"complete": True, "supports_deactivation": False},      # barrido completo, pero no cuenta
+        "donpiso": {"complete": False, "supports_deactivation": True},
+        "viejo": {"complete": True},                                         # state anterior al flag: default True
+    }}
+    assert nodes.complete_sources(state) == ["tecnocasa", "viejo"]
+
+
+def test_nodo_scrape_expone_el_flag_y_registra_el_barrido_como_completo(scrape_node):
+    nodes, recorded = scrape_node
+    done = ScrapeResult.finish(raws(1, 2), reached_end=True)
+    scrapers = {"tecnocasa": scraper_returning(done), "wallapop": no_deactivation(scraper_returning(done))}
+    out = asyncio.run(nodes.scrape({"sources": ["tecnocasa", "wallapop"]}, {"configurable": {"scrapers": scrapers}}))
+
+    assert out["source_stats"]["tecnocasa"]["supports_deactivation"] is True
+    assert out["source_stats"]["wallapop"]["supports_deactivation"] is False
+    assert out["source_stats"]["wallapop"]["complete"] is True               # el barrido sí fue completo...
+    assert [(src, complete) for src, complete, *_ in recorded] == [("tecnocasa", True), ("wallapop", True)]   # ...y así queda en scrape_runs
+    assert nodes.complete_sources({"source_stats": out["source_stats"]}) == ["tecnocasa"]   # ...pero no se desactiva
+
+
+def test_nodo_deactivate_pasa_solo_las_fuentes_elegibles_y_registra_por_que_omite(monkeypatch, caplog):
+    import logging
+    from backend.pipeline import nodes
+    seen = {}
+    # alembic/env.py hace fileConfig() (en los tests que renderizan migraciones), que deshabilita los
+    # loggers ya creados; sin esto el test dependería de qué tests corrieron antes.
+    monkeypatch.setattr(nodes.logger, "disabled", False)
+    monkeypatch.setattr(nodes, "_deactivate_stale", lambda sources: seen.setdefault("sources", sources) and 4)
+    state = {"source_stats": {
+        "tecnocasa": {"complete": True, "supports_deactivation": True, "incomplete_reason": None},
+        "wallapop": {"complete": True, "supports_deactivation": False, "incomplete_reason": None},
+        "redpiso": {"complete": False, "supports_deactivation": True, "incomplete_reason": "repeated_page"},
+    }}
+    with caplog.at_level(logging.INFO, logger="backend.pipeline.nodes"):
+        assert nodes.deactivate_stale(state) == {"deactivated_count": 4}
+    assert seen["sources"] == ["tecnocasa"]
+    log = " ".join(r.getMessage() for r in caplog.records)
+    assert "'wallapop': 'supports_deactivation=False'" in log and "'redpiso': 'repeated_page'" in log
 
 
 # ── Contra DB real (SQLite local / Postgres en CI) ─────────────────────────────
@@ -961,3 +1032,52 @@ def test_db_pipeline_solo_desactiva_la_fuente_con_barrido_completo(clean_c3):
     assert state["deactivated_count"] == 1
     assert runs[SRC_FULL].complete is True and runs[SRC_PART].complete is False
     assert (runs[SRC_PART].incomplete_reason, runs[SRC_PART].total_reported) == ("page_cap", 900)
+
+
+@requires_test_db
+def test_db_pipeline_no_desactiva_una_fuente_sin_soporte_aunque_el_barrido_sea_completo(clean_c3):
+    """Dos fuentes con barrido completo y un listing viejo (40 días) cada una. La que admite
+    desactivación lo desactiva; la que no (como wallapop), lo deja activo. Ambos barridos
+    quedan en scrape_runs como completos."""
+    from langgraph.checkpoint.memory import InMemorySaver
+    from backend.models.database import SessionLocal
+    from backend.models.listing import Listing
+    from backend.models.scrape_run import ScrapeRun
+    from backend.pipeline.graph import run_pipeline
+
+    old = datetime.utcnow() - timedelta(days=40)
+    db = SessionLocal()
+    for src in (SRC_FULL, SRC_PART):
+        db.add(Listing(source=src, external_id="viejo", url="u", title="t", price=200000.0,
+                       last_seen_at=old, is_active=True))
+    db.commit()
+    db.close()
+
+    def make(src, supports):
+        class S:
+            supports_deactivation = supports
+
+            async def run(self):
+                return ScrapeResult.finish([raw(1, source=src)], reached_end=True, total_reported=1)
+        return S
+
+    async def no_page(url):
+        return None
+
+    state = asyncio.run(run_pipeline(
+        [SRC_FULL, SRC_PART], checkpointer=InMemorySaver(), fetch_html=no_page, max_llm_calls=0,
+        scrapers={SRC_FULL: make(SRC_FULL, True), SRC_PART: make(SRC_PART, False)}))
+
+    db = SessionLocal()
+    try:
+        active = {(x.source, x.external_id): x.is_active
+                  for x in db.query(Listing).filter(Listing.source.in_([SRC_FULL, SRC_PART]))}
+        runs = {r.source: r for r in db.query(ScrapeRun).filter(ScrapeRun.source.in_([SRC_FULL, SRC_PART]))}
+    finally:
+        db.close()
+
+    assert active[(SRC_FULL, "viejo")] is False
+    assert active[(SRC_PART, "viejo")] is True                  # barrido completo, pero la fuente no admite desactivar
+    assert state["deactivated_count"] == 1
+    assert runs[SRC_FULL].complete is True and runs[SRC_PART].complete is True
+    assert state["source_stats"][SRC_PART]["supports_deactivation"] is False
