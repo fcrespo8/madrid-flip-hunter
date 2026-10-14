@@ -9,6 +9,8 @@ COVERAGE_MIN = 0.9
 # Por qué un barrido no es completo (ScrapeResult.incomplete_reason).
 ERROR = "error"                    # el scraper tiró una excepción
 HTTP_ERROR = "http_error"          # una página siguió fallando tras los reintentos; se conserva lo ya visto
+BLOCKED = "blocked"                # el sitio rechazó la request (401/403/429), p. ej. un WAF que detecta el bot
+NO_API = "no_api"                  # la página cargó bien pero no hizo la llamada a la API que se espera interceptar
 BAD_PAGINATION = "bad_pagination"  # la API no informó cuántas páginas hay: no se sabe si se llegó al final
 EMPTY = "empty"                    # no trajo ningún listing (p. ej. bloqueado)
 PAGE_CAP = "page_cap"              # cortó por el tope de páginas, quedaba catálogo
