@@ -20,11 +20,11 @@ FIRST_HEADERS = {":authority": "api.wallapop.com", ":method": "GET", "user-agent
 EXPECTED_FORWARDED = {k: v for k, v in FIRST_HEADERS.items() if k in ws.API_HEADERS}
 
 
-def item(n, title="Piso en venta en Chueca en Madrid", surface=None):
+def item(n, title="Piso en venta en Chueca en Madrid", surface=None, description="reformar"):
     type_attributes = {"operation": "Venta", "type": "Piso", "rooms": 2, "bathrooms": 1}
     if surface is not None:
         type_attributes["surface"] = surface
-    return {"id": f"w{n}", "title": title, "description": "reformar", "web_slug": f"piso-{n}",
+    return {"id": f"w{n}", "title": title, "description": description, "web_slug": f"piso-{n}",
             "price": {"amount": 250000.0, "currency": "EUR"}, "location": {"latitude": 40.4, "longitude": -3.7},
             "type_attributes": type_attributes}
 
@@ -34,16 +34,19 @@ class FakeApi:
     ?next_page=tok{k}. `end` es cómo marca la última página: null | empty-string | missing-key | no-meta.
     failures: {página: (status | Exception | "badjson", veces)}."""
 
-    def __init__(self, pages, end="null", failures=None, first_status=200, first_body=None, surfaces=None):
+    def __init__(self, pages, end="null", failures=None, first_status=200, first_body=None, surfaces=None,
+                 descriptions=None):
         self.pages, self.end, self.failures = pages, end, failures or {}
         self.surfaces = surfaces or {}                                  # {id: surface}
+        self.descriptions = descriptions or {}                          # {id: descripción}
         self.first_status, self.first_body = first_status, first_body
         self.hits = {}
         self.first_enabled = True
 
     def body(self, k):
         last = k == len(self.pages)
-        body = {"data": {"section": {"items": [item(int(i), surface=self.surfaces.get(i)) for i in self.pages[k - 1]], "title": "x"}}}
+        body = {"data": {"section": {"items": [item(int(i), surface=self.surfaces.get(i), description=self.descriptions.get(i, "reformar"))
+                                  for i in self.pages[k - 1]], "title": "x"}}}
         if last and self.end == "no-meta":
             return body
         token = {"null": None, "empty-string": "", "missing-key": ...}[self.end] if last else f"tok{k + 1}"
@@ -531,4 +534,97 @@ def test_un_listing_con_surface_ya_se_puede_puntuar():
     scraper = WallapopScraper()
     con = as_listing(scraper._parse_item(item(1, title="Piso en venta en Chueca en Madrid", surface=62.0)))
     sin = as_listing(scraper._parse_item(item(2, title="Piso en venta en Chueca en Madrid")))
+    assert (unscorable_reason(con), unscorable_reason(sin)) == (None, "no_size")
+
+
+# ── 7. Superficie desde la descripción (cuando no hay type_attributes.surface) ──
+
+@pytest.mark.parametrize("text, expected", [
+    # formatos de unidad
+    ("Piso de 54 m² construidos", 54.0), ("Piso de 62m2", 62.0), ("62 m2", 62.0), ("62 M2", 62.0),
+    ("62 mts2", 62.0), ("62 mt²", 62.0), ("80 metros cuadrados", 80.0), ("80 metro cuadrado", 80.0),
+    ("80 m cuadrados", 80.0),
+    # decimales y miles
+    ("54,5 m²", 54.5), ("103.13 m²", 103.13), ("1.200 m²", None),            # 1.200 = mil doscientos → implausible
+    ("Finca de 15.500 m²", None), ("Nave de 20.000 m²", None),                # punto de miles: leído como decimal serían 15,5 y 20 m²
+    # varios números: el primero plausible
+    ("Piso de 54 m² construidos y 50m2 útiles", 54.0),
+    ("Vivienda de 85 m² con salón comedor luminoso", 85.0),                   # "con salón" DESPUÉS del número no excluye
+    # espacios accesorios, antes o después del número
+    ("Con salón comedor de 30 m² y una superficie de 74 m²", 74.0),
+    ("Piso de 70 m² con terraza de 20 m²", 70.0),
+    ("20 m² de terraza y piso de 70 m²", 70.0),                               # "piso" de por medio: el 70 es la vivienda
+    ("Trastero de 18 m² incluido, vivienda de 60 m²", 60.0),
+    ("dormitorio de 15 m², vivienda de 90 m²", 90.0),
+    ("Solárium de 95 m² y piso de 60 m²", 60.0),
+    ("parcela de 500 m² y casa de 120 m²", 120.0),
+    ("salón de 30 m²", None),                                                 # solo hay un espacio accesorio
+    # la palabra clave de otra oración no arrastra
+    ("Tiene terraza. El piso mide 70 m²", 70.0), ("Tiene terraza; el piso mide 70 m²", 70.0),
+    ("Tiene terraza. Mide 70 m²", 70.0), ("Tiene terraza; mide 70 m²", 70.0),    # sin "piso" de por medio: corta solo el signo
+    ("Tiene terraza, mide 70 m²", None),                                       # una coma NO corta (misma oración): conservador
+    ("Descripción\n\nTerraza\nPiso de 75 m² en Chueca", 75.0),
+    # no es superficie
+    ("a 300 metros del metro", None), ("a 5 m del metro", None), ("a 12 minutos andando", None),
+    ("4.500 €/m²", None), ("3500€/m2", None), ("sin datos de superficie", None),
+    # fuera de lo plausible (mismo rango que el QA)
+    ("5 m²", None), ("14 m²", None), ("15 m²", 15.0), ("1000 m²", 1000.0), ("1001 m²", None),
+    ("Consta de 6 m² y una vivienda de 85 m²", 85.0),                         # el 6 se descarta por implausible
+    # Limitación conocida: "patio y 85 m²" se excluye por la palabra clave que lo precede. Es el lado
+    # seguro: sin dato (lo completa enrich_sizes) antes que un tamaño falso que distorsione el score.
+    ("Consta de 6 m² de patio y 85 m² de vivienda", None),
+    # no es texto
+    ("", None), (None, None), (123, None), (["54 m²"], None), ({}, None),
+])
+def test_parse_size_from_description(text, expected):
+    assert ws.parse_size_from_description(text) == expected
+
+
+def test_parse_item_usa_la_descripcion_si_no_hay_surface():
+    listing = WallapopScraper()._parse_item(item(7, description="Piso de 54 m² construidos con terraza de 12 m²"))
+    assert listing.size_m2 == 54.0 and isinstance(listing.size_m2, float)
+
+
+def test_surface_manda_sobre_la_descripcion():
+    """`surface` es el dato estructurado: aunque el texto cite otra cifra (suele ser la construida)."""
+    listing = WallapopScraper()._parse_item(item(7, surface=50.0, description="Piso de 54 m² construidos y 50m2 útiles"))
+    assert listing.size_m2 == 50.0
+
+
+@pytest.mark.parametrize("surface", [0, 0.0, -3, "n/d", None, True])
+def test_una_surface_invalida_cae_a_la_descripcion(surface):
+    raw_item = item(7, description="Vivienda de 60 m² reformada")
+    raw_item["type_attributes"]["surface"] = surface
+    assert WallapopScraper()._parse_item(raw_item).size_m2 == 60.0
+
+
+def test_sin_surface_ni_m2_en_el_texto_queda_en_none():
+    scraper = WallapopScraper()
+    assert scraper._parse_item(item(7, description="Piso luminoso para reformar")).size_m2 is None
+    assert scraper._parse_item(item(8, description="")).size_m2 is None
+    no_description = item(9)
+    del no_description["description"]
+    assert scraper._parse_item(no_description).size_m2 is None
+
+
+def test_el_recorrido_completo_lee_la_descripcion(sleeps):
+    api = FakeApi(THREE_PAGES, surfaces={1: 50.0},
+                  descriptions={1: "Piso de 54 m²", 2: "Vivienda de 85 m² con salón", 3: "terraza de 20 m²", 41: "Piso de 70 m²"})
+    result = crawl(FakePage(api))
+    by_id = {x.external_id: x.size_m2 for x in result.listings}
+    assert (by_id["w1"], by_id["w2"], by_id["w3"], by_id["w41"]) == (50.0, 85.0, None, 70.0)   # surface > texto > nada
+    assert by_id["w4"] is None                                                                  # "reformar": sin dato
+
+
+def test_un_listing_con_m2_en_la_descripcion_ya_se_puede_puntuar():
+    from backend.agents.pre_scorer import unscorable_reason
+    from backend.models.listing import Listing
+
+    def as_listing(raw):
+        return Listing(source=raw.source, external_id=raw.external_id, url=raw.url, title=raw.title, price=raw.price,
+                       size_m2=raw.size_m2, rooms=raw.rooms, neighborhood=raw.neighborhood, district=raw.district)
+
+    scraper = WallapopScraper()
+    con = as_listing(scraper._parse_item(item(1, description="Piso de 62 m² para reformar")))
+    sin = as_listing(scraper._parse_item(item(2, description="Piso para reformar")))
     assert (unscorable_reason(con), unscorable_reason(sin)) == (None, "no_size")

@@ -83,6 +83,44 @@ def parse_surface(value) -> Optional[float]:
     return None
 
 
+# Superficie escrita en la descripción: "54 m²", "62m2", "80 metros cuadrados", "54,5 m²"...
+# "metros" suelto NO cuenta ("a 300 metros del metro" es una distancia).
+_AREA_RE = re.compile(
+    r"(?<![\d.,])(\d{1,4}(?:[.,]\d{1,3})?)\s*(?:m²|m2|mt2|mts2|mt²|mts²|metros?\s+cuadrados?|m\s+cuadrados?)",
+    re.IGNORECASE,
+)
+# Espacios que NO son la vivienda ("terraza de 20 m²", "salón comedor de 30 m²", "12 m² de terraza").
+_NON_DWELLING = (r"terraza|balc[oó]n|patio|jard[ií]n|parcela|solar|sol[aá]rium|trastero|garaje|parking|plaza de|local|"
+                 r"cocina|sal[oó]n|comedor|dormitorio|habitaci[oó]n|ba[nñ]o|azotea|s[oó]tano|buhardilla|porche|"
+                 r"zonas? comunes?|piscina|cuarto|vestidor|despacho|entreplanta|altillo|bodega|desv[aá]n")
+# Nombra la vivienda principal: si aparece entre la palabra clave y el número, el número es de la vivienda.
+_MAIN_DWELLING = r"piso|vivienda|casa|apartamento|inmueble|[aá]tico|d[uú]plex|chalet"
+# Palabra clave en la misma oración, pocos caracteres antes del número y sin nombrar la vivienda de por medio.
+_BEFORE_NON_DWELLING = re.compile(
+    rf"(?:{_NON_DWELLING})(?:(?!\b(?:{_MAIN_DWELLING})\b)[^.;\n]){{0,22}}$", re.IGNORECASE)
+_AFTER_NON_DWELLING = re.compile(rf"^\s*(?:de|en|para)\s+(?:{_NON_DWELLING})", re.IGNORECASE)   # "[12 m²] de terraza"
+MIN_M2, MAX_M2 = 15, 1000      # mismo rango plausible que usa el QA (SIZE_MIN / SIZE_MAX)
+
+
+def parse_size_from_description(text) -> Optional[float]:
+    """Primer m² de la descripción que sea plausible (15–1.000) y no sea de un espacio accesorio
+    (terraza, salón, trastero...). None si no hay. Medido contra `surface` en ~270 anuncios reales
+    que traen ambos: ~89 % queda entre 0,97x y 1,35x. Los demás casos son, sobre todo, superficie
+    CONSTRUIDA contra la ÚTIL de `surface` (las descripciones suelen citar primero la construida)."""
+    if not isinstance(text, str):
+        return None
+    for m in _AREA_RE.finditer(text):
+        raw = m.group(1)
+        value = float(raw.replace(".", "")) if re.fullmatch(r"\d{1,3}(?:\.\d{3})+", raw) else float(raw.replace(",", "."))
+        if not MIN_M2 <= value <= MAX_M2:
+            continue
+        before, after = text[max(0, m.start() - 45):m.start()], text[m.end():m.end() + 30]
+        if _BEFORE_NON_DWELLING.search(before) or _AFTER_NON_DWELLING.match(after):
+            continue
+        return value
+    return None
+
+
 @dataclass
 class SectionPage:
     """Lo que interesa de una respuesta de search/section."""
@@ -310,8 +348,11 @@ class WallapopScraper(BaseScraper):
 
         type_attrs = item.get("type_attributes") or {}
         rooms = type_attrs.get("rooms")
-        # La API trae `surface` solo en ~1/3 de los anuncios; en el resto queda None (enrich_sizes).
+        # `surface` (estructurado) viene en ~42 % de los anuncios. Si falta, se lee de la descripción
+        # (cobertura total ~75 %); lo que siga sin dato lo intenta enrich_sizes.
         size_m2 = parse_surface(type_attrs.get("surface"))
+        if size_m2 is None:
+            size_m2 = parse_size_from_description(description)
 
         neighborhood = None
         match = re.search(r"Piso en (?:venta|alquiler) en (.+?) en Madrid", title, re.IGNORECASE)

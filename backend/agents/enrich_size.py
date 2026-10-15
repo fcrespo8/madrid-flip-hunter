@@ -15,7 +15,26 @@ logger = logging.getLogger(__name__)
 # Tope por corrida: cada página tarda varios segundos (networkidle + espera).
 DEFAULT_MAX_FETCHES = 50
 
+# fetch_html(url) devuelve el HTML de la página. Si la descarga falla debe levantar una excepción
+# (DownloadError ante un HTTP >= 400) o devolver None/"": el listing queda sin tocar y se
+# reintenta en otra corrida. Solo un HTML bajado bien puede terminar en no_size_final.
 FetchHtml = Callable[[str], Awaitable[str | None]]
+
+# User-Agent de un Chrome normal. En headless, Chromium anuncia "HeadlessChrome" en el header
+# User-Agent y algunos sitios (wallapop, detrás de CloudFront) responden 403 antes de que corra JS.
+USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/124.0.0.0 Safari/537.36"
+)
+
+
+class DownloadError(Exception):
+    """La descarga falló: HTTP >= 400 o sin respuesta. No es 'la página no trae m²'."""
+
+    def __init__(self, message: str, status: int | None = None):
+        super().__init__(message)
+        self.status = status
 
 # Motivo final: la página se bajó bien y no da un tamaño usable. El listing queda
 # 'unscorable' y size_enrichment_query (que solo busca 'no_size') ya no lo reintenta.
@@ -98,7 +117,8 @@ async def enrich_listing_sizes(db, listings: list[Listing], fetch_html: FetchHtm
     - Página OK con tamaño válido → guarda (y unscorable/no_size → pending).
     - Página OK sin m², o con m² fuera de 15–1.000 → 'unscorable' / no_size_final:
       no se vuelve a intentar.
-    - Descarga fallida (excepción o sin HTML) → no se toca: se reintenta otro día.
+    - Descarga fallida (excepción, HTTP >= 400 o sin HTML) → no se toca: se reintenta en otra
+      corrida. Nunca termina en no_size_final.
     Un error en un listing no frena al resto. Devuelve contadores."""
     counts = dict(EMPTY_COUNTS)
     for listing in listings:
@@ -150,11 +170,17 @@ class PlaywrightFetcher:
         await self._pw.stop()
 
     async def __call__(self, url: str) -> str | None:
-        context = await self._browser.new_context(locale="es-ES")
+        context = await self._browser.new_context(locale="es-ES", user_agent=USER_AGENT)
         try:
             page = await context.new_page()
             await Stealth().apply_stealth_async(page)
-            await page.goto(url, wait_until="networkidle", timeout=30000)
+            response = await page.goto(url, wait_until="networkidle", timeout=30000)
+            if response is None:
+                raise DownloadError(f"sin respuesta de {url}")
+            if response.status >= 400:
+                # La página de error (p. ej. el 403 de CloudFront) no trae m²: sin esta comprobación se
+                # la tomaría por "se bajó bien y no tiene tamaño" y el listing quedaría en no_size_final.
+                raise DownloadError(f"HTTP {response.status} en {url}", status=response.status)
             await asyncio.sleep(2)
             return await page.content()
         finally:
