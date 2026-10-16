@@ -94,20 +94,34 @@ def _normalize(s: str) -> str:
 _NORMALIZED = {_normalize(k): v for k, v in PRECIOS_MADRID.items()}
 
 
-def get_market_price(neighborhood: str | None, district: str | None = None) -> float | None:
-    """Devuelve precio medio €/m² para un barrio o distrito. Matching flexible."""
+# Nombre original de cada clave normalizada (la primera que aparece en la tabla).
+_ZONE_BY_NORMALIZED: dict[str, str] = {}
+for _k in PRECIOS_MADRID:
+    _ZONE_BY_NORMALIZED.setdefault(_normalize(_k), _k)
+
+
+def match_market_zone(neighborhood: str | None, district: str | None = None) -> tuple[str, float, str] | None:
+    """(zona de la tabla, precio €/m², tipo de match) o None. El tipo es 'exacto', 'normalizado' o
+    'parcial' (una zona contiene a la otra: es el menos fiable). Prueba primero el barrio y
+    después el distrito."""
     for key in [neighborhood, district]:
         if not key:
             continue
         # Exacto
         if key in PRECIOS_MADRID:
-            return PRECIOS_MADRID[key]
+            return key, PRECIOS_MADRID[key], "exacto"
         # Normalizado
         norm = _normalize(key)
         if norm in _NORMALIZED:
-            return _NORMALIZED[norm]
+            return _ZONE_BY_NORMALIZED[norm], _NORMALIZED[norm], "normalizado"
         # Parcial
         for k, v in _NORMALIZED.items():
             if k in norm or norm in k:
-                return v
+                return _ZONE_BY_NORMALIZED[k], v, "parcial"
     return None
+
+
+def get_market_price(neighborhood: str | None, district: str | None = None) -> float | None:
+    """Devuelve precio medio €/m² para un barrio o distrito. Matching flexible."""
+    match = match_market_zone(neighborhood, district)
+    return match[1] if match else None

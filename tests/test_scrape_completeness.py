@@ -758,10 +758,13 @@ def test_migracion_scrape_runs_sql():
     assert "DROP TABLE scrape_runs" in down
 
 
-def test_migracion_scrape_runs_es_la_cabeza():
+def test_migracion_scrape_runs_esta_en_la_cadena_y_hay_una_sola_cabeza():
+    """Hubo un momento en que era la cabeza; ahora solo importa que siga en la cadena, sin ramas."""
     from alembic.config import Config
     from alembic.script import ScriptDirectory
-    assert ScriptDirectory.from_config(Config("alembic.ini")).get_heads() == [REV]
+    script = ScriptDirectory.from_config(Config("alembic.ini"))
+    assert len(script.get_heads()) == 1
+    assert REV in {r.revision for r in script.walk_revisions()}
 
 
 def test_modelo_scrape_run_coincide_con_la_migracion():

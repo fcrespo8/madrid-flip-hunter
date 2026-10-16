@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
 from backend.models.listing import Listing
-from backend.agents.market_prices import get_market_price
+from backend.agents.market_prices import get_market_price, match_market_zone
 
 AUTO_REASONING = "Score automático: precio vs mercado"
 CLAUDE_MIN_PRE_SCORE = 7.0
@@ -45,6 +45,27 @@ def pre_score(listing: Listing) -> float | None:
     return 1.0
 
 
+@dataclass
+class PreScoreFields:
+    """Lo que el pre-scorer deja guardado en el listing (columnas pre_score, discount_pct, market_zone)."""
+    pre_score: float | None
+    discount_pct: float | None
+    market_zone: str | None
+
+
+def pre_score_fields(listing: Listing) -> PreScoreFields:
+    """Mismo cálculo que pre_score/discount_pct, más la zona de la tabla de mercado con la que se
+    comparó. Sin zona no hay nada; con zona pero sin precio o tamaño solo se guarda la zona."""
+    match = match_market_zone(listing.neighborhood, listing.district)
+    return PreScoreFields(pre_score(listing), discount_pct(listing), match[0] if match else None)
+
+
+def store_pre_score_fields(listing: Listing) -> PreScoreFields:
+    fields = pre_score_fields(listing)
+    listing.pre_score, listing.discount_pct, listing.market_zone = fields.pre_score, fields.discount_pct, fields.market_zone
+    return fields
+
+
 def candidate_order(ps: float, discount: float, listing_id: int) -> tuple[float, float, int]:
     """Cola de Claude: pre-score descendente; a igual pre-score, mayor % de descuento sobre el
     mercado primero; a igual descuento, el más viejo (id)."""
@@ -64,6 +85,7 @@ def apply_pre_scores(db, listings: list[Listing]) -> PreScoreResult:
     result = PreScoreResult()
     ranks: dict[int, tuple[float, float]] = {}   # id → (pre-score, % de descuento)
     for listing in listings:
+        store_pre_score_fields(listing)
         reason = unscorable_reason(listing)
         if reason:
             listing.score_status = "unscorable"

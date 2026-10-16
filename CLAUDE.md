@@ -64,8 +64,11 @@ Single module; public entry point is `runner.run_scoring(listings=None, db=None)
 ### Database (`backend/models/`)
 SQLAlchemy 2.0 + Alembic migrations. The `listings` table has a unique constraint on `(source, external_id)`. `save_listing()` in the repository handles insert-or-skip logic, and reactivates a listing (`is_active = true`) when the scraper sees it again. `scrape_runs` has one row per source sweep (`seen_count`, `new_count`, `complete`, `total_reported`, `incomplete_reason`, `error`).
 
+### Pre-score fields (`listings.pre_score`, `discount_pct`, `market_zone`)
+`pre_scorer.apply_pre_scores` stores them on every listing it processes, on every run (`store_pre_score_fields`): the pre-score (1/3/5/7/8/9), the discount % under the market €/m² (positive = cheaper, negative = dearer) and the `PRECIOS_MADRID` zone used as reference (`market_prices.match_market_zone` returns zone, price and match type exacto/normalizado/parcial; `get_market_price` is built on it and gives the same prices as before). Unscorable listings keep what can be computed (zone without size, nothing without a zone). `score` stays the final grade: the pre-score for `auto`, Claude's for `llm`. Listings scored before the migration have NULLs until `poetry run python -m scripts.backfill_pre_scores` (dry-run by default, `--confirm` writes only these three columns, `--all` recomputes everything).
+
 ### API + Frontend (`backend/api/main.py`, `frontend/index.html`)
-FastAPI serves `/api/listings` (ordered by score descending) and the React frontend as static files. The frontend is a single HTML file — no build step — with a split table/map view. Markers are color-coded: green (score ≥ 7), yellow (4–6), red (< 4).
+FastAPI serves `/api/listings` (active, non-QA-rejected listings with a pre-score or a score; `?sort=pre_score` (default) orders by pre-score then discount, `?sort=score` by final grade; each row has `pre_score`, `discount_pct`, `market_zone`, `claude_score`, `has_claude`, `score_status`; `claude_score` is `score` only when `score_status='llm'`) and the React frontend as static files. The frontend is a single HTML file — no build step — with a split table/map view. Markers and the first column use the pre-score (green ≥ 7, yellow 4–6, red < 4, grey if none); listings analysed by Claude show ⭐ and its grade; the default order is pre-score then discount.
 
 ## Environment
 

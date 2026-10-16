@@ -49,6 +49,11 @@ class Listing(Base):
         String(20), default="pending", server_default="pending", nullable=False
     )
     score_status_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Lo calcula el pre-scorer en cada corrida (backend/agents/pre_scorer.py). `score` sigue siendo la
+    # nota final: la del pre-scorer si score_status='auto', la de Claude si 'llm'.
+    pre_score: Mapped[float | None] = mapped_column(Float, nullable=True)          # 1, 3, 5, 7, 8 o 9
+    discount_pct: Mapped[float | None] = mapped_column(Float, nullable=True)       # % bajo el €/m² de mercado (negativo: más caro)
+    market_zone: Mapped[str | None] = mapped_column(String(100), nullable=True)    # zona de PRECIOS_MADRID usada como referencia
     score_attempts: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"), nullable=False)
 
     __table_args__ = (

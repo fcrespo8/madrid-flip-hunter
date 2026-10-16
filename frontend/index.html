@@ -108,6 +108,9 @@
     .score-high { background: #1a3a2a; color: #4ade80; }
     .score-mid  { background: #3a3010; color: #facc15; }
     .score-low  { background: #3a1a1a; color: #f87171; }
+    .claude-star { display: inline-flex; align-items: center; gap: 3px; font-weight: 700; font-size: 0.82rem; color: #facc15; white-space: nowrap; }
+    .claude-none { color: #444; }
+    .zone-name { display: block; color: #444; font-size: 0.64rem; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .price { font-weight: 600; color: #fff; }
     .ppm2  { color: #60a5fa; }
     .mkt-price { color: #555; font-size: 0.72rem; }
@@ -622,13 +625,13 @@
   <div id="tab-finder">
     <div id="kpis">
       <div class="kpi"><div class="kpi-val" id="kpi-total">—</div><div class="kpi-label">Pisos analizados</div></div>
-      <div class="kpi"><div class="kpi-val" id="kpi-score">—</div><div class="kpi-label">Score medio</div></div>
+      <div class="kpi"><div class="kpi-val" id="kpi-score">—</div><div class="kpi-label">Pre-score medio</div></div>
       <div class="kpi"><div class="kpi-val" id="kpi-best">—</div><div class="kpi-label">Mejor deal</div></div>
       <div class="kpi"><div class="kpi-val green" id="kpi-below">—</div><div class="kpi-label">Bajo precio de mercado (&lt;−5%)</div></div>
       <div class="kpi"><div class="kpi-val" id="kpi-last-scrape" style="font-size:0.88rem">—</div><div class="kpi-label">Último scrape</div></div>
     </div>
     <div id="filters">
-      <div class="filter-group"><label>Score mín</label><input type="range" id="f-score" min="0" max="10" value="0" step="1"><span class="filter-val" id="f-score-val">0</span></div>
+      <div class="filter-group"><label>Pre-score mín</label><input type="range" id="f-score" min="0" max="10" value="0" step="1"><span class="filter-val" id="f-score-val">0</span></div>
       <div class="filter-group"><label>Precio máx</label><input type="range" id="f-price" min="50" max="2000" value="2000" step="50"><span class="filter-val" id="f-price-val">2000k€</span></div>
       <div class="filter-group"><label>m² mín</label><input type="range" id="f-size" min="0" max="200" value="0" step="5"><span class="filter-val" id="f-size-val">0m²</span></div>
       <div class="filter-group"><label>€/m² máx</label><input type="range" id="f-ppm2" min="1000" max="15000" value="15000" step="500"><span class="filter-val" id="f-ppm2-val">15k€/m²</span></div>
@@ -643,7 +646,8 @@
       <div class="filter-group">
         <label>Ordenar</label>
         <select id="f-sort">
-          <option value="score-desc">Score ↓</option><option value="score-asc">Score ↑</option>
+          <option value="pre-desc">Pre-score y descuento ↓</option><option value="pre-asc">Pre-score ↑</option>
+          <option value="disc-desc">Descuento ↓</option><option value="claude-desc">⭐ Claude ↓</option>
           <option value="price-asc">Precio ↑</option><option value="price-desc">Precio ↓</option>
           <option value="ppm2-asc">€/m² ↑</option><option value="ppm2-desc">€/m² ↓</option>
           <option value="date-desc">Visto ↓</option><option value="date-asc">Visto ↑</option>
@@ -655,15 +659,16 @@
       <div id="sidebar">
         <table>
           <thead><tr>
-            <th title="Puntuación de oportunidad de flipping (0–10)">Score</th>
+            <th title="Pre-score: precio/m² vs mercado de la zona (1, 3, 5, 7, 8 o 9)">Pre</th>
+            <th title="Nota de Claude (solo si el listing pasó por el análisis completo)">⭐ Claude</th>
             <th>Título</th>
             <th title="Precio de venta del anuncio">Precio</th>
             <th title="Precio por metro cuadrado del anuncio">€/m²</th>
-            <th title="Diferencia vs media del barrio (Idealista)">vs Mkt</th>
-            <th title="Precio medio €/m² del barrio (Idealista, abr 2026)">Zona</th>
+            <th title="Descuento sobre el €/m² medio de la zona de referencia (positivo = más barato)">Desc.</th>
+            <th title="Precio medio €/m² de la zona de referencia (Idealista, abr 2026)">Zona</th>
             <th title="Superficie en metros cuadrados">m²</th>
             <th title="Número de habitaciones">Hab</th>
-            <th>Barrio</th><th>Fuente</th><th title="Cuándo fue scoreado por el agente">Scoreado</th><th title="Fecha del último scrape">Visto</th><th></th>
+            <th>Barrio</th><th>Fuente</th><th title="Cuándo lo puntuó Claude">Claude</th><th title="Fecha del último scrape">Visto</th><th></th>
           </tr></thead>
           <tbody id="tbody"></tbody>
         </table>
@@ -2638,6 +2643,15 @@
     className: 'map-tiles-dark',
   }).addTo(map);
 
+  const hasClaude = l => l.has_claude === true && l.claude_score != null;
+  const claudeHtml = l => hasClaude(l)
+    ? `<span class="claude-star" title="Nota de Claude: ${l.claude_score}/10">⭐ ${l.claude_score}</span>`
+    : '<span class="claude-none">—</span>';
+  function fmtDiscount(l) {
+    if (l.discount_pct == null) return '—';
+    return (l.discount_pct > 0 ? '−' : '+') + Math.abs(l.discount_pct).toFixed(1) + '%';
+  }
+  function discountClass(d) { return d >= 20 ? 'vs-green' : d <= -10 ? 'vs-red' : 'vs-yellow'; }
   function scoreColor(s) { return s >= 7 ? '#4ade80' : s >= 4 ? '#facc15' : '#f87171'; }
   function scoreBadgeClass(s) { return s >= 7 ? 'score-high' : s >= 4 ? 'score-mid' : 'score-low'; }
   function ppm2(l) { return l.price && l.size_m2 ? Math.round(l.price / l.size_m2) : null; }
@@ -2657,8 +2671,8 @@
 
   function makeMarker(l) {
     if (!l.lat || !l.lon) return null;
-    return L.circleMarker([l.lat, l.lon], { radius: 8, fillColor: scoreColor(l.score), color: '#fff', weight: 1.5, opacity: 1, fillOpacity: 0.85 })
-      .bindTooltip(`<b>${l.score}/10</b> — ${l.neighborhood||''}<br>${(l.price/1000).toFixed(0)}k€`);
+    return L.circleMarker([l.lat, l.lon], { radius: 8, fillColor: l.pre_score != null ? scoreColor(l.pre_score) : '#555', color: '#fff', weight: 1.5, opacity: 1, fillOpacity: 0.85 })
+      .bindTooltip(`<b>${l.pre_score ?? '—'}/10</b>${hasClaude(l) ? ` · ⭐ ${l.claude_score}` : ''} — ${l.neighborhood||''}<br>${(l.price/1000).toFixed(0)}k€${l.discount_pct != null ? ` · ${fmtDiscount(l)}` : ''}`);
   }
 
   function showDetail(l) {
@@ -2679,7 +2693,8 @@
     const expireBtn = getTokenRole() === 'admin'
       ? `<button onclick="expireListing(${l.id})" style="margin-top:10px;background:#3a0a0a;border:1px solid #7f1d1d;color:#f87171;border-radius:5px;padding:4px 10px;font-size:0.73rem;cursor:pointer">Marcar como expirado</button>`
       : '';
-    d.innerHTML = `<h3>${l.title}</h3>${marketHtml}<div class="reasoning">${l.score_reasoning||'Sin razonamiento'}</div>
+    const preHtml = `<div class="market-row"><span class="market-avg">Pre-score ${l.pre_score ?? '—'}</span>${l.discount_pct != null ? `<span class="market-sep">·</span><span class="market-avg">${fmtDiscount(l)} vs ${l.market_zone || 'zona'}</span>` : ''}${hasClaude(l) ? `<span class="market-sep">·</span><span class="claude-star">⭐ Claude ${l.claude_score}/10</span>` : ''}</div>`;
+    d.innerHTML = `<h3>${l.title}</h3>${preHtml}${marketHtml}<div class="reasoning">${hasClaude(l) ? (l.score_reasoning||'Sin razonamiento') : 'Sin análisis de Claude todavía.'}</div>
       <div class="flags">
         ${green.length?`<div class="flag-group green"><h4>✅ Green flags</h4>${green.map(f=>`<div class="flag-item">· ${f}</div>`).join('')}</div>`:''}
         ${red.length?`<div class="flag-group red"><h4>⚠️ Red flags</h4>${red.map(f=>`<div class="flag-item">· ${f}</div>`).join('')}</div>`:''}
@@ -2735,23 +2750,28 @@
 
   function updateKpis(filtered) {
     document.getElementById('kpi-total').textContent = allListings.length;
-    const scores = filtered.map(l => l.score).filter(s => s != null);
+    const scores = filtered.map(l => l.pre_score).filter(s => s != null);
     document.getElementById('kpi-score').textContent = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1) : '—';
-    const best = filtered.reduce((a,b) => (a && a.score >= b.score) ? a : b, null);
+    const best = filtered.length ? filtered.slice().sort(byPreThenDiscount)[0] : null;
     const bestEl = document.getElementById('kpi-best');
     if (best) {
       const title = (best.title||'').substring(0,26)+((best.title||'').length>26?'…':'');
-      bestEl.innerHTML = `<span style="color:#4ade80">${best.score}</span> — ${title}`;
+      bestEl.innerHTML = `<span style="color:#4ade80">${best.pre_score ?? '—'}</span>${hasClaude(best) ? ' ⭐' + best.claude_score : ''} — ${title}`;
     } else { bestEl.textContent = '—'; }
     document.getElementById('kpi-below').textContent = filtered.filter(l => l.vs_market_pct != null && l.vs_market_pct < -5).length;
     const dates = allListings.map(l => l.last_seen_at).filter(Boolean).sort();
     document.getElementById('kpi-last-scrape').textContent = dates.length ? fmtDate(dates[dates.length - 1]) : '—';
   }
 
+  // Pre-score descendente y, a igual pre-score, mayor descuento primero (sin dato, al final).
+  function byPreThenDiscount(a, b) {
+    return ((b.pre_score ?? -1) - (a.pre_score ?? -1)) || ((b.discount_pct ?? -9999) - (a.discount_pct ?? -9999));
+  }
+
   function applyFilters() {
     const f = getFilters();
     let list = allListings.filter(l => {
-      if (l.score < f.score) return false;
+      if (f.score > 0 && (l.pre_score ?? -1) < f.score) return false;
       if (l.price > f.price) return false;
       if (f.size > 0 && (!l.size_m2 || l.size_m2 < f.size)) return false;
       const pp = ppm2(l);
@@ -2763,7 +2783,9 @@
     const [key, dir] = f.sort.split('-');
     list.sort((a,b) => {
       let av, bv;
-      if (key==='score') { av=a.score; bv=b.score; }
+      if (key==='pre') { return dir==='asc' ? -byPreThenDiscount(a,b) : byPreThenDiscount(a,b); }
+      else if (key==='disc') { av=a.discount_pct ?? -9999; bv=b.discount_pct ?? -9999; }
+      else if (key==='claude') { av=hasClaude(a) ? a.claude_score : -1; bv=hasClaude(b) ? b.claude_score : -1; }
       else if (key==='price') { av=a.price; bv=b.price; }
       else if (key==='ppm2') { av=ppm2(a)||99999; bv=ppm2(b)||99999; }
       else if (key==='date') { return dir==='asc' ? (a.last_seen_at||'').localeCompare(b.last_seen_at||'') : (b.last_seen_at||'').localeCompare(a.last_seen_at||''); }
@@ -2780,7 +2802,7 @@
   }
 
   function fmtRelativeScore(l) {
-    if (l.score == null) return '<span class="scored-pending">Pendiente</span>';
+    if (!hasClaude(l)) return l.score_status === 'pending' ? '<span class="scored-pending">Pendiente</span>' : '<span class="scored-pending">—</span>';
     if (!l.scored_at) return '<span class="scored-pending">—</span>';
     const today = new Date(); today.setHours(0,0,0,0);
     const d = new Date(l.scored_at); d.setHours(0,0,0,0);
@@ -2797,16 +2819,17 @@
     const tbody = document.getElementById('tbody');
     tbody.innerHTML = '';
     listings.forEach(l => {
-      const pp = ppm2(l), vsPct = l.vs_market_pct;
+      const pp = ppm2(l);
       const tr = document.createElement('tr');
       tr.id = `row-${l.id}`;
       tr.innerHTML = `
-        <td><span class="score-badge ${scoreBadgeClass(l.score)}">${l.score??'—'}</span></td>
+        <td><span class="score-badge ${l.pre_score != null ? scoreBadgeClass(l.pre_score) : ''}">${l.pre_score ?? '—'}</span></td>
+        <td>${claudeHtml(l)}</td>
         <td>${(l.title||'').substring(0,32)}${(l.title||'').length>32?'…':''}${isNew(l)?'<span class="badge-nuevo">NUEVO</span>':''}</td>
         <td class="price">${l.price?(l.price/1000).toFixed(0)+'k€':'—'}</td>
         <td class="ppm2">${pp?formatEur(pp):'—'}</td>
-        <td><span class="${vsPct!=null?vsMarketClass(vsPct):''}">${fmtPct(vsPct)}</span></td>
-        <td class="mkt-price">${l.market_price_m2?formatEur(Math.round(l.market_price_m2)):'—'}</td>
+        <td><span class="${l.discount_pct != null ? discountClass(l.discount_pct) : ''}" title="vs ${l.market_zone || 'sin zona de referencia'}">${fmtDiscount(l)}</span></td>
+        <td class="mkt-price">${l.market_price_m2?formatEur(Math.round(l.market_price_m2)):'—'}${l.market_zone ? `<span class="zone-name" title="${l.market_zone}">${l.market_zone}</span>` : ''}</td>
         <td class="neighborhood">${l.size_m2?l.size_m2+'m²':'—'}</td>
         <td class="neighborhood">${l.rooms??'—'}</td>
         <td class="neighborhood">${l.neighborhood||l.district||'—'}</td>

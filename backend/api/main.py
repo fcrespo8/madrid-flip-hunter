@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from backend.auth.dependencies import get_current_user, require_admin
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -64,49 +65,68 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def listing_to_dict(listing: Listing) -> dict:
+    market_price = get_market_price(listing.neighborhood, listing.district)
+    ppm2 = listing.price / listing.size_m2 if listing.price and listing.size_m2 else None
+    vs_market_pct = (
+        round((ppm2 - market_price) / market_price * 100, 1)
+        if ppm2 and market_price
+        else None
+    )
+    # La nota de Claude es `score` solo si la puntuó Claude; si no, `score` es la del pre-scorer.
+    claude_score = listing.score if listing.score_status == "llm" else None
+    return {
+        "id": listing.id,
+        "title": listing.title,
+        "price": listing.price,
+        "size_m2": listing.size_m2,
+        "rooms": listing.rooms,
+        "neighborhood": listing.neighborhood,
+        "district": listing.district,
+        "lat": listing.lat,
+        "lon": listing.lon,
+        "score": listing.score,
+        "pre_score": listing.pre_score,
+        "discount_pct": round(listing.discount_pct, 1) if listing.discount_pct is not None else None,
+        "market_zone": listing.market_zone,
+        "claude_score": claude_score,
+        "has_claude": claude_score is not None,
+        "score_status": listing.score_status,
+        "score_reasoning": listing.score_reasoning,
+        "score_green_flags": listing.score_green_flags,
+        "score_red_flags": listing.score_red_flags,
+        "url": listing.url,
+        "source": listing.source,
+        "market_price_m2": market_price,
+        "vs_market_pct": vs_market_pct,
+        "last_seen_at": listing.last_seen_at.strftime("%Y-%m-%d") if listing.last_seen_at else None,
+        "created_at": listing.created_at.strftime("%Y-%m-%d") if listing.created_at else None,
+        "scored_at": listing.scored_at.strftime("%Y-%m-%d") if listing.scored_at else None,
+    }
+
+
 @app.get("/api/listings")
-def get_listings(_=Depends(get_current_user)):
+def get_listings(sort: str = "pre_score", _=Depends(get_current_user)):
+    """Listings activos con pre-score o con score. `sort=pre_score` (default): pre-score descendente
+    y, a igual pre-score, mayor descuento sobre el mercado primero. `sort=score`: la nota final."""
+    if sort not in ("pre_score", "score"):
+        raise HTTPException(status_code=422, detail="sort debe ser 'pre_score' o 'score'")
     db: Session = SessionLocal()
     try:
+        if sort == "score":
+            order = [Listing.score.desc().nulls_last(), Listing.pre_score.desc().nulls_last(),
+                     Listing.discount_pct.desc().nulls_last()]
+        else:
+            order = [Listing.pre_score.desc().nulls_last(), Listing.discount_pct.desc().nulls_last(),
+                     Listing.score.desc().nulls_last()]
         listings = (
             db.query(Listing)
-            .filter(Listing.score.is_not(None))
-            .filter(Listing.is_active.is_(True))
-            .order_by(Listing.score.desc())
+            .filter(Listing.is_active.is_(True), Listing.qa_rejected.is_(False))
+            .filter(or_(Listing.score.is_not(None), Listing.pre_score.is_not(None)))
+            .order_by(*order, Listing.id)
             .all()
         )
-        result = []
-        for listing in listings:
-            market_price = get_market_price(listing.neighborhood, listing.district)
-            ppm2 = listing.price / listing.size_m2 if listing.price and listing.size_m2 else None
-            vs_market_pct = (
-                round((ppm2 - market_price) / market_price * 100, 1)
-                if ppm2 and market_price
-                else None
-            )
-            result.append({
-                "id": listing.id,
-                "title": listing.title,
-                "price": listing.price,
-                "size_m2": listing.size_m2,
-                "rooms": listing.rooms,
-                "neighborhood": listing.neighborhood,
-                "district": listing.district,
-                "lat": listing.lat,
-                "lon": listing.lon,
-                "score": listing.score,
-                "score_reasoning": listing.score_reasoning,
-                "score_green_flags": listing.score_green_flags,
-                "score_red_flags": listing.score_red_flags,
-                "url": listing.url,
-                "source": listing.source,
-                "market_price_m2": market_price,
-                "vs_market_pct": vs_market_pct,
-                "last_seen_at": listing.last_seen_at.strftime("%Y-%m-%d") if listing.last_seen_at else None,
-                "created_at": listing.created_at.strftime("%Y-%m-%d") if listing.created_at else None,
-                "scored_at": listing.scored_at.strftime("%Y-%m-%d") if listing.scored_at else None,
-            })
-        return result
+        return [listing_to_dict(listing) for listing in listings]
     finally:
         db.close()
 
