@@ -9,6 +9,9 @@ Verificado contra el sitio (2026-10):
   - CloudFront responde 403 ("Request blocked") a toda request cuyo header User-Agent diga
     "HeadlessChrome", aunque el stealth cambie navigator.userAgent en JavaScript: ese header
     sale antes de que corra JS. Por eso el contexto fija un user_agent normal.
+  - La app IGNORA latitude/longitude de la URL de búsqueda (con Madrid o con Barcelona pide a la API
+    40.4252/-3.6927): las toma de otro lado (default, geolocalización de la IP...). Por eso el
+    pedido a search/section se reescribe con page.route para fijar las coordenadas de Madrid.
   - La página 2 es GET /api/v3/search/section?next_page=<token>, con los headers de la app
     (x-deviceid, mpid, x-appversion, deviceos...) que se copian de la primera llamada.
 """
@@ -19,13 +22,13 @@ import math
 import re
 from dataclasses import dataclass
 from typing import Optional
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote, urlencode, urlparse, urlunparse
 
 from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
 
 from .base_scraper import (
-    BAD_PAGINATION, BLOCKED, HTTP_ERROR, NO_API, PAGE_CAP, REPEATED_PAGE, UNPARSEABLE,
+    BAD_PAGINATION, BLOCKED, EMPTY_FIRST_PAGE, HTTP_ERROR, NO_API, PAGE_CAP, REPEATED_PAGE, UNPARSEABLE,
     BaseScraper, RawListing, ScrapeResult,
 )
 
@@ -40,6 +43,10 @@ API_URL = "https://api.wallapop.com/api/v3/search/section"
 # Headers de la primera llamada de la app que se reenvían en las páginas siguientes.
 API_HEADERS = ("accept", "accept-language", "deviceos", "mpid", "trackinguserid",
                "x-appversion", "x-deviceid", "x-deviceos")
+
+# Centro de Madrid: la búsqueda no debe depender de dónde crea la app que está el navegador.
+MADRID_LAT, MADRID_LON = 40.4167754, -3.7037902
+SECTION_ROUTE = "**/api/v3/search/section*"
 
 PAGE_DELAY_S = 1.0         # pausa entre páginas
 MAX_RETRIES = 2            # reintentos por página tras el primer intento (hasta 3 requests)
@@ -56,6 +63,33 @@ _FETCH_JS = """async ({url, headers}) => {
     const r = await fetch(url, {headers});
     return {status: r.status, text: await r.text()};
 }"""
+
+
+def pin_coordinates(url: str, lat: float = MADRID_LAT, lon: float = MADRID_LON) -> str:
+    """URL de search/section con latitude/longitude fijadas; el resto del pedido queda igual."""
+    parts = urlparse(url)
+    query = parse_qs(parts.query, keep_blank_values=True)
+    query["latitude"], query["longitude"] = [str(lat)], [str(lon)]
+    return urlunparse(parts._replace(query=urlencode(query, doseq=True)))
+
+
+def request_coordinates(url: str) -> tuple[Optional[str], Optional[str]]:
+    """(latitude, longitude) con que se hizo un pedido a search/section; None si no las trae."""
+    query = parse_qs(urlparse(url).query)
+    return (query.get("latitude") or [None])[0], (query.get("longitude") or [None])[0]
+
+
+def describe_first_response(status, url: str, body, section: "SectionPage") -> str:
+    """Detalle de la primera respuesta de la API para el log: es lo único que permite distinguir
+    un bloqueo suave (200 con lista vacía) de un cambio de formato."""
+    lat, lon = request_coordinates(url or "")
+    items = section.items
+    with_id = sum(1 for i in items if isinstance(i, dict) and i.get("id")) if items is not None else None
+    meta = body.get("meta") if isinstance(body, dict) else None
+    return (f"HTTP {status}, ítems={None if items is None else len(items)} (con id={with_id}), "
+            f"lat={lat} lon={lon}, claves de meta={sorted(meta) if isinstance(meta, dict) else None}, "
+            f"next_page={'sí' if section.next_page else 'no'}, "
+            f"claves de body={sorted(body) if isinstance(body, dict) else type(body).__name__}")
 
 
 def is_retryable_status(status: int) -> bool:
@@ -152,6 +186,11 @@ class WallapopScraper(BaseScraper):
     # búsqueda. Por eso un barrido completo (complete=True) no se usa para desactivar listings.
     supports_deactivation = False
 
+    # Medido (2026-10): bajar la página de un anuncio (es.wallapop.com/item/...) no da los m² en 0 de
+    # 10 casos, y cada intento cuesta ~6 s de navegador. Los m² de Wallapop salen de `surface` y
+    # de la descripción al scrapear; enrich_sizes no aporta nada y se come el tope de 50 descargas.
+    supports_size_enrichment = False
+
     SEARCH_URL = (
         "https://es.wallapop.com/app/search"
         "?keywords=piso+en+venta+madrid"
@@ -184,6 +223,7 @@ class WallapopScraper(BaseScraper):
                 return
             first["seen"] = True
             first["status"] = response.status
+            first["url"] = response.url
             try:
                 first["headers"] = await response.request.all_headers()
             except Exception:
@@ -195,6 +235,15 @@ class WallapopScraper(BaseScraper):
             first["done"] = True
 
         page.on("response", capture)
+
+        async def pin(route):
+            """Fija las coordenadas de Madrid en el pedido de la app (ver docstring del módulo)."""
+            try:
+                await route.continue_(url=pin_coordinates(route.request.url))
+            except Exception:
+                await route.continue_()      # nunca dejar colgado un pedido por esto
+
+        await page.route(SECTION_ROUTE, pin)
 
         status, problem, reason = await self._navigate(page)
         if problem:
@@ -217,6 +266,7 @@ class WallapopScraper(BaseScraper):
 
         headers = {k: v for k, v in first["headers"].items() if k in API_HEADERS}
         section = parse_section(first["body"])
+        logger.info(f"[wallapop] Primera respuesta: {describe_first_response(first['status'], first.get('url'), first['body'], section)}")
 
         listings = []
         site_ids = set()   # ids que mostró la API
@@ -230,6 +280,12 @@ class WallapopScraper(BaseScraper):
                 break
 
             ids = {i["id"] for i in section.items if isinstance(i, dict) and i.get("id")}
+            if number == 1 and not ids:
+                # 200 con la primera página vacía (o sin ids): no es el fin del catálogo ni una página repetida.
+                logger.error("[wallapop] Primera página sin anuncios: "
+                             + describe_first_response(first["status"], first.get("url"), first["body"], section))
+                stop_reason = EMPTY_FIRST_PAGE
+                break
             new_ids = ids - site_ids
             if not new_ids and section.next_page:
                 logger.warning(f"[wallapop] Página {number} sin anuncios nuevos, parando.")

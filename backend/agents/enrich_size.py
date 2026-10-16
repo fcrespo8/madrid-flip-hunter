@@ -5,7 +5,7 @@ from typing import Awaitable, Callable
 
 from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, true
 from backend.agents.qa_agent import SIZE_MAX, SIZE_MIN
 from backend.models.database import SessionLocal
 from backend.models.listing import Listing
@@ -87,9 +87,13 @@ def is_valid_size(size_m2: float) -> bool:
     return SIZE_MIN <= size_m2 <= SIZE_MAX
 
 
-def size_enrichment_query(db, pending_ids: list[int] | None = None):
+def size_enrichment_query(db, pending_ids: list[int] | None = None, excluded_sources: frozenset[str] | None = None):
     """Listings sin tamaño que vale la pena completar: activos, no rechazados por QA,
-    y pendientes (de `pending_ids`, o todos si es None) o unscorable por no_size."""
+    y pendientes (de `pending_ids`, o todos si es None) o unscorable por no_size.
+    Quedan fuera las fuentes con `supports_size_enrichment = False` (o `excluded_sources`, si se pasa)."""
+    if excluded_sources is None:
+        from backend.scrapers.registry import sources_without_size_enrichment
+        excluded_sources = sources_without_size_enrichment()
     pending = Listing.score_status == "pending"
     if pending_ids is not None:
         pending = Listing.id.in_(pending_ids) if pending_ids else Listing.id.is_(None)
@@ -99,6 +103,7 @@ def size_enrichment_query(db, pending_ids: list[int] | None = None):
             Listing.size_m2.is_(None),
             Listing.is_active.is_(True),
             Listing.qa_rejected.is_(False),
+            Listing.source.notin_(sorted(excluded_sources)) if excluded_sources else true(),
             or_(pending, and_(Listing.score_status == "unscorable",
                               Listing.score_status_reason == "no_size")),
         )

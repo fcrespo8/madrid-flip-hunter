@@ -365,3 +365,73 @@ def test_run_pipeline_pasa_sources_al_state(fake_nodes, monkeypatch):
     monkeypatch.setattr(nodes, "scrape", spy)
     asyncio.run(run_pipeline(["wallapop"], checkpointer=InMemorySaver(), scrapers=_recording_scrapers([])))
     assert seen["sources"] == ["wallapop"]
+
+
+# ── 5. Fuentes sin enrich_sizes ────────────────────────────────────────────────
+
+def test_wallapop_esta_excluido_de_enrich_sizes_y_el_resto_no():
+    from backend.scrapers.registry import SCRAPER_CLASSES, sources_without_size_enrichment
+    assert sources_without_size_enrichment() == {"wallapop"}
+    assert {c().source_name for c in SCRAPER_CLASSES if c.supports_size_enrichment} == \
+        {"donpiso", "remax", "redpiso", "tecnocasa"}
+
+
+def test_el_flag_por_fuente_default_es_true():
+    from backend.scrapers.base_scraper import BaseScraper
+    assert BaseScraper.supports_size_enrichment is True
+
+
+def test_el_registro_cubre_las_fuentes_que_corre_run_all():
+    from backend.scrapers import run_scrapers
+    from backend.scrapers.base_scraper import BaseScraper
+    from backend.scrapers.registry import SCRAPER_CLASSES
+    used = {v for k, v in vars(run_scrapers).items()
+            if isinstance(v, type) and issubclass(v, BaseScraper) and v is not BaseScraper}
+    assert used == set(SCRAPER_CLASSES)
+
+
+def test_la_consulta_de_enrich_sizes_excluye_wallapop():
+    from backend.agents.enrich_size import size_enrichment_query
+    assert "listings.source NOT IN ('wallapop')" in _sql(size_enrichment_query(Session(), [1, 2]))
+    assert "listings.source NOT IN ('wallapop')" in _sql(size_enrichment_query(Session()))
+
+
+def test_la_exclusion_se_puede_sobrescribir():
+    from backend.agents.enrich_size import size_enrichment_query
+    sql = _sql(size_enrichment_query(Session(), [1], excluded_sources=frozenset({"a", "b"})))
+    assert "listings.source NOT IN ('a', 'b')" in sql
+    assert "listings.source NOT IN" not in _sql(size_enrichment_query(Session(), [1], excluded_sources=frozenset()))
+
+
+@requires_test_db
+def test_enrich_sizes_no_baja_paginas_de_wallapop():
+    from backend.agents.enrich_size import enrich_sizes
+    from backend.models.database import SessionLocal
+    from backend.models.listing import Listing
+
+    keys = [("wallapop", "pytest-es-w"), ("tecnocasa", "pytest-es-t")]
+    db = SessionLocal()
+    for src, key in keys:
+        db.add(Listing(source=src, external_id=key, url=f"https://x/{key}", title=key, price=1.0, size_m2=None,
+                       is_active=True, qa_rejected=False, score_status="unscorable", score_status_reason="no_size"))
+    db.commit()
+    db.close()
+    fetched = []
+
+    async def fetch(url):
+        fetched.append(url)
+        return "<p>Superficie: 62 m²</p>"
+
+    try:
+        counts = asyncio.run(enrich_sizes(pending_ids=None, max_fetches=None, fetch_html=fetch))
+        assert "https://x/pytest-es-w" not in fetched and "https://x/pytest-es-t" in fetched
+        assert counts["sized"] >= 1
+        db = SessionLocal()
+        w = db.query(Listing).filter_by(external_id="pytest-es-w").one()
+        assert (w.size_m2, w.score_status, w.score_status_reason) == (None, "unscorable", "no_size")   # intacto
+        db.close()
+    finally:
+        db = SessionLocal()
+        db.query(Listing).filter(Listing.external_id.in_([k for _, k in keys])).delete()
+        db.commit()
+        db.close()

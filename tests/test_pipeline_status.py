@@ -159,6 +159,85 @@ def test_apply_pre_scores_clasifica_y_marca():
     assert db.commits == 1
 
 
+def test_los_candidatos_salen_por_pre_score_descendente_y_a_igual_pre_score_por_id():
+    from backend.agents.market_prices import get_market_price
+    from backend.agents.pre_scorer import apply_pre_scores, pre_score
+
+    base = get_market_price("Lavapiés", "Centro") * 50.0
+    # (id, factor de precio) → pre-score 7 (-22 %), 9 (-35 %), 8 (-28 %), 9, 7
+    rows = [(5, 0.78), (9, 0.65), (3, 0.72), (2, 0.65), (1, 0.78)]
+    listings = [make_listing(id=i, price=base * f) for i, f in rows]
+    assert [pre_score(x) for x in listings] == [7.0, 9.0, 8.0, 9.0, 7.0]
+
+    result = apply_pre_scores(FakeDB(), listings)
+    assert [x.id for x in result.candidates] == [2, 9, 3, 1, 5]        # 9: ids 2,9 · 8: id 3 · 7: ids 1,5
+
+    result = apply_pre_scores(FakeDB(), [make_listing(id=i, price=base * f) for i, f in reversed(rows)])
+    assert [x.id for x in result.candidates] == [2, 9, 3, 1, 5]        # no depende del orden de entrada
+
+
+def test_candidate_order_prioriza_pre_score_luego_descuento_luego_id():
+    from backend.agents.pre_scorer import candidate_order
+    rows = [(7.0, 29.9, 1), (9.0, 31.0, 100), (9.0, 45.0, 200), (9.0, 45.0, 150), (8.0, 28.0, 5)]
+    assert sorted(rows, key=lambda t: candidate_order(*t)) == [
+        (9.0, 45.0, 150), (9.0, 45.0, 200), (9.0, 31.0, 100), (8.0, 28.0, 5), (7.0, 29.9, 1)]
+
+
+def test_a_igual_pre_score_sale_primero_el_de_mayor_descuento_aunque_tenga_id_mayor():
+    from backend.agents.market_prices import get_market_price
+    from backend.agents.pre_scorer import apply_pre_scores, discount_pct
+
+    base = get_market_price("Lavapiés", "Centro") * 50.0
+    # Los tres son pre-score 9; el descuento es 31 %, 50 % y 40 %. Los ids van al revés.
+    listings = [make_listing(id=1, price=base * 0.69), make_listing(id=2, price=base * 0.50),
+                make_listing(id=3, price=base * 0.60)]
+    assert [round(discount_pct(x)) for x in listings] == [31, 50, 40]
+    result = apply_pre_scores(FakeDB(), listings)
+    assert [x.id for x in result.candidates] == [2, 3, 1]
+
+
+def test_el_descuento_no_pasa_por_encima_del_pre_score():
+    """Un 7 con 29,9 % de descuento no se adelanta a un 9 con 30 %: primero manda el pre-score."""
+    from backend.agents.market_prices import get_market_price
+    from backend.agents.pre_scorer import apply_pre_scores, pre_score
+
+    base = get_market_price("Lavapiés", "Centro") * 50.0
+    nueve, ocho = make_listing(id=9, price=base * 0.69), make_listing(id=1, price=base * 0.7499)
+    assert (pre_score(nueve), pre_score(ocho)) == (9.0, 8.0)
+    assert [x.id for x in apply_pre_scores(FakeDB(), [ocho, nueve]).candidates] == [9, 1]
+
+
+@pytest.mark.parametrize("ppm2, score", [
+    (600, 9.0), (700, 9.0), (701, 8.0), (750, 8.0), (751, 7.0), (800, 7.0),
+    (801, 5.0), (850, 5.0), (851, 3.0), (900, 3.0), (901, 1.0), (1000, 1.0), (1200, 1.0),
+])
+def test_umbrales_exactos_con_mercado_de_1000(monkeypatch, ppm2, score):
+    """Con mercado = 1.000 €/m² los porcentajes son exactos: 30 % → 9, 25 % → 8, 20 % → 7, 15 % → 5, 10 % → 3."""
+    from backend.agents import pre_scorer
+    monkeypatch.setattr(pre_scorer, "get_market_price", lambda *a: 1000.0)
+    assert pre_scorer.pre_score(make_listing(size_m2=100.0, price=ppm2 * 100.0)) == score
+
+
+def test_pre_score_conserva_exactamente_los_umbrales():
+    """Misma regla que antes del refactor a discount_pct: umbrales sobre (€/m² − mercado) / mercado."""
+    from backend.agents.market_prices import get_market_price
+    from backend.agents.pre_scorer import pre_score
+
+    def original(listing):
+        market = get_market_price(listing.neighborhood, listing.district)
+        vs_pct = (listing.price / listing.size_m2 - market) / market * 100
+        for limit, score in ((-30, 9.0), (-25, 8.0), (-20, 7.0), (-15, 5.0), (-10, 3.0)):
+            if vs_pct <= limit:
+                return score
+        return 1.0
+
+    market = get_market_price("Lavapiés", "Centro")
+    for size in (37.0, 50.0, 83.0):
+        for pct in [x / 10 for x in range(0, 500)] + [10, 15, 20, 25, 30]:
+            listing = make_listing(size_m2=size, price=market * size * (1 - pct / 100))
+            assert pre_score(listing) == original(listing), (size, pct)
+
+
 # ── Runner: intentos, llm y failed ─────────────────────────────────────────────
 
 def _score(listing, client):

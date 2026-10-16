@@ -88,7 +88,10 @@ def _raiser(exc):
 class FakePage:
     def __init__(self, api, nav=((200, {}),), title="Wallapop"):
         self.api, self.nav, self.title_text = api, list(nav), title
-        self.handlers, self.gotos, self.fetches = [], 0, []
+        self.handlers, self.gotos, self.fetches, self.routes = [], 0, [], []
+
+    async def route(self, pattern, handler):
+        self.routes.append((pattern, handler))
 
     def on(self, event, handler):
         assert event == "response"
@@ -628,3 +631,149 @@ def test_un_listing_con_m2_en_la_descripcion_ya_se_puede_puntuar():
     con = as_listing(scraper._parse_item(item(1, description="Piso de 62 m² para reformar")))
     sin = as_listing(scraper._parse_item(item(2, description="Piso para reformar")))
     assert (unscorable_reason(con), unscorable_reason(sin)) == (None, "no_size")
+
+
+# ── 5. Coordenadas fijas de Madrid en el pedido ────────────────────────────────
+
+APP_URL = (f"{ws.API_URL}?keywords=piso+en+venta+madrid&source=deep_link&distance_in_km=15&category_id=200"
+           "&search_id=abc&latitude=40.4252&longitude=-3.6927&order_by=most_relevance&search_country=ES")
+
+
+def test_la_busqueda_usa_las_mismas_coordenadas_que_se_fijan():
+    query = parse_qs(urlparse(WallapopScraper.SEARCH_URL).query)
+    assert (float(query["latitude"][0]), float(query["longitude"][0])) == (ws.MADRID_LAT, ws.MADRID_LON)
+
+
+def test_pin_coordinates_cambia_solo_latitud_y_longitud():
+    pinned = ws.pin_coordinates(APP_URL.replace("40.4252", "41.3874").replace("-3.6927", "2.1686"))
+    before, after = parse_qs(urlparse(APP_URL).query), parse_qs(urlparse(pinned).query)
+    assert (after["latitude"], after["longitude"]) == ([str(ws.MADRID_LAT)], [str(ws.MADRID_LON)])
+    assert {k: v for k, v in after.items() if k not in ("latitude", "longitude")} == \
+           {k: v for k, v in before.items() if k not in ("latitude", "longitude")}
+    assert pinned.startswith(ws.API_URL + "?")
+
+
+def test_pin_coordinates_agrega_las_coordenadas_si_el_pedido_no_las_trae():
+    pinned = ws.pin_coordinates(f"{ws.API_URL}?keywords=piso")
+    assert ws.request_coordinates(pinned) == (str(ws.MADRID_LAT), str(ws.MADRID_LON))
+
+
+def test_request_coordinates():
+    assert ws.request_coordinates(APP_URL) == ("40.4252", "-3.6927")
+    assert ws.request_coordinates(f"{ws.API_URL}?keywords=x") == (None, None)
+
+
+def test_el_crawl_registra_la_ruta_que_fija_las_coordenadas(sleeps):
+    page = FakePage(FakeApi([[1, 2]]))
+    crawl(page)
+    ((pattern, handler),) = page.routes
+    assert pattern == ws.SECTION_ROUTE and "search/section" in pattern
+
+    sent = []
+
+    async def continue_(url=None):
+        sent.append(url)
+    asyncio.run(handler(SimpleNamespace(request=SimpleNamespace(url=APP_URL), continue_=continue_)))
+    assert ws.request_coordinates(sent[0]) == (str(ws.MADRID_LAT), str(ws.MADRID_LON))
+
+
+def test_si_reescribir_el_pedido_falla_el_pedido_sigue_sin_cambios(sleeps):
+    page = FakePage(FakeApi([[1, 2]]))
+    crawl(page)
+    handler = page.routes[0][1]
+    sent = []
+
+    async def continue_(url=None):
+        if url is not None:
+            raise RuntimeError("route ya manejada")
+        sent.append("sin cambios")
+    asyncio.run(handler(SimpleNamespace(request=SimpleNamespace(url=APP_URL), continue_=continue_)))
+    assert sent == ["sin cambios"]
+
+
+def test_la_ruta_se_instala_antes_de_navegar(sleeps):
+    page = FakePage(FakeApi([[1, 2]]))
+    order = []
+    original_route, original_goto = page.route, page.goto
+
+    async def route(*a):
+        order.append("route")
+        await original_route(*a)
+
+    async def goto(*a, **k):
+        order.append("goto")
+        return await original_goto(*a, **k)
+    page.route, page.goto = route, goto
+    crawl(page)
+    assert order == ["route", "goto"]
+
+
+# ── 6. empty_first_page + detalle de la primera respuesta ──────────────────────
+
+@pytest.fixture
+def wallapop_log(caplog):
+    import logging
+    logger = logging.getLogger(ws.__name__)
+    logger.disabled = False
+    caplog.set_level(logging.INFO, logger=ws.__name__)
+    return caplog
+
+
+def first_page_body(items, meta):
+    body = {"data": {"section": {"items": items}}}
+    if meta is not ...:
+        body["meta"] = meta
+    return body
+
+
+@pytest.mark.parametrize("meta", [{"next_page": "tok2"}, {"next_page": None}, {}])
+def test_primera_pagina_sin_anuncios_es_empty_first_page(sleeps, meta):
+    page = FakePage(FakeApi([[1]], first_body=first_page_body([], meta)))
+    result = crawl(page)
+    assert (result.complete, result.incomplete_reason, result.listings) == (False, "empty_first_page", [])
+    assert page.fetches == []                                       # no se sigue paginando
+
+
+def test_primera_pagina_con_items_sin_id_es_empty_first_page(sleeps):
+    body = first_page_body([{"title": "sin id"}, {"id": ""}], {"next_page": "tok2"})
+    result = crawl(FakePage(FakeApi([[1]], first_body=body)))
+    assert (result.complete, result.incomplete_reason) == (False, "empty_first_page")
+
+
+def test_una_pagina_posterior_vacia_sigue_siendo_repeated_page(sleeps):
+    """empty_first_page es solo para la página 1; las demás conservan su motivo."""
+    result = crawl(FakePage(FakeApi([[1, 2, 3], [], [4]])))
+    assert result.incomplete_reason == "repeated_page"
+
+
+def test_formato_inesperado_en_la_primera_pagina_sigue_siendo_unparseable(sleeps):
+    result = crawl(FakePage(FakeApi([[1]], first_body={"data": {}, "meta": {"next_page": "t"}})))
+    assert result.incomplete_reason == "unparseable_page"
+
+
+def test_empty_first_page_loguea_items_coordenadas_y_claves_de_meta(sleeps, wallapop_log):
+    api = FakeApi([[1]], first_body=first_page_body([], {"next_page": "tok2", "x": 1}))
+    response = api.first_response()
+    response.url = APP_URL
+    api.first_response = lambda: response
+    crawl(FakePage(api))
+
+    errors = [r.getMessage() for r in wallapop_log.records if r.levelname == "ERROR"]
+    (message,) = [m for m in errors if "Primera página sin anuncios" in m]
+    for fragment in ("HTTP 200", "ítems=0", "con id=0", "lat=40.4252", "lon=-3.6927",
+                     "claves de meta=['next_page', 'x']", "next_page=sí", "claves de body=['data', 'meta']"):
+        assert fragment in message
+
+
+def test_la_primera_respuesta_se_loguea_tambien_cuando_va_bien(sleeps, wallapop_log):
+    crawl(FakePage(FakeApi([ids_range(1, 4)])))
+    infos = [r.getMessage() for r in wallapop_log.records if "Primera respuesta" in r.getMessage()]
+    assert len(infos) == 1 and "ítems=3 (con id=3)" in infos[0] and "next_page=no" in infos[0]
+    assert not [r for r in wallapop_log.records if r.levelname == "ERROR"]
+
+
+def test_empty_first_page_es_un_motivo_aparte():
+    from backend.scrapers import base_scraper as bs
+    reasons = {bs.EMPTY, bs.EMPTY_FIRST_PAGE, bs.REPEATED_PAGE, bs.BLOCKED, bs.NO_API}
+    assert len(reasons) == 5 and bs.EMPTY_FIRST_PAGE == "empty_first_page"
+    assert len(bs.EMPTY_FIRST_PAGE) <= 30                           # cabe en scrape_runs.incomplete_reason

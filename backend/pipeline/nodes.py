@@ -162,7 +162,7 @@ async def enrich_sizes(state: PipelineState, config: RunnableConfig) -> dict:
 
 def pre_score(state: PipelineState) -> dict:
     """Relee de la DB los pendientes del alcance (re-ejecutable: ignora lo ya puntuado).
-    Con max_llm_calls, solo los primeros N candidatos (por id) van a Claude; el resto
+    Con max_llm_calls, solo los N con mejor pre-score (a igual pre-score, el más viejo) van a Claude; el resto
     queda en 'pending' para la próxima corrida."""
     ids = state.get("pending_ids", [])
     with _session() as db:

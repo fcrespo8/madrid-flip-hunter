@@ -13,6 +13,7 @@ BLOCKED = "blocked"                # el sitio rechazó la request (401/403/429),
 NO_API = "no_api"                  # la página cargó bien pero no hizo la llamada a la API que se espera interceptar
 BAD_PAGINATION = "bad_pagination"  # la API no informó cuántas páginas hay: no se sabe si se llegó al final
 EMPTY = "empty"                    # no trajo ningún listing (p. ej. bloqueado)
+EMPTY_FIRST_PAGE = "empty_first_page"  # la API respondió 200 pero la primera página no trae anuncios (bloqueo suave, geo)
 PAGE_CAP = "page_cap"              # cortó por el tope de páginas, quedaba catálogo
 REPEATED_PAGE = "repeated_page"    # una página no trajo nada nuevo (el sitio ignora el parámetro de página)
 NO_PAGINATION = "no_pagination"    # el scraper no recorre más allá de la primera página
@@ -132,6 +133,11 @@ class BaseScraper(ABC):
     # publicado? Es True para los listados exhaustivos. Una fuente que lo apague (False) sigue
     # registrando `complete` en scrape_runs, pero deactivate_stale nunca actúa sobre ella.
     supports_deactivation: bool = True
+
+    # ¿Vale la pena que enrich_sizes baje la página de un listing de esta fuente para leer los m²?
+    # Una fuente que lo apague (False) queda fuera de size_enrichment_query: sus listings sin
+    # tamaño siguen 'unscorable'/'no_size' (o 'pending' hasta el pre-score) sin gastar descargas.
+    supports_size_enrichment: bool = True
 
     def __init__(self, source_name: str):
         self.source_name = source_name

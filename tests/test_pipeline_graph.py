@@ -268,3 +268,22 @@ def test_pipeline_max_llm_calls_difiere_el_resto(cleanup):
     assert state["candidate_ids"] == [rows["g1"].id]
     assert state["deferred_ids"] == [rows["g2"].id, rows["g3"].id]
     assert [rows[k].score_status for k in ("g1", "g2", "g3")] == ["llm", "pending", "pending"]
+
+
+@requires_test_db
+def test_el_tope_de_llamadas_se_lleva_a_los_mejores_pre_scores_no_a_los_primeros_ids(cleanup):
+    from backend.pipeline.graph import run_pipeline
+
+    base = _raw(0).price
+    # g1 llega primero pero es el peor candidato (pre-score 7); g3 es 9; g2 es 8.
+    raws = [_raw(1, price=base * 0.78), _raw(2, price=base * 0.72), _raw(3, price=base * 0.65)]
+    fake = FakeClient(tool_input=VALID_RESULT)
+    state = asyncio.run(run_pipeline(["fake"], max_llm_calls=2, checkpointer=InMemorySaver(),
+                                     scrapers=_scrapers(raws), scoring_client=fake,
+                                     retriever=no_docs_retriever, fetch_html=_no_page))
+    rows = _by_external_id()
+
+    assert state["candidate_ids"] == [rows["g3"].id, rows["g2"].id]
+    assert state["deferred_ids"] == [rows["g1"].id]
+    assert [rows[k].score_status for k in ("g1", "g2", "g3")] == ["pending", "llm", "llm"]
+    assert len(fake.messages.calls) == 2
