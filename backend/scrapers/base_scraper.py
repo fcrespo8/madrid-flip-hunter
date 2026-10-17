@@ -3,6 +3,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
+import requests
+
 # Un barrido es "completo" si vio al menos esta fracción de lo que el sitio dice tener.
 COVERAGE_MIN = 0.9
 
@@ -19,6 +21,15 @@ REPEATED_PAGE = "repeated_page"    # una página no trajo nada nuevo (el sitio i
 NO_PAGINATION = "no_pagination"    # el scraper no recorre más allá de la primera página
 UNPARSEABLE = "unparseable_page"   # la página tenía ítems pero ninguno se pudo leer
 LOW_COVERAGE = "low_coverage"      # vio menos del COVERAGE_MIN de lo que el sitio informa
+
+
+def _is_retryable(exc: requests.RequestException) -> bool:
+    """Reintentar lo transitorio (red, timeout, 5xx, 429, 408, JSON roto). Un 4xx como
+    403 o 404 no se arregla esperando: se corta de una."""
+    status = getattr(getattr(exc, "response", None), "status_code", None)
+    if status is not None and 400 <= status < 500:
+        return status in (408, 429)
+    return True
 
 
 @dataclass

@@ -364,12 +364,18 @@ def test_tecnocasa_el_error_de_http_no_se_confunde_con_el_generico():
 @pytest.mark.parametrize("status, expected", [(500, True), (502, True), (503, True), (429, True), (408, True),
                                               (400, False), (401, False), (403, False), (404, False)])
 def test_is_retryable_por_status(status, expected):
-    from backend.scrapers.tecnocasa_scraper import _is_retryable
+    from backend.scrapers.base_scraper import _is_retryable
     assert _is_retryable(requests.HTTPError("x", response=FakeResp(status=status))) is expected
 
 
+def test_is_retryable_vive_en_base_scraper_y_lo_comparten_tecnocasa_y_donpiso():
+    from backend.scrapers import base_scraper, donpiso_scraper, tecnocasa_scraper
+    assert tecnocasa_scraper._is_retryable is base_scraper._is_retryable
+    assert donpiso_scraper._is_retryable is base_scraper._is_retryable
+
+
 def test_is_retryable_errores_sin_respuesta():
-    from backend.scrapers.tecnocasa_scraper import _is_retryable
+    from backend.scrapers.base_scraper import _is_retryable
     assert _is_retryable(requests.ConnectionError("x")) and _is_retryable(requests.Timeout("x"))
     assert _is_retryable(requests.exceptions.JSONDecodeError("x", "doc", 0))
 

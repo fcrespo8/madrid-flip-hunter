@@ -21,9 +21,8 @@ import requests
 from bs4 import BeautifulSoup
 
 from .base_scraper import (
-    BAD_PAGINATION, EMPTY, HTTP_ERROR, PAGE_CAP, REPEATED_PAGE, BaseScraper, RawListing, ScrapeResult,
+    BAD_PAGINATION, EMPTY, HTTP_ERROR, PAGE_CAP, REPEATED_PAGE, BaseScraper, RawListing, ScrapeResult, _is_retryable,
 )
-from .tecnocasa_scraper import _is_retryable   # mismo criterio de reintento: red/5xx/429/408 sí, otros 4xx no
 
 logger = logging.getLogger(__name__)
 

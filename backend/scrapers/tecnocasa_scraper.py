@@ -12,7 +12,8 @@ from typing import Optional
 import requests
 
 from .base_scraper import (
-    BAD_PAGINATION, HTTP_ERROR, PAGE_CAP, REPEATED_PAGE, BaseScraper, RawListing, ScrapeResult, as_count,
+    BAD_PAGINATION, HTTP_ERROR, PAGE_CAP, REPEATED_PAGE, BaseScraper, RawListing, ScrapeResult, _is_retryable,
+    as_count,
 )
 
 logger = logging.getLogger(__name__)
@@ -45,15 +46,6 @@ BASE_PARAMS = {
     "province": "M",
     "region": "cma",
 }
-
-
-def _is_retryable(exc: requests.RequestException) -> bool:
-    """Reintentar lo transitorio (red, timeout, 5xx, 429, 408, JSON roto). Un 4xx como
-    403 o 404 no se arregla esperando: se corta de una."""
-    status = getattr(getattr(exc, "response", None), "status_code", None)
-    if status is not None and 400 <= status < 500:
-        return status in (408, 429)
-    return True
 
 
 class TecnocasaScraper(BaseScraper):
