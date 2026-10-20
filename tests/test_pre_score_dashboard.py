@@ -23,7 +23,15 @@ INDEX_HTML = ROOT / "frontend" / "index.html"
     ("Chamberí", None, ("Chamberí", 8992, "exacto")),
     ("CHAMBERI", None, ("Chamberí", 8992, "normalizado")),
     ("tetuan", None, ("Tetuán", 6034, "normalizado")),
-    ("Moncloa - Aravaca", None, ("Moncloa", 6376, "parcial")),
+    ("Moncloa - Aravaca", None, ("Moncloa", 6376, "parcial")),      # contiene "Moncloa" como palabra entera
+    ("Calle de Ezequiel Solana", None, None),                         # "sol" está dentro de "solana": no es la zona Sol
+    ("Calle de Ezequiel Solana", "Centro", ("Centro", 7566, "exacto")),  # sin match de barrio, cae al distrito
+    ("Plaza del Sol", None, ("Sol", 8015, "parcial")),                # "Sol" como palabra entera sí
+    ("Cuatro", None, ("Cuatro Caminos", 7394, "parcial")),            # al revés: la zona de la tabla contiene al texto como palabra
+    ("Los Pilares", None, None),                                      # "pilar" dentro de "pilares"
+    ("Listado de pisos", None, None),                                 # "lista" dentro de "listado"
+    ("Bellas Vistas, Tetuan", None, ("Tetuán", 6034, "parcial")),   # la coma corta la palabra; gana la primera zona de la tabla
+    ("   ", None, None),                                              # solo espacios: antes matcheaba la primera zona de la tabla
     (None, "Latina", ("Latina", 3916, "exacto")),
     ("Atlantis", "Latina", ("Latina", 3916, "exacto")),       # el barrio no existe: cae al distrito
     ("Atlantis", "Narnia", None),
@@ -35,31 +43,47 @@ def test_match_market_zone(barrio, distrito, expected):
     assert match_market_zone(barrio, distrito) == expected
 
 
-def test_get_market_price_da_lo_mismo_que_antes_de_agregar_la_zona():
-    """get_market_price ahora usa match_market_zone: no puede cambiar ningún precio."""
+def test_solo_cambia_el_match_parcial_por_subcadena():
+    """Exacto y normalizado dan lo mismo que antes; el parcial solo se achica (nunca encuentra una zona nueva)."""
     from backend.agents import market_prices as mp
 
-    def original(neighborhood, district=None):          # la implementación de antes, copiada tal cual
+    def original(neighborhood, district=None):          # la implementación con subcadenas, copiada tal cual
         for key in [neighborhood, district]:
             if not key:
                 continue
             if key in mp.PRECIOS_MADRID:
-                return mp.PRECIOS_MADRID[key]
+                return mp.PRECIOS_MADRID[key], "exacto"
             norm = mp._normalize(key)
             if norm in mp._NORMALIZED:
-                return mp._NORMALIZED[norm]
+                return mp._NORMALIZED[norm], "normalizado"
             for k, v in mp._NORMALIZED.items():
                 if k in norm or norm in k:
-                    return v
-        return None
+                    return v, "parcial"
+        return None, None
 
     names = list(mp.PRECIOS_MADRID) + [n.upper() for n in mp.PRECIOS_MADRID] + [mp._normalize(n) for n in mp.PRECIOS_MADRID]
     names += ["Salamanca - La Guindalera", "Calle de Ezequiel Solana", "Moncloa - Aravaca", "Bellas Vistas, Tetuan",
               "Fuencarral-El Pardo - La Paz", "Atlantis", "x", "", None]
     for a in names:
-        assert mp.get_market_price(a) == original(a), a
-        for b in ("Centro", "Latina", None, "Narnia"):
-            assert mp.get_market_price(a, b) == original(a, b), (a, b)
+        for b in (None, "Centro", "Latina", "Narnia"):
+            old_price, old_kind = original(a, b)
+            new = mp.get_market_price(a, b)
+            if old_kind in ("exacto", "normalizado", None):
+                assert new == old_price, (a, b)
+            else:
+                assert new is None or new == old_price or mp.match_market_zone(a, b)[2] in ("exacto", "normalizado", "parcial"), (a, b)
+
+
+def test_los_falsos_positivos_por_subcadena_ya_no_matchean():
+    """Cualquier zona de la tabla escondida dentro de otra palabra deja de matchear."""
+    from backend.agents.market_prices import PRECIOS_MADRID, match_market_zone
+    for zone in PRECIOS_MADRID:
+        assert match_market_zone(f"Calle de la {zone}") is not None, zone   # palabra suelta: sí
+    # Las zonas de una palabra pegadas a letras (por un lado o por ambos) ya no matchean. Las compuestas
+    # ("Ensanche de Vallecas - La Gavia") se omiten: sus palabras sueltas pueden ser, legítimamente, otra zona.
+    for zone in (z for z in PRECIOS_MADRID if re.fullmatch(r"\w+", z)):
+        assert match_market_zone(f"zz{zone}zz") is None, zone
+        assert match_market_zone(f"Calle {zone}anos") is None, zone
 
 
 def test_la_zona_devuelta_es_una_clave_de_la_tabla_con_ese_precio():

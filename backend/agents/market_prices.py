@@ -4,6 +4,8 @@ Fuente: Idealista — https://www.idealista.com/sala-de-prensa/informes-precio-v
 Última actualización: abril 2026
 RECORDATORIO: actualizar cada 2 meses aproximadamente.
 """
+import re
+from functools import lru_cache
 
 # {barrio/distrito: precio_m2}
 PRECIOS_MADRID: dict[str, float] = {
@@ -100,6 +102,17 @@ for _k in PRECIOS_MADRID:
     _ZONE_BY_NORMALIZED.setdefault(_normalize(_k), _k)
 
 
+@lru_cache(maxsize=None)
+def _word_pattern(phrase: str) -> re.Pattern:
+    return re.compile(rf"(?<!\w){re.escape(phrase)}(?!\w)")
+
+
+def _contains_words(text: str, phrase: str) -> bool:
+    """¿`phrase` aparece en `text` como palabra o frase completa? Los bordes son cualquier
+    carácter que no sea letra o dígito (espacio, guion, coma...)."""
+    return bool(phrase) and _word_pattern(phrase).search(text) is not None
+
+
 def match_market_zone(neighborhood: str | None, district: str | None = None) -> tuple[str, float, str] | None:
     """(zona de la tabla, precio €/m², tipo de match) o None. El tipo es 'exacto', 'normalizado' o
     'parcial' (una zona contiene a la otra: es el menos fiable). Prueba primero el barrio y
@@ -114,9 +127,12 @@ def match_market_zone(neighborhood: str | None, district: str | None = None) -> 
         norm = _normalize(key)
         if norm in _NORMALIZED:
             return _ZONE_BY_NORMALIZED[norm], _NORMALIZED[norm], "normalizado"
-        # Parcial
+        # Parcial: una zona contiene a la otra como palabra(s) completa(s), no como subcadena
+        # ("Calle de Ezequiel Solana" no es "Sol"; "Moncloa - Aravaca" sí contiene "Moncloa").
+        if not norm:
+            continue
         for k, v in _NORMALIZED.items():
-            if k in norm or norm in k:
+            if _contains_words(norm, k) or _contains_words(k, norm):
                 return _ZONE_BY_NORMALIZED[k], v, "parcial"
     return None
 
