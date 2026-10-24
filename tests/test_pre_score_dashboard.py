@@ -193,13 +193,12 @@ def test_la_migracion_agrega_y_quita_exactamente_esas_columnas():
     assert all(c.args[0].value == "listings" for c in calls("upgrade", "add_column") + calls("downgrade", "drop_column"))
 
 
-def test_la_migracion_cuelga_de_scrape_runs_y_es_la_unica_cabeza():
+def test_la_migracion_cuelga_de_scrape_runs_y_no_hay_ramas():
     from alembic.config import Config
     from alembic.script import ScriptDirectory
     script = ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini")))
-    heads = script.get_heads()
-    assert len(heads) == 1
-    rev = script.get_revision(heads[0])
+    assert len(script.get_heads()) == 1
+    rev = script.get_revision("d5e9a2c6b1f4")
     assert rev.down_revision == "c4d8f1a7e3b2" and "pre_score" in rev.doc
 
 
