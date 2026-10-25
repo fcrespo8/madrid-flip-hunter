@@ -1,4 +1,4 @@
-from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .database import Base
@@ -23,6 +23,10 @@ class Zone(Base):
     __table_args__ = (
         CheckConstraint("level IN ('ciudad', 'distrito', 'barrio')", name="ck_zones_level"),
         UniqueConstraint("level", "code", name="uq_zones_level_code"),
+        # La ciudad no tiene código (NULL) y UNIQUE (level, code) no ve duplicados con NULL: este índice
+        # parcial garantiza que haya una sola fila de nivel 'ciudad'.
+        Index("uq_zones_single_ciudad", "level", unique=True,
+              postgresql_where=text("level = 'ciudad'"), sqlite_where=text("level = 'ciudad'")),
         Index("ix_zones_name_norm", "name_norm"),
         Index("ix_zones_parent_id", "parent_id"),
     )

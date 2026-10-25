@@ -156,11 +156,11 @@ def test_la_migracion_se_deshace_en_orden_inverso():
     assert dropped == ["zone_aliases", "zones"]                                       # el alias depende de la zona
 
 
-def test_la_migracion_cuelga_de_pre_score_y_es_la_cabeza():
+def test_la_migracion_cuelga_de_pre_score_y_no_hay_ramas():
     from alembic.config import Config
     from alembic.script import ScriptDirectory
     script = ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini")))
-    assert script.get_heads() == ["e6f1b3d7c2a5"]
+    assert len(script.get_heads()) == 1
     assert script.get_revision("e6f1b3d7c2a5").down_revision == "d5e9a2c6b1f4"
 
 
@@ -332,6 +332,8 @@ def test_restricciones_de_la_base(clean_zones):
 
     fails(Zone(level="manzana", code="9", name="x", name_norm="x"))                              # nivel inválido
     fails(Zone(level="barrio", code="011", name="otra", name_norm="otra"))                       # (nivel, código) repetido
+    fails(Zone(level="ciudad", code=None, name="Madrid", name_norm="madrid"))                    # una sola ciudad (código NULL)
+    fails(Zone(level="ciudad", code="00", name="Madrid", name_norm="madrid"))
     fails(ZoneAlias(alias_norm="palacio", zone_id=zone_id, kind="barrio", source="manual"))      # alias repetido
     fails(ZoneAlias(alias_norm="nuevo", zone_id=zone_id, kind="calle", source="manual"))         # tipo inválido
     fails(ZoneAlias(alias_norm="nuevo", zone_id=zone_id, kind="barrio", source="web"))           # origen inválido
