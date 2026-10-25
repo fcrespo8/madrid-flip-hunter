@@ -6,12 +6,15 @@ pasen (hace flush, nunca commit): quien la llama decide si confirma o descarta. 
 import re
 import unicodedata
 from dataclasses import dataclass
-from typing import Optional
+from typing import TYPE_CHECKING, Iterable, Optional
 
 from sqlalchemy.orm import Session
 
 from backend.market.registral import CITY_NAME, RegistralRow
 from backend.models.zone import Zone, ZoneAlias
+
+if TYPE_CHECKING:
+    from backend.market.aliases import AliasSpec
 
 ZoneKey = tuple[str, Optional[str]]          # (level, code); la ciudad es ("ciudad", None)
 CITY_KEY: ZoneKey = ("ciudad", None)
@@ -80,17 +83,22 @@ class SeedResult:
     zones_unchanged: int = 0
     aliases_created: int = 0
     aliases_updated: int = 0
+    manual_created: int = 0
+    manual_updated: int = 0
     zones_not_in_source: int = 0
+    manual_not_in_source: int = 0      # alias manuales de la base que ya no están en el archivo (no se borran)
 
     @property
     def changed(self) -> bool:
-        return bool(self.zones_created or self.zones_updated or self.aliases_created or self.aliases_updated)
+        return bool(self.zones_created or self.zones_updated or self.aliases_created or self.aliases_updated
+                    or self.manual_created or self.manual_updated)
 
 
-def seed_zones(db: Session, specs: list[ZoneSpec]) -> SeedResult:
+def seed_zones(db: Session, specs: list[ZoneSpec], manual_aliases: Iterable["AliasSpec"] = ()) -> SeedResult:
     """Crea las zonas que faltan, corrige las que cambiaron de nombre o de padre, y se asegura de que
-    cada una tenga su nombre oficial como alias ('official'). No borra nada. Correrla de nuevo no cambia
-    nada. Hace flush, no commit."""
+    cada una tenga su nombre oficial como alias ('official'). Además carga los alias de `manual_aliases`
+    (data/aliases.csv) como 'manual': el archivo manda sobre un alias manual que ya esté en la base, pero
+    nunca pisa un alias oficial. No borra nada. Correrla de nuevo no cambia nada. Hace flush, no commit."""
     result = SeedResult()
     existing: dict[ZoneKey, Zone] = {(z.level, z.code): z for z in db.query(Zone).all()}
     in_source = {s.key for s in specs}
@@ -128,5 +136,25 @@ def seed_zones(db: Session, specs: list[ZoneSpec]) -> SeedResult:
         elif (alias.kind, alias.source) != (spec.level, "official") and alias.source == "official":
             alias.kind = spec.level
             result.aliases_updated += 1
+    manual_aliases = list(manual_aliases)
+    in_file = {a.alias_norm for a in manual_aliases}
+    result.manual_not_in_source = sum(1 for n, a in aliases.items() if a.source == "manual" and n not in in_file)
+    for spec in manual_aliases:
+        zone = existing.get(spec.target) if spec.target is not None else None
+        if spec.target is not None and zone is None:
+            raise ZoneSeedError(f"el alias manual {spec.text!r} apunta a {spec.target}, que no está entre las zonas sembradas")
+        kind = zone.level if zone is not None else "out_of_scope"
+        zone_id = zone.id if zone is not None else None
+        alias = aliases.get(spec.alias_norm)
+        if alias is None:
+            alias = ZoneAlias(alias_norm=spec.alias_norm, zone_id=zone_id, kind=kind, source="manual", note=spec.note)
+            db.add(alias)
+            aliases[spec.alias_norm] = alias
+            result.manual_created += 1
+        elif alias.source == "official":
+            raise ZoneSeedError(f"el alias manual {spec.text!r} choca con un alias oficial (zona id {alias.zone_id}); no se pisa.")
+        elif (alias.zone_id, alias.kind, alias.note) != (zone_id, kind, spec.note):
+            alias.zone_id, alias.kind, alias.note = zone_id, kind, spec.note
+            result.manual_updated += 1
     db.flush()
     return result

@@ -145,7 +145,7 @@ Medido con 2.241 listings que resuelven en ambas referencias y un factor IPV **s
 | 2 | **Hecho:** `backend/market/registral.py`. Parser puro del CSV: BOM, `;`, `5.333,59`, **`..` y `0,00` → sin dato**. Tests con un fragmento real y casos de borde. | no |
 | 3 | **Hecho:** migración `e6f1b3d7c2a5` (`zones` + `zone_aliases`) y `scripts/seed_zones.py`, que siembra 153 zonas oficiales y sus alias `official` (idempotente; dry-run por defecto). | no |
 | 4 | **Hecho:** `backend/market/resolver.py` (`ZoneResolver`, `load_resolver`, `resolve`) + tests (Moncloa-Aravaca, Ezequiel Solana, San Blas, `out_of_scope`) y el índice parcial `uq_zones_single_ciudad` (migración `f7a2c4e8d9b3`). | no |
-| 5 | Informe de cobertura (solo lectura): textos sin resolver por frecuencia, y `data/aliases.csv` con los alias manuales. Meta > 95 %. | no |
+| 5 | **Hecho:** `scripts/zone_coverage.py` (solo lectura), `data/aliases.csv` (129 alias manuales) y su carga en `seed_zones`. Cobertura medida el 2026-10-25 sobre producción: 77,0 % → 98,6 % con zona (99,1 % reconociendo otros municipios). Meta > 95 % cumplida. | no |
 | 6 | Migración `market_imports` + `market_prices`; importador del registral, idempotente por hash, con tests de recarga e historial. | no |
 | 7 | Migración `market_indices`; cargador del IPV del INE (API o archivo; los tests no usan red) y `rollforward_factor`. | no |
 | 8 | **Modo sombra:** columnas nuevas en `listings`; el pre-scorer calcula y guarda `zone_id`, `discount_registral`, `market_level`, `market_version` **sin tocar** `pre_score` ni los candidatos. Script que compara ambos sistemas. | no |

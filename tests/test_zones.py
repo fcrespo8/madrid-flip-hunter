@@ -183,6 +183,12 @@ def clean_zones():
     wipe()
 
 
+def _manual_count() -> int:
+    from backend.market.aliases import load_aliases_csv
+    specs = zone_specs_from_rows(load_registral_csv(CSV_PATH))
+    return len(load_aliases_csv(ROOT / "data" / "aliases.csv", specs))
+
+
 def _counts():
     from backend.models.database import SessionLocal
     from backend.models.zone import Zone, ZoneAlias
@@ -352,6 +358,7 @@ def test_script_dry_run_no_escribe(clean_zones, capsys):
     assert script.main([]) == 0
     out = capsys.readouterr().out
     assert "zonas en el CSV: 153" in out and "153 nuevas" in out and "[dry-run]" in out
+    assert f"alias manuales: {_manual_count()} nuevos" in out
     assert _counts() == (0, 0)
 
 
@@ -359,13 +366,15 @@ def test_script_dry_run_no_escribe(clean_zones, capsys):
 @needs_csv
 def test_script_confirm_siembra_153_zonas_y_es_idempotente(clean_zones, capsys):
     from scripts import seed_zones as script
+    manual = _manual_count()
     assert script.main(["--confirm"]) == 0
-    assert _counts() == (153, 153)
+    assert _counts() == (153, 153 + manual)
     from backend.models.database import SessionLocal
     from backend.models.zone import Zone, ZoneAlias
     db = SessionLocal()
     assert Counter(z.level for z in db.query(Zone)) == {"ciudad": 1, "distrito": 21, "barrio": 131}
     assert db.query(ZoneAlias).filter_by(source="official").count() == 153
+    assert db.query(ZoneAlias).filter_by(source="manual").count() == manual                  # los de data/aliases.csv
     assert db.query(Zone).filter(Zone.parent_id.is_(None)).count() == 1                     # solo la ciudad
     db.close()
 
@@ -373,7 +382,7 @@ def test_script_confirm_siembra_153_zonas_y_es_idempotente(clean_zones, capsys):
     assert script.main(["--confirm"]) == 0
     out = capsys.readouterr().out
     assert "0 nuevas" in out and "0 actualizadas" in out and "ya estaba sembrado" in out
-    assert _counts() == (153, 153)
+    assert _counts() == (153, 153 + manual)
 
 
 @requires_test_db

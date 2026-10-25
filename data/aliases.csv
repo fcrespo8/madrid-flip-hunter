@@ -1,0 +1,130 @@
+texto,zona,nota
+San Blas,distrito:20,Los portales dicen 'San Blas'; el distrito oficial es San Blas-Canillejas
+Fuencarral,distrito:08,Los portales dicen 'Fuencarral'; el distrito oficial es Fuencarral-El Pardo
+Palos de Moguer,barrio:026,Nombre popular del barrio oficial Palos de la Frontera (Arganzuela)
+San Andrés,barrio:171,"San Andrés está dentro del barrio oficial Villaverde Alto, Casco Histórico de Villaverde"
+"San Andrés, Villaverde",barrio:171,"Donpiso: 'Barrio, Distrito'; ver San Andrés"
+Concepción,barrio:154,Oficial: La Concepción (Ciudad Lineal)
+Los Ángeles,barrio:175,Oficial: Ángeles (Villaverde)
+Salvador,barrio:208,Oficial: El Salvador (San Blas-Canillejas)
+Jerónimos,barrio:035,Oficial: Los Jerónimos (Retiro)
+Moncloa,distrito:09,Los portales dicen 'Moncloa'; el distrito oficial es Moncloa-Aravaca
+Embajadores - Lavapiés,barrio:012,Wallapop: zona compuesta de Idealista; se asigna el barrio oficial que la contiene (Lavapiés está en Embajadores)
+Universidad - Malasaña,barrio:015,Wallapop: zona compuesta de Idealista; se asigna el barrio oficial que la contiene (Malasaña está en Universidad)
+Justicia - Chueca,barrio:014,Wallapop: zona compuesta de Idealista; se asigna el barrio oficial que la contiene (Chueca está en Justicia)
+Cortes - Huertas,barrio:013,Wallapop: zona compuesta de Idealista; se asigna el barrio oficial que la contiene (Huertas está en Cortes)
+Nuevos Ministerios - Ríos Rosas,barrio:075,Wallapop: zona compuesta de Idealista; se asigna el barrio oficial que la contiene; aproximado (Nuevos Ministerios toca tres distritos)
+Ensanche de Vallecas - Valdecarros,barrio:183,Wallapop: zona compuesta de Idealista; se asigna el barrio oficial que la contiene (Valdecarros está en el Ensanche de Vallecas)
+Tres Olivos - Valverde,barrio:086,Wallapop: zona compuesta de Idealista; se asigna el barrio oficial que la contiene (Tres Olivos está en Valverde)
+Bernabéu - Hispanoamérica,barrio:054,Wallapop: zona compuesta de Idealista; se asigna el barrio oficial que la contiene; aproximado (el Bernabéu está en el límite con Castilla)
+Rosas - Musas,barrio:205,Wallapop: zona compuesta de Idealista; se asigna el barrio oficial que la contiene (Las Musas están en Rosas)
+Virgen del Cortijo - Manoteras,distrito:16,"Wallapop: zona compuesta de Idealista; se asigna el barrio oficial que la contiene; barrio no verificado, se usa el distrito Hortaleza"
+Piovera - Conde Orgaz,distrito:16,"Wallapop: zona compuesta de Idealista; se asigna el barrio oficial que la contiene; barrio no verificado, se usa el distrito Hortaleza"
+Valdebernardo - Valderribas,distrito:19,"Wallapop: zona compuesta de Idealista; se asigna el barrio oficial que la contiene; abarca dos barrios (Valdebernardo y Valderrivas), se usa el distrito Vicálvaro"
+Sanchinarro,distrito:16,Barrio no verificado (probablemente Valdefuentes); se usa el distrito Hortaleza
+Las Tablas,distrito:08,Barrio no verificado; se usa el distrito Fuencarral-El Pardo
+Montecarmelo,distrito:08,Barrio no verificado; se usa el distrito Fuencarral-El Pardo
+Ambroz,distrito:19,Barrio no verificado; se usa el distrito Vicálvaro
+Pau de Carabanchel,distrito:11,Barrio no verificado; se usa el distrito Carabanchel
+Centro - Justicia,barrio:014,Remax: 'Distrito - Barrio'
+Centro - Cortes,barrio:013,Remax: 'Distrito - Barrio'
+Centro - Lavapiés,barrio:012,Remax: 'Distrito - Barrio'
+Arganzuela - Las Delicias,barrio:025,Remax: 'Distrito - Barrio'
+Arganzuela - La Chopera,barrio:023,Remax: 'Distrito - Barrio'
+Retiro - Ibiza,barrio:034,Remax: 'Distrito - Barrio'
+Salamanca - La Guindalera,barrio:044,Remax: 'Distrito - Barrio'
+Salamanca - Goya,barrio:042,Remax: 'Distrito - Barrio'
+Salamanca - Castellana,barrio:046,Remax: 'Distrito - Barrio'
+Chamartín - Prosperidad,barrio:052,Remax: 'Distrito - Barrio'
+Chamartín - Hispanoamérica,barrio:054,Remax: 'Distrito - Barrio'
+Chamartín - Nueva España,barrio:055,Remax: 'Distrito - Barrio'
+Tetuán - Cuatro Caminos,barrio:062,Remax: 'Distrito - Barrio'
+Tetuán - Castillejos,barrio:063,Remax: 'Distrito - Barrio'
+Tetuán - Bellas Vistas,barrio:061,Remax: 'Distrito - Barrio'
+Tetuán - Berruguete,barrio:066,Remax: 'Distrito - Barrio'
+Chamberí - Vallehermoso,barrio:076,Remax: 'Distrito - Barrio'
+Chamberí - Gaztambide,barrio:071,Remax: 'Distrito - Barrio'
+Chamberí - Trafalgar,barrio:073,Remax: 'Distrito - Barrio'
+Fuencarral-El Pardo - La Paz,barrio:085,Remax: 'Distrito - Barrio'
+Fuencarral-El Pardo - El Pilar,barrio:084,Remax: 'Distrito - Barrio'
+Moncloa - Aravaca - El Plantío,barrio:096,Remax: 'Distrito - Barrio'
+Latina - Los Cármenes,barrio:101,Remax: 'Distrito - Barrio'
+Carabanchel - Opañel,barrio:112,Remax: 'Distrito - Barrio'
+Carabanchel - Puerta Bonita,barrio:115,Remax: 'Distrito - Barrio'
+Usera - Moscardó,barrio:125,Remax: 'Distrito - Barrio'
+Usera - Pradolongo,barrio:127,Remax: 'Distrito - Barrio'
+Puente de Vallecas - Palomeras Sureste,barrio:134,Remax: 'Distrito - Barrio'
+Puente de Vallecas - Numancia,barrio:136,Remax: 'Distrito - Barrio'
+Moratalaz - Vinateros,barrio:146,Remax: 'Distrito - Barrio'
+Moratalaz - Marroquina,barrio:143,Remax: 'Distrito - Barrio'
+Ciudad Lineal - Costillares,barrio:159,Remax: 'Distrito - Barrio'
+Ciudad Lineal - Pueblo Nuevo,barrio:152,Remax: 'Distrito - Barrio'
+Hortaleza - Apóstol Santiago,barrio:165,Remax: 'Distrito - Barrio'
+Hortaleza - Canillas,barrio:163,Remax: 'Distrito - Barrio'
+Hortaleza - Pinar del Rey,barrio:164,Remax: 'Distrito - Barrio'
+Villaverde - Butarque,barrio:173,Remax: 'Distrito - Barrio'
+Villa de Vallecas - Ensanche de Vallecas,barrio:183,Remax: 'Distrito - Barrio'
+Villa de Vallecas - Santa Eugenia,barrio:182,Remax: 'Distrito - Barrio'
+Villa de Vallecas - Casco Histórico de Vallecas,barrio:181,Remax: 'Distrito - Barrio'
+San Blas-Canillejas - Simancas,barrio:201,Remax: 'Distrito - Barrio'
+San Blas-Canillejas - El Salvador,barrio:208,Remax: 'Distrito - Barrio'
+San Blas-Canillejas - Rejas,barrio:206,Remax: 'Distrito - Barrio'
+"Lista, Salamanca",barrio:045,"Donpiso: 'Barrio, Distrito'"
+"Goya, Salamanca",barrio:042,"Donpiso: 'Barrio, Distrito'"
+"Castellana, Salamanca",barrio:046,"Donpiso: 'Barrio, Distrito'"
+"Recoletos, Salamanca",barrio:041,"Donpiso: 'Barrio, Distrito'"
+"Simancas, San Blas",barrio:201,"Donpiso: 'Barrio, Distrito'"
+"Canillejas, San Blas",barrio:207,"Donpiso: 'Barrio, Distrito'"
+"San Pascual, Ciudad Lineal",barrio:155,"Donpiso: 'Barrio, Distrito'"
+"Colina, Ciudad Lineal",barrio:157,"Donpiso: 'Barrio, Distrito'"
+"Ventas, Ciudad Lineal",barrio:151,"Donpiso: 'Barrio, Distrito'"
+"Pueblo Nuevo, Ciudad Lineal",barrio:152,"Donpiso: 'Barrio, Distrito'"
+"Bellas Vistas, Tetuan",barrio:061,"Donpiso: 'Barrio, Distrito'"
+"Cuatro Caminos, Tetuan",barrio:062,"Donpiso: 'Barrio, Distrito'"
+"Universidad, Centro",barrio:015,"Donpiso: 'Barrio, Distrito'"
+"San Isidro, Carabanchel",barrio:113,"Donpiso: 'Barrio, Distrito'"
+"Orcasur, Usera",barrio:122,"Donpiso: 'Barrio, Distrito'"
+"Moscardó, Usera",barrio:125,"Donpiso: 'Barrio, Distrito'"
+"Aluche, Latina",barrio:104,"Donpiso: 'Barrio, Distrito'"
+"Delicias, Arganzuela",barrio:025,"Donpiso: 'Barrio, Distrito'"
+"Acacias, Arganzuela",barrio:022,"Donpiso: 'Barrio, Distrito'"
+"Chopera, Arganzuela",barrio:023,"Donpiso: 'Barrio, Distrito'"
+"Pacífico, Retiro",barrio:031,"Donpiso: 'Barrio, Distrito'"
+"Ibiza, Retiro",barrio:034,"Donpiso: 'Barrio, Distrito'"
+"Fuentelarreina, Fuencarral-El Pardo",barrio:082,"Donpiso: 'Barrio, Distrito'"
+"Argüelles, Moncloa-Aravaca",barrio:092,"Donpiso: 'Barrio, Distrito'"
+"Almagro, Chamberí",barrio:074,"Donpiso: 'Barrio, Distrito'"
+"Trafalgar, Chamberí",barrio:073,"Donpiso: 'Barrio, Distrito'"
+"Alameda de Osuna, Barajas",barrio:211,"Donpiso: 'Barrio, Distrito'"
+Coslada,out_of_scope,Municipio fuera de la ciudad de Madrid
+Alcobendas,out_of_scope,Municipio fuera de la ciudad de Madrid
+San Sebastián de los Reyes,out_of_scope,Municipio fuera de la ciudad de Madrid
+Las Rozas de Madrid,out_of_scope,Municipio fuera de la ciudad de Madrid
+Las Rozas,out_of_scope,Municipio fuera de la ciudad de Madrid
+Pozuelo de Alarcón,out_of_scope,Municipio fuera de la ciudad de Madrid
+Majadahonda,out_of_scope,Municipio fuera de la ciudad de Madrid
+Getafe,out_of_scope,Municipio fuera de la ciudad de Madrid
+Leganés,out_of_scope,Municipio fuera de la ciudad de Madrid
+Alcorcón,out_of_scope,Municipio fuera de la ciudad de Madrid
+Móstoles,out_of_scope,Municipio fuera de la ciudad de Madrid
+Fuenlabrada,out_of_scope,Municipio fuera de la ciudad de Madrid
+Parla,out_of_scope,Municipio fuera de la ciudad de Madrid
+Tres Cantos,out_of_scope,Municipio fuera de la ciudad de Madrid
+Galapagar,out_of_scope,Municipio fuera de la ciudad de Madrid
+Rivas-Vaciamadrid,out_of_scope,Municipio fuera de la ciudad de Madrid
+Torrejón de Ardoz,out_of_scope,Municipio fuera de la ciudad de Madrid
+San Fernando de Henares,out_of_scope,Municipio fuera de la ciudad de Madrid
+Alcalá de Henares,out_of_scope,Municipio fuera de la ciudad de Madrid
+Valdemorillo,out_of_scope,Municipio fuera de la ciudad de Madrid
+Villaviciosa de Odón,out_of_scope,Municipio fuera de la ciudad de Madrid
+Valdetorres De Jarama,out_of_scope,Municipio fuera de la ciudad de Madrid
+Boadilla del Monte,out_of_scope,Municipio fuera de la ciudad de Madrid
+Villaviciona de Odón,out_of_scope,"Municipio fuera de la ciudad de Madrid (Villaviciosa de Odón, mal escrito en Donpiso)"
+"Los Arroyos, San Sebastián de los Reyes",out_of_scope,"Municipio fuera de la ciudad de Madrid (texto 'zona, municipio' de Redpiso)"
+"Rosa Luxemburgo, San Sebastián de los Reyes",out_of_scope,"Municipio fuera de la ciudad de Madrid (texto 'zona, municipio' de Redpiso)"
+"Este, Galapagar",out_of_scope,"Municipio fuera de la ciudad de Madrid (texto 'zona, municipio' de Redpiso)"
+"La Navata, Galapagar",out_of_scope,"Municipio fuera de la ciudad de Madrid (texto 'zona, municipio' de Redpiso)"
+"Soto De Viñuela, Tres Cantos",out_of_scope,"Municipio fuera de la ciudad de Madrid (texto 'zona, municipio' de Redpiso)"
+"Nuevo Tres Cantos, Tres Cantos",out_of_scope,"Municipio fuera de la ciudad de Madrid (texto 'zona, municipio' de Redpiso)"
+"Ayuntamiento, Tres Cantos",out_of_scope,"Municipio fuera de la ciudad de Madrid (texto 'zona, municipio' de Redpiso)"
+"Inlasa, Parla",out_of_scope,"Municipio fuera de la ciudad de Madrid (texto 'zona, municipio' de Redpiso)"
