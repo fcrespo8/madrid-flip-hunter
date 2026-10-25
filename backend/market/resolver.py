@@ -83,6 +83,24 @@ class ZoneResolver:
         return ZoneMatch(unscorable_reason=NO_ZONE, detail=DETAIL_NO_ALIAS if seen_text else DETAIL_NO_LOCATION)
 
 
+def resolver_from_specs(specs, manual_aliases=()) -> ZoneResolver:
+    """Resolvedor en memoria con lo mismo que dejaría la siembra: las zonas oficiales de `specs`
+    (con ids provisorios), su alias oficial, y los alias manuales (`AliasSpec`, ver backend/market/aliases.py).
+    Sirve para medir cobertura sin tocar la base."""
+    zones, ids = [], {}
+    for i, spec in enumerate(specs, start=1):
+        ids[spec.key] = i
+    for spec in specs:
+        zones.append(ZoneInfo(ids[spec.key], spec.level, spec.code, spec.name, ids[spec.parent] if spec.parent else None))
+    aliases = [AliasInfo(spec.name_norm, ids[spec.key], spec.level) for spec in specs]
+    for alias in manual_aliases:
+        if alias.target is None:
+            aliases.append(AliasInfo(alias.alias_norm, None, "out_of_scope"))
+        else:
+            aliases.append(AliasInfo(alias.alias_norm, ids[alias.target], alias.target[0]))
+    return ZoneResolver(zones, aliases)
+
+
 def load_resolver(db: Session) -> ZoneResolver:
     zones = [ZoneInfo(z.id, z.level, z.code, z.name, z.parent_id) for z in db.query(Zone).all()]
     aliases = [AliasInfo(a.alias_norm, a.zone_id, a.kind) for a in db.query(ZoneAlias).all()]
