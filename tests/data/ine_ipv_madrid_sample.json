@@ -1,0 +1,794 @@
+[
+ {
+  "COD": "IPV3001",
+  "Nombre": "Madrid, Comunidad de. General. Índice.",
+  "FK_Unidad": 1,
+  "FK_Escala": 1,
+  "Data": [
+   {
+    "Fecha": 1704067200000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2024,
+    "Valor": 88.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1711929600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2024,
+    "Valor": 90.5,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1719792000000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 21,
+    "Anyo": 2024,
+    "Valor": 93.2,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1727740800000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 22,
+    "Anyo": 2024,
+    "Valor": 96.1,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1735689600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2025,
+    "Valor": 97.9,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1743465600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2025,
+    "Valor": 99.3,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1751328000000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 21,
+    "Anyo": 2025,
+    "Valor": 100.9,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1759276800000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 22,
+    "Anyo": 2025,
+    "Valor": 101.9,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1767225600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2026,
+    "Valor": 104.4,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1775001600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2026,
+    "Valor": 111.0,
+    "Secreto": false
+   }
+  ]
+ },
+ {
+  "COD": "IPV3002",
+  "Nombre": "Madrid, Comunidad de. Vivienda nueva. Índice.",
+  "FK_Unidad": 1,
+  "FK_Escala": 1,
+  "Data": [
+   {
+    "Fecha": 1704067200000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2024,
+    "Valor": 90.1,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1711929600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2024,
+    "Valor": 92.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1719792000000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 21,
+    "Anyo": 2024,
+    "Valor": 94.5,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1727740800000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 22,
+    "Anyo": 2024,
+    "Valor": 97.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1735689600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2025,
+    "Valor": 98.6,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1743465600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2025,
+    "Valor": 99.6,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1751328000000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 21,
+    "Anyo": 2025,
+    "Valor": 100.4,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1759276800000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 22,
+    "Anyo": 2025,
+    "Valor": 101.4,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1767225600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2026,
+    "Valor": 103.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1775001600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2026,
+    "Valor": 106.5,
+    "Secreto": false
+   }
+  ]
+ },
+ {
+  "COD": "IPV3003",
+  "Nombre": "Madrid, Comunidad de. Vivienda de segunda mano. Índice.",
+  "FK_Unidad": 1,
+  "FK_Escala": 1,
+  "Data": [
+   {
+    "Fecha": 1704067200000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2024,
+    "Valor": 88.4,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1711929600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2024,
+    "Valor": 91.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1719792000000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 21,
+    "Anyo": 2024,
+    "Valor": 93.8,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1727740800000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 22,
+    "Anyo": 2024,
+    "Valor": 96.6,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1735689600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2025,
+    "Valor": 98.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1743465600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2025,
+    "Valor": 99.4,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1751328000000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 21,
+    "Anyo": 2025,
+    "Valor": 100.8,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1759276800000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 22,
+    "Anyo": 2025,
+    "Valor": 101.8,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1767225600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2026,
+    "Valor": 105.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1775001600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2026,
+    "Valor": 112.2,
+    "Secreto": false
+   }
+  ]
+ },
+ {
+  "COD": "IPV3004",
+  "Nombre": "Madrid, Comunidad de. Vivienda de segunda mano. Variación anual.",
+  "FK_Unidad": 1,
+  "FK_Escala": 1,
+  "Data": [
+   {
+    "Fecha": 1704067200000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2024,
+    "Valor": null,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1711929600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2024,
+    "Valor": null,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1719792000000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 21,
+    "Anyo": 2024,
+    "Valor": null,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1727740800000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 22,
+    "Anyo": 2024,
+    "Valor": null,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1735689600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2025,
+    "Valor": 10.9,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1743465600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2025,
+    "Valor": 9.2,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1751328000000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 21,
+    "Anyo": 2025,
+    "Valor": 7.5,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1759276800000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 22,
+    "Anyo": 2025,
+    "Valor": 5.4,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1767225600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2026,
+    "Valor": 7.1,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1775001600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2026,
+    "Valor": 12.9,
+    "Secreto": false
+   }
+  ]
+ },
+ {
+  "COD": "IPV3005",
+  "Nombre": "Madrid, Comunidad de. General. Variación trimestral.",
+  "FK_Unidad": 1,
+  "FK_Escala": 1,
+  "Data": [
+   {
+    "Fecha": 1704067200000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2024,
+    "Valor": null,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1711929600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2024,
+    "Valor": 2.8,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1719792000000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 21,
+    "Anyo": 2024,
+    "Valor": 3.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1727740800000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 22,
+    "Anyo": 2024,
+    "Valor": 3.1,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1735689600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2025,
+    "Valor": 1.9,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1743465600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2025,
+    "Valor": 1.4,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1751328000000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 21,
+    "Anyo": 2025,
+    "Valor": 1.6,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1759276800000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 22,
+    "Anyo": 2025,
+    "Valor": 1.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1767225600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2026,
+    "Valor": 2.4,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1775001600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2026,
+    "Valor": 6.3,
+    "Secreto": false
+   }
+  ]
+ },
+ {
+  "COD": "IPV4001",
+  "Nombre": "Cataluña. General. Índice.",
+  "FK_Unidad": 1,
+  "FK_Escala": 1,
+  "Data": [
+   {
+    "Fecha": 1704067200000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2024,
+    "Valor": 90.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1711929600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2024,
+    "Valor": 91.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1719792000000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 21,
+    "Anyo": 2024,
+    "Valor": 92.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1727740800000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 22,
+    "Anyo": 2024,
+    "Valor": 93.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1735689600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2025,
+    "Valor": 94.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1743465600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2025,
+    "Valor": 95.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1751328000000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 21,
+    "Anyo": 2025,
+    "Valor": 96.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1759276800000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 22,
+    "Anyo": 2025,
+    "Valor": 97.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1767225600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2026,
+    "Valor": 98.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1775001600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2026,
+    "Valor": 99.0,
+    "Secreto": false
+   }
+  ]
+ },
+ {
+  "COD": "IPV4002",
+  "Nombre": "Cataluña. Vivienda de segunda mano. Índice.",
+  "FK_Unidad": 1,
+  "FK_Escala": 1,
+  "Data": [
+   {
+    "Fecha": 1704067200000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2024,
+    "Valor": 91.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1711929600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2024,
+    "Valor": 92.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1719792000000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 21,
+    "Anyo": 2024,
+    "Valor": 93.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1727740800000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 22,
+    "Anyo": 2024,
+    "Valor": 94.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1735689600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2025,
+    "Valor": 95.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1743465600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2025,
+    "Valor": 96.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1751328000000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 21,
+    "Anyo": 2025,
+    "Valor": 97.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1759276800000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 22,
+    "Anyo": 2025,
+    "Valor": 98.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1767225600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2026,
+    "Valor": 99.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1775001600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2026,
+    "Valor": 100.0,
+    "Secreto": false
+   }
+  ]
+ },
+ {
+  "COD": "IPV5001",
+  "Nombre": "Total Nacional. Vivienda de segunda mano. Índice.",
+  "FK_Unidad": 1,
+  "FK_Escala": 1,
+  "Data": [
+   {
+    "Fecha": 1704067200000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2024,
+    "Valor": 92.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1711929600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2024,
+    "Valor": 93.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1719792000000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 21,
+    "Anyo": 2024,
+    "Valor": 94.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1727740800000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 22,
+    "Anyo": 2024,
+    "Valor": 95.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1735689600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2025,
+    "Valor": 96.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1743465600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2025,
+    "Valor": 97.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1751328000000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 21,
+    "Anyo": 2025,
+    "Valor": 98.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1759276800000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 22,
+    "Anyo": 2025,
+    "Valor": 99.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1767225600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2026,
+    "Valor": 100.0,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1775001600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2026,
+    "Valor": 101.0,
+    "Secreto": false
+   }
+  ]
+ },
+ {
+  "COD": "IPV6001",
+  "Nombre": "Madrid, Comunidad de. Ponderaciones. Vivienda de segunda mano.",
+  "FK_Unidad": 1,
+  "FK_Escala": 1,
+  "Data": [
+   {
+    "Fecha": 1704067200000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2024,
+    "Valor": 0.8,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1711929600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2024,
+    "Valor": 0.8,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1719792000000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 21,
+    "Anyo": 2024,
+    "Valor": 0.8,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1727740800000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 22,
+    "Anyo": 2024,
+    "Valor": 0.8,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1735689600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2025,
+    "Valor": 0.8,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1743465600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2025,
+    "Valor": 0.8,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1751328000000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 21,
+    "Anyo": 2025,
+    "Valor": 0.8,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1759276800000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 22,
+    "Anyo": 2025,
+    "Valor": 0.8,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1767225600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 19,
+    "Anyo": 2026,
+    "Valor": 0.8,
+    "Secreto": false
+   },
+   {
+    "Fecha": 1775001600000,
+    "FK_TipoDato": 1,
+    "FK_Periodo": 20,
+    "Anyo": 2026,
+    "Valor": 0.8,
+    "Secreto": false
+   }
+  ]
+ }
+]

@@ -4,13 +4,14 @@ Un barrio usa su propio precio; si no lo tiene (menos de 15 compraventas, que el
 es de un período anterior al de su distrito, usa el del distrito. Un distrito o la ciudad usan el suyo.
 Si dos cargas traen el mismo (zona, período), vale la más reciente (las anteriores se conservan).
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from typing import Optional, Union
 
 from sqlalchemy.orm import Session
 
 from backend.market.importer import SOURCE_REGISTRAL_USADAS
+from backend.market.rollforward import DEFAULT_SERIES, IndexNotAvailable, RollforwardFactor, rollforward_factor
 from backend.models.market import MarketPrice
 from backend.models.zone import Zone
 
@@ -26,6 +27,10 @@ class ReferencePrice:
     period: date                     # período del precio
     import_id: int
     fallback_reason: Optional[str] = None     # None si salió de la zona pedida
+    # Solo con update_to: el precio actualizado con el IPV, y con qué factor. price_m2 sigue siendo el original.
+    updated_price_m2: Optional[float] = None
+    rollforward: Optional[RollforwardFactor] = None
+    rollforward_error: Optional[str] = None   # por qué no se pudo actualizar (índice sin cargar, año incompleto...)
 
     @property
     def is_fallback(self) -> bool:
@@ -49,8 +54,26 @@ def _result(row: MarketPrice, level: str, reason: Optional[str] = None) -> Refer
     return ReferencePrice(row.price_m2, level, row.zone_id, row.period, row.import_id, reason)
 
 
-def get_reference_price(db: Session, zone: Union[int, Zone, object], source: str = SOURCE_REGISTRAL_USADAS) -> Optional[ReferencePrice]:
-    """None si la zona no existe, no está resuelta o ni ella ni su distrito tienen precio."""
+def get_reference_price(db: Session, zone: Union[int, Zone, object], source: str = SOURCE_REGISTRAL_USADAS, *,
+                        update_to=None, index_series: str = DEFAULT_SERIES) -> Optional[ReferencePrice]:
+    """None si la zona no existe, no está resuelta o ni ella ni su distrito tienen precio.
+
+    `update_to` (None por defecto: sin actualizar) agrega el precio actualizado con el IPV del INE:
+    'latest' = hasta el último trimestre publicado; también acepta un trimestre ('2026T2'), una fecha o un año.
+    El precio registral es un promedio anual, así que se actualiza desde el año completo de su período.
+    El original queda en `price_m2`; el factor, en `rollforward`. Si no hay índice, `rollforward_error` dice por qué
+    y `updated_price_m2` queda en None."""
+    ref = _reference_price(db, zone, source)
+    if ref is None or update_to is None:
+        return ref
+    try:
+        factor = rollforward_factor(db, ref.period.year, None if update_to == "latest" else update_to, series=index_series)
+    except IndexNotAvailable as e:
+        return replace(ref, rollforward_error=str(e))
+    return replace(ref, updated_price_m2=factor.apply(ref.price_m2), rollforward=factor)
+
+
+def _reference_price(db: Session, zone, source: str) -> Optional[ReferencePrice]:
     zone_id = _zone_id(zone)
     if zone_id is None:
         return None

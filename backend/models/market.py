@@ -46,3 +46,26 @@ class MarketPrice(Base):
         Index("ix_market_prices_zone_source_period", "zone_id", "source", "period"),
         Index("ix_market_prices_import_id", "import_id"),
     )
+
+
+class MarketIndex(Base):
+    """Un valor de un índice de precios (hoy: el IPV del INE, base 2025 = 100) para una geografía, serie y trimestre.
+    Solo se insertan filas: si el INE revisa un valor, se agrega la versión nueva y la más reciente es la que vale."""
+    __tablename__ = "market_indices"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    source: Mapped[str] = mapped_column(String(30), nullable=False)            # ine_ipv
+    geography: Mapped[str] = mapped_column(String(60), nullable=False)         # Comunidad de Madrid
+    series: Mapped[str] = mapped_column(String(20), nullable=False)            # general | nueva | segunda_mano
+    period: Mapped[str] = mapped_column(String(6), nullable=False)             # 2026T2
+    period_end: Mapped[date] = mapped_column(Date, nullable=False)             # último día del trimestre
+    value: Mapped[float] = mapped_column(Float, nullable=False)
+    import_id: Mapped[int] = mapped_column(ForeignKey("market_imports.id"), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("source", "geography", "series", "period", "import_id", name="uq_market_indices_point_import"),
+        CheckConstraint("series IN ('general', 'nueva', 'segunda_mano')", name="ck_market_indices_series"),
+        CheckConstraint("value > 0", name="ck_market_indices_value"),
+        Index("ix_market_indices_lookup", "source", "geography", "series", "period_end"),
+        Index("ix_market_indices_import_id", "import_id"),
+    )
