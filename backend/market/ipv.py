@@ -1,6 +1,14 @@
 """Cargador del IPV (índice de precios de vivienda) del INE para la Comunidad de Madrid.
 
-La API Tempus del INE devuelve, para una tabla, una lista de series:
+Tabla 79563 del INE: índices trimestrales por comunidad autónoma, base 2025 = 100 (general, vivienda nueva y de
+segunda mano). Se lee de dos formas, y `parse_ipv_content` elige por el contenido:
+
+1. El CSV que se baja de la web del INE (data/raw/79563.csv): separado por `;`, codificación cp1252, decimales con coma:
+       Total Nacional;Comunidades y Ciudades Autónomas;General, vivienda nueva y de segunda mano;Índices y tasas;Periodo;Total
+       Nacional;13 Madrid, Comunidad de;Vivienda segunda mano;Índice;2026T2;112,649
+   (las filas sin comunidad son el total nacional y se ignoran; solo se toman las filas de tipo "Índice").
+
+2. La API Tempus, que devuelve, para una tabla, una lista de series:
     [{"COD": "...", "Nombre": "Madrid, Comunidad de. General. Índice.", "Data": [
         {"Fecha": 1735689600000, "FK_Periodo": 19, "Anyo": 2025, "Valor": 98.2, ...}, ...]}, ...]
 `parse_tempus_ipv` se queda con las series de índice de la Comunidad de Madrid (general, vivienda nueva y de
@@ -10,8 +18,11 @@ Cada carga queda en market_imports (el mismo contenido dos veces no hace nada) y
 revisados a market_indices; nunca pisa. Hace flush, no commit.
 """
 import calendar
+import csv
 import hashlib
+import io
 import json
+import re
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from typing import Optional
@@ -24,7 +35,7 @@ from backend.models.market import MarketImport, MarketIndex
 
 SOURCE_INE_IPV = "ine_ipv"
 GEOGRAPHY_MADRID = "Comunidad de Madrid"
-DEFAULT_TABLE_ID = 25171           # "Índices por CCAA: general, vivienda nueva y de segunda mano"
+DEFAULT_TABLE_ID = 79563           # IPV por comunidades, trimestral, base 2025 (la 25171 es base 2015 y terminó en 2025T4)
 TEMPUS_URL = "https://servicios.ine.es/wstempus/js/es/DATOS_TABLA/{table_id}"
 SERIES = ("general", "nueva", "segunda_mano")
 _QUARTER_BY_PERIOD_CODE = {19: 1, 20: 2, 21: 3, 22: 4}      # FK_Periodo de Tempus para T1..T4
@@ -58,13 +69,7 @@ def period_label(year: int, quarter: int) -> str:
     return f"{year}T{quarter}"
 
 
-def classify_series(name: str) -> Optional[str]:
-    """Nombre de una serie de Tempus → general | nueva | segunda_mano, o None si no es un índice de la
-    Comunidad de Madrid (otra región, una variación, una ponderación...)."""
-    n = normalize_zone_name(name)
-    words = set(n.split())
-    if "madrid" not in words or "comunidad" not in words or any(w in n for w in _NOT_AN_INDEX):
-        return None
+def _housing_kind(words: set[str]) -> Optional[str]:
     if "segunda" in words:
         return "segunda_mano"
     if "nueva" in words:
@@ -72,6 +77,20 @@ def classify_series(name: str) -> Optional[str]:
     if "general" in words:
         return "general"
     return None
+
+
+def _is_madrid_region(normalized: str) -> bool:
+    words = set(normalized.split())
+    return "madrid" in words and "comunidad" in words
+
+
+def classify_series(name: str) -> Optional[str]:
+    """Nombre de una serie de Tempus → general | nueva | segunda_mano, o None si no es un índice de la
+    Comunidad de Madrid (otra región, una variación, una ponderación...)."""
+    n = normalize_zone_name(name)
+    if not _is_madrid_region(n) or any(w in n for w in _NOT_AN_INDEX):
+        return None
+    return _housing_kind(set(n.split()))
 
 
 def _quarter_of(item: dict) -> tuple[int, int]:
@@ -126,6 +145,89 @@ def matched_series_names(payload) -> dict[str, str]:
             for s in payload if isinstance(s, dict) and classify_series(str(s.get("Nombre", "")))}
 
 
+_CSV_COLUMNS = 6
+_CSV_PERIOD_RE = re.compile(r"(\d{4})T([1-4])")
+
+
+def decode_ine_csv(content: bytes) -> str:
+    """El CSV de la web del INE viene en cp1252; si ya fuera UTF-8 (con o sin BOM) también se acepta."""
+    try:
+        return content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return content.decode("cp1252")
+
+
+def _spanish_number(raw: str) -> float:
+    text = raw.strip()
+    if "," in text:
+        text = text.replace(".", "").replace(",", ".")
+    return float(text)
+
+
+@dataclass
+class ParsedIpv:
+    points: list[IndexPoint]
+    series_names: dict[str, str]          # serie → cómo se llama en el archivo (para mostrar y verificar)
+    format: str                           # 'csv' | 'json'
+
+
+def parse_ine_csv(content: bytes) -> ParsedIpv:
+    """CSV de la tabla del INE → puntos de la Comunidad de Madrid. Estricto con la cabecera y con cada fila."""
+    reader = csv.reader(io.StringIO(decode_ine_csv(content), newline=""), delimiter=";")
+    found: dict[str, dict[str, IndexPoint]] = {}
+    names: dict[str, str] = {}
+    for fields in reader:
+        line = reader.line_num
+        if not fields or all(not f.strip() for f in fields):
+            continue
+        if line == 1:
+            if len(fields) != _CSV_COLUMNS or normalize_zone_name(fields[4]) != "periodo" or normalize_zone_name(fields[5]) != "total":
+                raise IPVParseError(f"línea 1: cabecera inesperada {fields!r}; se esperaban {_CSV_COLUMNS} columnas terminadas en Periodo;Total")
+            continue
+        if len(fields) != _CSV_COLUMNS:
+            raise IPVParseError(f"línea {line}: {len(fields)} columnas, se esperaban {_CSV_COLUMNS}")
+        _, region, housing, kind_col, period, raw_value = (f.strip() for f in fields)
+        if not _is_madrid_region(normalize_zone_name(region)):
+            continue                                         # total nacional u otra comunidad
+        if normalize_zone_name(kind_col) != "indice":
+            continue                                         # variaciones y otras tasas
+        series = _housing_kind(set(normalize_zone_name(housing).split()))
+        if series is None:
+            continue
+        match = _CSV_PERIOD_RE.fullmatch(period)
+        if not match:
+            raise IPVParseError(f"línea {line}: periodo no válido {period!r} (se esperaba, por ejemplo, 2026T2)")
+        if raw_value in ("", ".", "..", "-"):
+            continue                                         # trimestre sin publicar
+        try:
+            value = _spanish_number(raw_value)
+        except ValueError:
+            raise IPVParseError(f"línea {line}: valor no válido {raw_value!r}") from None
+        if not 0 < value < 1000:
+            raise IPVParseError(f"línea {line}: valor fuera de rango {raw_value!r}")
+        year, quarter = int(match.group(1)), int(match.group(2))
+        label = period_label(year, quarter)
+        if label in found.setdefault(series, {}):
+            raise IPVParseError(f"línea {line}: la serie {series!r} repite {label}")
+        found[series][label] = IndexPoint(series, label, quarter_end(year, quarter), value)
+        names.setdefault(series, f"{region} / {housing} / {kind_col}")
+    if not found:
+        raise IPVParseError("no hay filas de índice de la Comunidad de Madrid en el CSV")
+    points = [p for kind in SERIES for p in sorted(found.get(kind, {}).values(), key=lambda p: p.period_end)]
+    return ParsedIpv(points, names, "csv")
+
+
+def parse_ipv_content(content: bytes) -> ParsedIpv:
+    """JSON de Tempus o CSV de la web del INE, según el contenido."""
+    if content.lstrip()[:1] in (b"[", b"{"):
+        try:
+            payload = json.loads(content)
+        except ValueError as e:
+            raise IPVParseError(f"el contenido no es JSON: {e}") from None
+        return ParsedIpv(parse_tempus_ipv(payload), matched_series_names(payload) if isinstance(payload, list) else {}, "json")
+    return parse_ine_csv(content)
+
+
 def fetch_tempus(table_id: int = DEFAULT_TABLE_ID, nult: Optional[int] = 20, timeout: float = 30, http=requests) -> bytes:
     """Descarga la tabla de la API Tempus (últimos `nult` datos por serie). `http` se puede reemplazar en tests."""
     params = {"nult": nult} if nult else {}
@@ -175,11 +277,8 @@ def import_ipv(db: Session, content: bytes, file_name: str, geography: str = GEO
     if previous is not None:
         return IpvImportResult(ALREADY_IMPORTED, sha, import_id=previous.id)
 
-    try:
-        payload = json.loads(content)
-    except ValueError as e:
-        raise IPVParseError(f"el contenido no es JSON: {e}") from None
-    points = parse_tempus_ipv(payload)
+    parsed = parse_ipv_content(content)
+    points = parsed.points
 
     latest = _latest_values(db, SOURCE_INE_IPV, geography)
     new = [p for p in points if latest.get((p.series, p.period)) is None or abs(latest[(p.series, p.period)] - p.value) > 1e-9]
@@ -188,7 +287,7 @@ def import_ipv(db: Session, content: bytes, file_name: str, geography: str = GEO
     record = MarketImport(
         source=SOURCE_INE_IPV, file_name=file_name, sha256=sha, period_label=f"{first}-{last}",
         loaded_at=now or datetime.utcnow(), row_count=len(new), skipped_count=len(points) - len(new),
-        notes=f"{geography}; series: {', '.join(sorted({p.series for p in points}))}")
+        notes=f"{geography}; formato {parsed.format}; series: {', '.join(sorted({p.series for p in points}))}")
     db.add(record)
     db.flush()
     db.add_all(MarketIndex(source=SOURCE_INE_IPV, geography=geography, series=p.series, period=p.period,

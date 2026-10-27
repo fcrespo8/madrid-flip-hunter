@@ -1,12 +1,15 @@
 """Carga el IPV del INE (Comunidad de Madrid) en market_imports y market_indices.
 
-Fuente: API Tempus del INE (tabla 25171, "Índices por CCAA: general, vivienda nueva y de segunda mano"), o un archivo
-JSON con esa misma respuesta (--file). Cada carga queda registrada; el mismo contenido dos veces no hace nada; solo se
-agregan puntos nuevos o revisados, nunca se pisa.
+Fuente: tabla 79563 del INE (índices trimestrales por comunidad, base 2025 = 100), de tres maneras:
+  - el CSV de la web del INE (--file data/raw/79563.csv: `;`, cp1252);
+  - un JSON guardado de la API Tempus (--file respuesta.json);
+  - la API Tempus directamente (sin --file; --table cambia la tabla).
+Cada carga queda registrada; el mismo contenido dos veces no hace nada; solo se agregan puntos nuevos o revisados,
+nunca se pisa.
 
 Uso (dry-run por defecto: muestra qué series reconoció, qué insertaría y el factor resultante, y descarta todo):
+    poetry run python -m scripts.load_ipv --file data/raw/79563.csv
     poetry run python -m scripts.load_ipv
-    poetry run python -m scripts.load_ipv --file respuesta_ine.json
 Para escribir:
     poetry run python -m scripts.load_ipv --confirm
 
@@ -14,12 +17,11 @@ Requiere la migración b9c4e7a1d3f8. Si la API no responde, sale con error y no 
 Railway, el guard de database.py exige ENV=production.
 """
 import argparse
-import json
 import sys
 from pathlib import Path
 
 from backend.market.ipv import (
-    ALREADY_IMPORTED, DEFAULT_TABLE_ID, IPVFetchError, IPVParseError, fetch_tempus, import_ipv, matched_series_names,
+    ALREADY_IMPORTED, DEFAULT_TABLE_ID, IPVFetchError, IPVParseError, fetch_tempus, import_ipv, parse_ipv_content,
 )
 from backend.market.rollforward import IndexNotAvailable, rollforward_factor
 from backend.models.database import SessionLocal, engine
@@ -30,7 +32,7 @@ EXIT_FETCH = 3
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--file", type=Path, default=None, help="JSON de Tempus guardado (sin red)")
+    parser.add_argument("--file", type=Path, default=None, help="CSV de la web del INE o JSON de Tempus guardado (sin red)")
     parser.add_argument("--table", type=int, default=DEFAULT_TABLE_ID, help="id de la tabla de Tempus")
     parser.add_argument("--nult", type=int, default=20, help="últimos N datos por serie (default 20 = 5 años)")
     parser.add_argument("--confirm", action="store_true", help="escribe los cambios (sin esto es un dry-run)")
@@ -44,11 +46,10 @@ def main(argv=None, http=None) -> int:
             content, name = args.file.read_bytes(), args.file.name
         else:
             content, name = fetch_tempus(args.table, args.nult, **({"http": http} if http else {})), f"tempus:{args.table}"
-        payload = json.loads(content)
     except IPVFetchError as e:
         print(f"ERROR: {e}. No se escribió nada.")
         return EXIT_FETCH
-    except (OSError, ValueError) as e:
+    except OSError as e:
         print(f"ERROR leyendo {args.file}: {e}")
         return EXIT_BAD_INPUT
 
@@ -60,8 +61,9 @@ def main(argv=None, http=None) -> int:
             db.rollback()
             print(f"ya importado (carga #{result.import_id}, sha256 {result.sha256[:12]}…): no se hace nada")
             return 0
-        print("series reconocidas (verificá que sean las de la Comunidad de Madrid):")
-        for series, nombre in matched_series_names(payload).items():
+        parsed = parse_ipv_content(content)
+        print(f"formato {parsed.format}; series reconocidas (verificá que sean las de la Comunidad de Madrid):")
+        for series, nombre in parsed.series_names.items():
             print(f"  {series:13s} ← {nombre!r}")
         print(f"puntos leídos: {result.points_read} ({result.period_from} … {result.period_to}) · a insertar: {result.inserted} "
               f"({result.revised} revisan un valor ya cargado) · sin cambios: {result.unchanged}")

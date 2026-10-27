@@ -1,8 +1,11 @@
-"""IPV del INE: parser de Tempus, cargador, market_indices, rollforward_factor y get_reference_price(update_to=...).
-Todo offline: el JSON de prueba (tests/data/ine_ipv_madrid_sample.json) es sintético y sigue el formato de Tempus."""
+"""IPV del INE (tabla 79563, base 2025): CSV de la web y JSON de Tempus, market_indices, rollforward_factor y
+get_reference_price(update_to=...). Todo offline.
+
+El fixture CSV (tests/data/ine_ipv_79563_sample.csv) es un fragmento REAL de lo que baja de la web del INE. El JSON de
+Tempus de estos tests se arma en el test a partir de esos mismos valores reales: la forma sigue la documentación de
+Tempus, pero no se vio una respuesta real de la API."""
 import ast
 import json
-from copy import deepcopy
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -12,8 +15,8 @@ from sqlalchemy.exc import IntegrityError
 
 from backend.market.importer import import_registral
 from backend.market.ipv import (
-    ALREADY_IMPORTED, IMPORTED, IPVFetchError, IPVParseError, classify_series, fetch_tempus, import_ipv,
-    matched_series_names, parse_tempus_ipv, quarter_end,
+    ALREADY_IMPORTED, DEFAULT_TABLE_ID, IMPORTED, IPVFetchError, IPVParseError, classify_series, decode_ine_csv,
+    fetch_tempus, import_ipv, matched_series_names, parse_ine_csv, parse_ipv_content, parse_tempus_ipv, quarter_end,
 )
 from backend.market.reference import get_reference_price
 from backend.market.resolver import ZoneMatch
@@ -25,31 +28,144 @@ from tests.conftest import requires_test_db
 from tests.test_market_import import MINI, csv_bytes, mini_lines, specs_of
 
 ROOT = Path(__file__).resolve().parent.parent
-SAMPLE_PATH = ROOT / "tests" / "data" / "ine_ipv_madrid_sample.json"
+SAMPLE_PATH = ROOT / "tests" / "data" / "ine_ipv_79563_sample.csv"
+REAL_PATH = ROOT / "data" / "raw" / "79563.csv"
+SAMPLE = SAMPLE_PATH.read_bytes()
+
+# Valores reales de la Comunidad de Madrid (tabla 79563). 2025 promedia 100 (base 2025).
+SM = {"2025T1": 94.057, "2025T2": 98.771, "2025T3": 102.666, "2025T4": 104.506, "2026T1": 107.894, "2026T2": 112.649}
+GEN = {"2025T1": 94.468, "2025T2": 99.111, "2025T3": 102.306, "2025T4": 104.115, "2026T1": 107.296, "2026T2": 111.850}
+NEW = {"2025T1": 96.866, "2025T2": 101.099, "2025T3": 100.203, "2025T4": 101.833, "2026T1": 103.572, "2026T2": 106.728}
+HEADER = "Total Nacional;Comunidades y Ciudades Autónomas;General, vivienda nueva y de segunda mano;Índices y tasas;Periodo;Total"
 
 
-def sample_payload():
-    return json.loads(SAMPLE_PATH.read_text(encoding="utf-8"))
+def csv_text(*rows) -> bytes:
+    return ("\r\n".join([HEADER, *rows]) + "\r\n").encode("cp1252")
+
+
+def madrid_row(housing, period, value, kind="Índice", region="13 Madrid, Comunidad de"):
+    return f"Nacional;{region};{housing};{kind};{period};{value}"
+
+
+def tempus_item(period, value):
+    year, quarter = int(period[:4]), int(period[-1])
+    return {"Fecha": 0, "FK_TipoDato": 1, "FK_Periodo": 18 + quarter, "Anyo": year, "Valor": value, "Secreto": False}
+
+
+def tempus_serie(nombre, values):
+    return {"COD": "X", "Nombre": nombre, "Data": [tempus_item(p, v) for p, v in values.items()]}
+
+
+def tempus_payload():
+    """Tempus con los valores reales de arriba, más series que deben ignorarse (otras regiones, variaciones, pesos)."""
+    return [
+        tempus_serie("Total Nacional. 13 Madrid, Comunidad de. General. Índice.", GEN),
+        tempus_serie("Total Nacional. 13 Madrid, Comunidad de. Vivienda nueva. Índice.", NEW),
+        tempus_serie("Total Nacional. 13 Madrid, Comunidad de. Vivienda segunda mano. Índice.", SM),
+        tempus_serie("Total Nacional. 13 Madrid, Comunidad de. Vivienda segunda mano. Variación anual.", {"2026T2": 14.0}),
+        tempus_serie("Total Nacional. 13 Madrid, Comunidad de. General. Variación trimestral.", {"2026T2": 4.2}),
+        tempus_serie("Total Nacional. 13 Madrid, Comunidad de. Ponderaciones. Vivienda segunda mano.", {"2026T2": 0.8}),
+        tempus_serie("Total Nacional. 09 Cataluña. Vivienda segunda mano. Índice.", {"2026T2": 111.0}),
+        tempus_serie("Total Nacional. Vivienda segunda mano. Índice.", {"2026T2": 111.682}),
+    ]
 
 
 def as_bytes(payload) -> bytes:
     return json.dumps(payload, ensure_ascii=False).encode("utf-8")
 
 
-def serie(nombre, data):
-    return {"COD": "X", "Nombre": nombre, "Data": data}
+# ── El fixture es un fragmento real ────────────────────────────────────────────
+
+def test_el_fixture_esta_en_cp1252_como_el_que_baja_el_ine():
+    with pytest.raises(UnicodeDecodeError):
+        SAMPLE.decode("utf-8")                                    # la "Í" de Índice es el byte 0xCD
+    assert b"\xcd" in SAMPLE and b"\r\n" in SAMPLE
+    assert decode_ine_csv(SAMPLE).splitlines()[0] == HEADER
 
 
-def quarter_item(year, quarter, value):
-    return {"Fecha": 0, "FK_Periodo": 18 + quarter, "Anyo": year, "Valor": value}
+@pytest.mark.skipif(not REAL_PATH.exists(), reason="data/raw/79563.csv no está")
+def test_el_fixture_son_lineas_reales_del_archivo_de_data_raw():
+    real = set(decode_ine_csv(REAL_PATH.read_bytes()).splitlines())
+    assert all(line in real for line in decode_ine_csv(SAMPLE).splitlines())
 
 
-# ── Series de Tempus ───────────────────────────────────────────────────────────
+# ── CSV de la web del INE ──────────────────────────────────────────────────────
+
+def test_parsea_el_csv_real_y_solo_toma_los_indices_de_madrid():
+    parsed = parse_ine_csv(SAMPLE)
+    assert parsed.format == "csv" and len(parsed.points) == 18                                 # 3 series × 6 trimestres
+    by = {(p.series, p.period): p for p in parsed.points}
+    assert by[("segunda_mano", "2026T2")].value == 112.649 and by[("segunda_mano", "2026T2")].period_end == date(2026, 6, 30)
+    assert by[("general", "2025T1")].value == 94.468 and by[("nueva", "2025T4")].value == 101.833
+    assert {p.value for p in parsed.points}.isdisjoint({111.682, 111.095})                      # filas nacionales: no entran
+    assert sum(by[("segunda_mano", f"2025T{q}")].value for q in (1, 2, 3, 4)) / 4 == pytest.approx(100.0)
+    assert parsed.series_names["segunda_mano"] == "13 Madrid, Comunidad de / Vivienda segunda mano / Índice"
+    assert [p.period for p in parsed.points if p.series == "general"][0] == "2025T1"            # ordenados por período
+
+
+def test_decode_distingue_cp1252_de_latin1():
+    """cp1252 y latin-1 coinciden en tildes y eñes; difieren en 0x80–0x9F (€, comillas y rayas)."""
+    assert decode_ine_csv("Total – 5 € “x”".encode("cp1252")) == "Total – 5 € “x”"
+    assert decode_ine_csv("Índice;ñ".encode("cp1252")) == "Índice;ñ" == decode_ine_csv("Índice;ñ".encode("utf-8"))
+
+
+def test_coma_decimal_y_cp1252_o_utf8():
+    row = madrid_row("Vivienda segunda mano", "2026T2", "112,649")
+    for content in (csv_text(row), ("﻿" + HEADER + "\n" + row + "\n").encode("utf-8"), (HEADER + "\n" + row).encode("utf-8")):
+        (point,) = parse_ine_csv(content).points
+        assert (point.series, point.period, point.value) == ("segunda_mano", "2026T2", 112.649)
+
+
+def test_el_csv_ignora_variaciones_otras_comunidades_y_series_desconocidas():
+    content = csv_text(
+        madrid_row("Vivienda segunda mano", "2026T2", "112,649"),
+        madrid_row("Vivienda segunda mano", "2026T2", "12,9", kind="Variación anual"),
+        madrid_row("Vivienda segunda mano", "2026T2", "99,0", region="09 Cataluña"),
+        madrid_row("Vivienda segunda mano", "2026T2", "99,1", region=""),
+        madrid_row("Vivienda de lujo", "2026T2", "150,0"),
+    )
+    assert [(p.series, p.value) for p in parse_ine_csv(content).points] == [("segunda_mano", 112.649)]
+
+
+def test_un_trimestre_sin_valor_se_omite():
+    content = csv_text(madrid_row("General", "2026T1", "107,296"), madrid_row("General", "2026T2", ".."), madrid_row("General", "2026T3", ""))
+    assert [p.period for p in parse_ine_csv(content).points] == ["2026T1"]
+
+
+@pytest.mark.parametrize("content, message", [
+    (b"", "no hay filas"),
+    ("Distrito;Barrio;Año\nx;y;z\n".encode(), "cabecera inesperada"),
+    ("a;b;c;d;e;f\nNacional;13 Madrid, Comunidad de;General;Índice;2026T2;100,0\n".encode(), "cabecera inesperada"),   # 6 columnas, pero no son las del INE
+    (csv_text("Nacional;13 Madrid, Comunidad de;General;Índice;2026T2"), "línea 2: 5 columnas"),
+    (csv_text(madrid_row("General", "T2 2026", "100,0")), "línea 2: periodo no válido"),
+    (csv_text(madrid_row("General", "2026T5", "100,0")), "periodo no válido"),
+    (csv_text(madrid_row("General", "2026T2", "cien")), "línea 2: valor no válido"),
+    (csv_text(madrid_row("General", "2026T2", "0,0")), "línea 2: valor fuera de rango"),
+    (csv_text(madrid_row("General", "2026T2", "5000,0")), "valor fuera de rango"),
+    (csv_text(madrid_row("General", "2026T2", "100,0"), madrid_row("General", "2026T2", "101,0")), "línea 3: la serie 'general' repite 2026T2"),
+    (csv_text(madrid_row("General", "2026T2", "100,0", region="09 Cataluña")), "no hay filas de índice de la Comunidad de Madrid"),
+    (csv_text(madrid_row("General", "2026T2", "12,0", kind="Variación anual")), "no hay filas de índice"),
+])
+def test_csv_mal_formado(content, message):
+    with pytest.raises(IPVParseError, match=message):
+        parse_ine_csv(content)
+
+
+def test_parse_ipv_content_elige_el_formato_por_el_contenido():
+    csv_parsed, json_parsed = parse_ipv_content(SAMPLE), parse_ipv_content(as_bytes(tempus_payload()))
+    assert (csv_parsed.format, json_parsed.format) == ("csv", "json")
+    assert [(p.series, p.period, p.value) for p in csv_parsed.points] == [(p.series, p.period, p.value) for p in json_parsed.points]
+    for bad in (b"[no es json", b"{ tampoco"):
+        with pytest.raises(IPVParseError, match="no es JSON"):
+            parse_ipv_content(bad)
+
+
+# ── JSON de Tempus ─────────────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("name, expected", [
-    ("Madrid, Comunidad de. General. Índice.", "general"),
-    ("Madrid, Comunidad de. Vivienda nueva. Índice.", "nueva"),
-    ("Madrid, Comunidad de. Vivienda de segunda mano. Índice.", "segunda_mano"),
+    ("Total Nacional. 13 Madrid, Comunidad de. General. Índice.", "general"),
+    ("Total Nacional. 13 Madrid, Comunidad de. Vivienda nueva. Índice.", "nueva"),
+    ("Total Nacional. 13 Madrid, Comunidad de. Vivienda segunda mano. Índice.", "segunda_mano"),
     ("MADRID, COMUNIDAD DE. Vivienda de Segunda Mano. Índice", "segunda_mano"),
     ("Madrid, Comunidad de. General. Variación anual.", None),
     ("Madrid, Comunidad de. General. Variación trimestral.", None),
@@ -64,71 +180,56 @@ def test_classify_series(name, expected):
     assert classify_series(name) == expected
 
 
+def test_parsea_tempus_y_se_queda_solo_con_los_indices_de_madrid():
+    payload = tempus_payload()
+    points = parse_tempus_ipv(payload)
+    assert len(points) == 18 and {p.series for p in points} == {"general", "nueva", "segunda_mano"}
+    assert next(p for p in points if p.series == "segunda_mano" and p.period == "2026T2").value == 112.649
+    assert sorted(matched_series_names(payload)) == ["general", "nueva", "segunda_mano"]
+
+
 def test_quarter_end():
-    assert quarter_end(2026, 1) == date(2026, 3, 31)
-    assert quarter_end(2026, 2) == date(2026, 6, 30)
-    assert quarter_end(2026, 3) == date(2026, 9, 30)
-    assert quarter_end(2024, 4) == date(2024, 12, 31)
+    assert [quarter_end(2026, q) for q in (1, 2, 3, 4)] == [date(2026, 3, 31), date(2026, 6, 30), date(2026, 9, 30), date(2026, 12, 31)]
 
 
-# ── Parser ─────────────────────────────────────────────────────────────────────
-
-def test_parsea_el_json_de_prueba_y_se_queda_solo_con_los_indices_de_madrid():
-    points = parse_tempus_ipv(sample_payload())
-    assert len(points) == 30                                          # 3 series × 10 trimestres (2024T1…2026T2)
-    assert {p.series for p in points} == {"general", "nueva", "segunda_mano"}
-    segunda = [p for p in points if p.series == "segunda_mano"]
-    assert [p.period for p in segunda][0] == "2024T1" and [p.period for p in segunda][-1] == "2026T2"
-    assert segunda[-1].value == 112.2 and segunda[-1].period_end == date(2026, 6, 30)
-    assert sum(p.value for p in segunda if p.period.startswith("2025")) / 4 == pytest.approx(100.0)      # base 2025 = 100
-
-
-def test_ignora_variaciones_ponderaciones_y_otras_regiones():
-    names = matched_series_names(sample_payload())
-    assert names == {"general": "Madrid, Comunidad de. General. Índice.",
-                     "nueva": "Madrid, Comunidad de. Vivienda nueva. Índice.",
-                     "segunda_mano": "Madrid, Comunidad de. Vivienda de segunda mano. Índice."}
-
-
-def test_un_trimestre_sin_publicar_se_omite():
-    payload = [serie("Madrid, Comunidad de. General. Índice.", [quarter_item(2026, 1, 104.0), quarter_item(2026, 2, None)])]
+def test_un_trimestre_sin_publicar_se_omite_en_tempus():
+    payload = [tempus_serie("Madrid, Comunidad de. General. Índice.", {"2026T1": 107.296, "2026T2": None})]
     assert [p.period for p in parse_tempus_ipv(payload)] == ["2026T1"]
 
 
 @pytest.mark.parametrize("code, quarter", [(19, 1), (20, 2), (21, 3), (22, 4)])
 def test_codigos_de_periodo_de_tempus(code, quarter):
-    payload = [serie("Madrid, Comunidad de. General. Índice.", [{"Anyo": 2025, "FK_Periodo": code, "Valor": 100.0}])]
-    (point,) = parse_tempus_ipv(payload)
-    assert point.period == f"2025T{quarter}"
+    payload = [{"Nombre": "Madrid, Comunidad de. General. Índice.", "Data": [{"Anyo": 2025, "FK_Periodo": code, "Valor": 100.0}]}]
+    assert parse_tempus_ipv(payload)[0].period == f"2025T{quarter}"
 
 
 @pytest.mark.parametrize("fecha, quarter", [
-    (datetime(2025, 7, 1, tzinfo=timezone.utc), 3),                    # inicio del trimestre, UTC
+    (datetime(2025, 7, 1, tzinfo=timezone.utc), 3),
     (datetime(2025, 6, 30, 22, 0, tzinfo=timezone.utc), 3),            # 1 de julio 00:00 en hora de España (CEST)
-    (datetime(2024, 12, 31, 23, 0, tzinfo=timezone.utc), 1),           # 1 de enero 00:00 en hora de España (CET): año 2025, T1
-    (datetime(2025, 9, 30, 0, 0, tzinfo=timezone.utc), 3),             # fin del trimestre (medianoche UTC)
-    (datetime(2025, 9, 29, 22, 0, tzinfo=timezone.utc), 3),            # 30 de septiembre 00:00 en hora de España
+    (datetime(2024, 12, 31, 23, 0, tzinfo=timezone.utc), 1),           # 1 de enero 00:00 en hora de España (CET)
+    (datetime(2025, 9, 30, 0, 0, tzinfo=timezone.utc), 3),
+    (datetime(2025, 9, 29, 22, 0, tzinfo=timezone.utc), 3),
 ])
 def test_si_el_codigo_de_periodo_es_desconocido_se_usa_la_fecha(fecha, quarter):
-    payload = [serie("Madrid, Comunidad de. General. Índice.",
-                     [{"Anyo": 2025, "FK_Periodo": 99, "Fecha": int(fecha.timestamp() * 1000), "Valor": 100.0}])]
+    payload = [{"Nombre": "Madrid, Comunidad de. General. Índice.",
+                "Data": [{"Anyo": 2025, "FK_Periodo": 99, "Fecha": int(fecha.timestamp() * 1000), "Valor": 100.0}]}]
     assert parse_tempus_ipv(payload)[0].period == f"2025T{quarter}"
 
 
 @pytest.mark.parametrize("payload, message", [
     ({"no": "lista"}, "lista de series"),
     ([], "ninguna serie de índice"),
-    ([serie("Cataluña. General. Índice.", [quarter_item(2025, 1, 100.0)])], "ninguna serie de índice"),
-    ([serie("Madrid, Comunidad de. General. Índice.", []), serie("Madrid, Comunidad de. General. Índice.", [])], "más de una vez"),
-    ([serie("Madrid, Comunidad de. General. Índice.", [quarter_item(2025, 1, 100.0), quarter_item(2025, 1, 101.0)])], "repite trimestres"),
-    ([serie("Madrid, Comunidad de. General. Índice.", [quarter_item(2025, 1, 0)])], "valor no válido"),
-    ([serie("Madrid, Comunidad de. General. Índice.", [quarter_item(2025, 1, 5000.0)])], "valor no válido"),
-    ([serie("Madrid, Comunidad de. General. Índice.", [quarter_item(2025, 1, "100")])], "valor no válido"),
-    ([serie("Madrid, Comunidad de. General. Índice.", [quarter_item(2025, 1, True)])], "valor no válido"),
-    ([serie("Madrid, Comunidad de. General. Índice.", [{"FK_Periodo": 19, "Valor": 100.0}])], "sin año"),
-    ([serie("Madrid, Comunidad de. General. Índice.", [{"Anyo": 2025, "FK_Periodo": 28, "Valor": 100.0}])], "no se pudo determinar el trimestre"),
+    ([tempus_serie("Cataluña. General. Índice.", {"2025T1": 100.0})], "ninguna serie de índice"),
+    ([tempus_serie("Madrid, Comunidad de. General. Índice.", {}), tempus_serie("Madrid, Comunidad de. General. Índice.", {})], "más de una vez"),
+    ([{"Nombre": "Madrid, Comunidad de. General. Índice.", "Data": [tempus_item("2025T1", 100.0), tempus_item("2025T1", 101.0)]}], "repite trimestres"),
+    ([tempus_serie("Madrid, Comunidad de. General. Índice.", {"2025T1": 0})], "valor no válido"),
+    ([tempus_serie("Madrid, Comunidad de. General. Índice.", {"2025T1": 5000.0})], "valor no válido"),
+    ([tempus_serie("Madrid, Comunidad de. General. Índice.", {"2025T1": "100"})], "valor no válido"),
+    ([tempus_serie("Madrid, Comunidad de. General. Índice.", {"2025T1": True})], "valor no válido"),
+    ([{"Nombre": "Madrid, Comunidad de. General. Índice.", "Data": [{"FK_Periodo": 19, "Valor": 100.0}]}], "sin año"),
+    ([{"Nombre": "Madrid, Comunidad de. General. Índice.", "Data": [{"Anyo": 2025, "FK_Periodo": 28, "Valor": 100.0}]}], "no se pudo determinar el trimestre"),
 ])
-def test_respuestas_mal_formadas(payload, message):
+def test_tempus_mal_formado(payload, message):
     with pytest.raises(IPVParseError, match=message):
         parse_tempus_ipv(payload)
 
@@ -155,11 +256,12 @@ class FakeResponse:
             raise requests.HTTPError(f"{self.status_code} Server Error", response=self)
 
 
-def test_fetch_tempus_pide_la_tabla_con_los_ultimos_n_datos():
+def test_la_tabla_por_defecto_es_la_79563():
+    assert DEFAULT_TABLE_ID == 79563
     http = FakeHttp(FakeResponse(content=b'[{"a": 1}]'))
-    assert fetch_tempus(25171, 12, timeout=7, http=http) == b'[{"a": 1}]'
+    assert fetch_tempus(nult=12, timeout=7, http=http) == b'[{"a": 1}]'
     (url, kwargs), = http.calls
-    assert url == "https://servicios.ine.es/wstempus/js/es/DATOS_TABLA/25171"
+    assert url == "https://servicios.ine.es/wstempus/js/es/DATOS_TABLA/79563"
     assert kwargs["params"] == {"nult": 12} and kwargs["timeout"] == 7
 
 
@@ -191,28 +293,22 @@ def test_parse_period_rechaza_lo_invalido(value):
         parse_period(value)
 
 
-def test_labels():
+def test_labels_y_latest_quarter():
     assert Period(2025).label == "2025" and Period(2026, 2).label == "2026T2"
-
-
-VALUES = {"2025T1": 98.0, "2025T2": 99.4, "2025T3": 100.8, "2025T4": 101.8, "2026T1": 105.0, "2026T2": 112.2}
+    assert latest_quarter(SM) == Period(2026, 2)
+    assert latest_quarter({"2025T4": 1.0, "2026T1": 2.0, "2024T4": 3.0}) == Period(2026, 1)
+    assert latest_quarter({}) is None
 
 
 def test_index_value_trimestral_y_anual():
-    assert index_value(VALUES, Period(2026, 2)) == 112.2
-    assert index_value(VALUES, Period(2025)) == pytest.approx((98.0 + 99.4 + 100.8 + 101.8) / 4)
+    assert index_value(SM, Period(2026, 2)) == 112.649
+    assert index_value(SM, Period(2025)) == pytest.approx(100.0)
 
 
 @pytest.mark.parametrize("period, message", [(Period(2026), r"no está completo.*2026T3, 2026T4"), (Period(2026, 3), "2026T3"), (Period(2019), "2019T1")])
 def test_index_value_sin_dato(period, message):
     with pytest.raises(IndexNotAvailable, match=message):
-        index_value(VALUES, period)
-
-
-def test_latest_quarter():
-    assert latest_quarter(VALUES) == Period(2026, 2)
-    assert latest_quarter({"2025T4": 1.0, "2026T1": 2.0, "2024T4": 3.0}) == Period(2026, 1)
-    assert latest_quarter({}) is None
+        index_value(SM, period)
 
 
 # ── Migración y modelo ─────────────────────────────────────────────────────────
@@ -275,74 +371,67 @@ def counts(db):
     return db.query(MarketImport).count(), db.query(MarketIndex).count()
 
 
-SAMPLE = as_bytes(sample_payload()) if SAMPLE_PATH.exists() else b"[]"
-
-
 @requires_test_db
-def test_la_primera_carga_inserta_los_puntos_y_registra_la_importacion(db):
+def test_la_primera_carga_del_csv_inserta_los_puntos_y_registra_la_importacion(db):
     from backend.models.market import MarketImport, MarketIndex
-    result = import_ipv(db, SAMPLE, "muestra.json")
+    result = import_ipv(db, SAMPLE, "79563.csv")
     db.commit()
-    assert (result.status, result.points_read, result.inserted, result.unchanged, result.revised) == (IMPORTED, 30, 30, 0, 0)
-    assert (result.period_from, result.period_to) == ("2024T1", "2026T2")
-    assert counts(db) == (1, 30)
+    assert (result.status, result.points_read, result.inserted, result.unchanged, result.revised) == (IMPORTED, 18, 18, 0, 0)
+    assert (result.period_from, result.period_to) == ("2025T1", "2026T2")
+    assert counts(db) == (1, 18)
     record = db.query(MarketImport).one()
-    assert (record.source, record.file_name, record.period_label, record.row_count, record.skipped_count) == ("ine_ipv", "muestra.json", "2024T1-2026T2", 30, 0)
-    assert "Comunidad de Madrid" in record.notes and "segunda_mano" in record.notes
+    assert (record.source, record.file_name, record.period_label, record.row_count, record.skipped_count) == ("ine_ipv", "79563.csv", "2025T1-2026T2", 18, 0)
+    assert "Comunidad de Madrid" in record.notes and "formato csv" in record.notes and "segunda_mano" in record.notes
     row = db.query(MarketIndex).filter_by(series="segunda_mano", period="2026T2").one()
-    assert (row.value, row.period_end, row.geography, row.source, row.import_id) == (112.2, date(2026, 6, 30), "Comunidad de Madrid", "ine_ipv", record.id)
+    assert (row.value, row.period_end, row.geography, row.source, row.import_id) == (112.649, date(2026, 6, 30), "Comunidad de Madrid", "ine_ipv", record.id)
 
 
 @requires_test_db
 def test_el_mismo_contenido_dos_veces_no_hace_nada(db):
-    first = import_ipv(db, SAMPLE, "muestra.json")
+    first = import_ipv(db, SAMPLE, "79563.csv")
     db.commit()
-    again = import_ipv(db, SAMPLE, "otro_nombre.json")
+    again = import_ipv(db, SAMPLE, "otro_nombre.csv")
     assert (again.status, again.import_id, again.inserted, again.changed) == (ALREADY_IMPORTED, first.import_id, 0, False)
-    assert counts(db) == (1, 30)
+    assert counts(db) == (1, 18)
 
 
 @requires_test_db
-def test_una_respuesta_nueva_solo_agrega_los_puntos_nuevos_o_revisados(db):
-    import_ipv(db, SAMPLE, "v1.json")
-    payload = sample_payload()
-    segunda = next(s for s in payload if s["Nombre"].endswith("segunda mano. Índice."))
-    segunda["Data"][-1]["Valor"] = 113.0                                              # el INE revisó 2026T2
-    segunda["Data"].append(quarter_item(2026, 3, 115.0) | {"Fecha": 0})               # y publicó 2026T3
-    result = import_ipv(db, as_bytes(payload), "v2.json")
+def test_los_mismos_valores_por_la_api_despues_del_csv_no_duplican_filas(db):
+    import_ipv(db, SAMPLE, "79563.csv")
+    result = import_ipv(db, as_bytes(tempus_payload()), "tempus:79563")
+    assert (result.status, result.inserted, result.unchanged) == (IMPORTED, 0, 18)
+    assert counts(db) == (2, 18)
+
+
+@requires_test_db
+def test_una_carga_nueva_solo_agrega_los_puntos_nuevos_o_revisados(db):
+    import_ipv(db, SAMPLE, "v1.csv")
+    newer = csv_text(madrid_row("Vivienda segunda mano", "2026T2", "113,000"),        # el INE revisó 2026T2
+                     madrid_row("Vivienda segunda mano", "2026T3", "115,500"),        # y publicó 2026T3
+                     madrid_row("Vivienda segunda mano", "2026T1", "107,894"))        # sin cambios
+    result = import_ipv(db, newer, "v2.csv")
     db.commit()
-    assert (result.status, result.points_read, result.inserted, result.unchanged, result.revised) == (IMPORTED, 31, 2, 29, 1)
-    assert counts(db) == (2, 32)
-    # la versión vieja sigue ahí y la nueva es la que vale
+    assert (result.status, result.points_read, result.inserted, result.unchanged, result.revised) == (IMPORTED, 3, 2, 1, 1)
+    assert counts(db) == (2, 20)
     from backend.models.market import MarketIndex
     versions = db.query(MarketIndex).filter_by(series="segunda_mano", period="2026T2").order_by(MarketIndex.import_id).all()
-    assert [v.value for v in versions] == [112.2, 113.0]
+    assert [v.value for v in versions] == [112.649, 113.0]                              # la versión vieja se conserva
     assert rollforward_factor(db, 2025, "2026T2").index_to == 113.0
     assert rollforward_factor(db, 2025).hasta == "2026T3"
 
 
 @requires_test_db
-def test_una_respuesta_sin_cambios_de_valores_pero_distinta_se_registra_sin_filas(db):
-    import_ipv(db, SAMPLE, "v1.json")
-    payload = sample_payload()
-    payload.reverse()                                                                 # mismo contenido, otro orden → otro hash
-    result = import_ipv(db, as_bytes(payload), "v2.json")
-    assert (result.status, result.inserted, result.unchanged) == (IMPORTED, 0, 30)
-    assert counts(db) == (2, 30)
-
-
-@requires_test_db
-@pytest.mark.parametrize("content, exception", [(b"no es json", IPVParseError), (b"[]", IPVParseError), (b'{"a": 1}', IPVParseError)])
-def test_un_contenido_invalido_no_escribe_nada(db, content, exception):
-    with pytest.raises(exception):
-        import_ipv(db, content, "malo.json")
+@pytest.mark.parametrize("content", [b"no es json ni csv", b"[]", b'{"a": 1}', b""])
+def test_un_contenido_invalido_no_escribe_nada(db, content):
+    with pytest.raises(IPVParseError):
+        import_ipv(db, content, "malo")
     assert counts(db) == (0, 0)
 
 
 @requires_test_db
 def test_restricciones_de_la_base(db):
     from backend.models.market import MarketIndex
-    result = import_ipv(db, SAMPLE, "muestra.json")
+    result = import_ipv(db, SAMPLE, "79563.csv")
     db.commit()
 
     def fails(**overrides):
@@ -357,30 +446,30 @@ def test_restricciones_de_la_base(db):
     fails(series="mixta")
     fails(value=0.0)
     fails(value=-3.0)
-    fails(period="2025T1", period_end=date(2025, 3, 31), series="general")            # (punto, carga) repetido
-    assert counts(db) == (1, 30)
+    fails(period="2025T1", period_end=date(2025, 3, 31))                                # (punto, carga) repetido
+    assert counts(db) == (1, 18)
 
 
 # ── rollforward_factor ─────────────────────────────────────────────────────────
 
 @requires_test_db
-def test_factor_del_ano_registral_a_hoy(db):
-    import_ipv(db, SAMPLE, "muestra.json")
+def test_factor_2025_a_2026T2_de_madrid_segunda_mano(db):
+    import_ipv(db, SAMPLE, "79563.csv")
     rf = rollforward_factor(db, 2025)
     assert (rf.desde, rf.hasta, rf.series, rf.geography) == ("2025", "2026T2", "segunda_mano", "Comunidad de Madrid")
-    assert rf.index_from == pytest.approx(100.0) and rf.index_to == 112.2
-    assert rf.factor == pytest.approx(1.122) and float(rf) == rf.factor
-    assert rf.apply(6954.58) == pytest.approx(6954.58 * 1.122)
+    assert rf.index_from == pytest.approx(100.0) and rf.index_to == 112.649
+    assert rf.factor == pytest.approx(1.12649) and round(rf.factor, 4) == 1.1265            # ~1,1265
+    assert float(rf) == rf.factor and rf.apply(6954.58) == pytest.approx(6954.58 * 1.12649)
 
 
 @requires_test_db
 def test_factor_entre_trimestres_fechas_y_series(db):
-    import_ipv(db, SAMPLE, "muestra.json")
-    assert rollforward_factor(db, "2025T2", "2026T2").factor == pytest.approx(112.2 / 99.4)
-    assert rollforward_factor(db, date(2025, 5, 3), date(2026, 6, 30)).factor == pytest.approx(112.2 / 99.4)
-    assert rollforward_factor(db, 2024, 2025).factor == pytest.approx(100.0 / ((88.4 + 91.0 + 93.8 + 96.6) / 4))
-    assert rollforward_factor(db, 2025, series="general").factor == pytest.approx(111.0 / 100.0)
-    assert rollforward_factor(db, 2025, series="nueva").index_to == 106.5
+    import_ipv(db, SAMPLE, "79563.csv")
+    assert rollforward_factor(db, "2025T2", "2026T2").factor == pytest.approx(112.649 / 98.771)
+    assert rollforward_factor(db, date(2025, 5, 3), date(2026, 6, 30)).factor == pytest.approx(112.649 / 98.771)
+    assert rollforward_factor(db, 2025, "2026T1").factor == pytest.approx(107.894 / 100.0)
+    assert rollforward_factor(db, 2025, series="general").factor == pytest.approx(1.1185)
+    assert rollforward_factor(db, 2025, series="nueva").factor == pytest.approx(106.728 / 100.00025)
     assert rollforward_factor(db, "2026T2", "2025T2").factor < 1                       # hacia atrás también
     assert rollforward_factor(db, 2025, 2025).factor == pytest.approx(1.0)
 
@@ -388,12 +477,12 @@ def test_factor_entre_trimestres_fechas_y_series(db):
 @requires_test_db
 @pytest.mark.parametrize("desde, hasta, message", [
     (2026, None, r"2026 no está completo.*2026T3"),                 # el año de origen no cerró
-    (2019, None, "2019T1"),
+    (2024, None, "2024T1"),                                         # el archivo empieza en 2025T1
     (2025, "2026T4", "2026T4"),                                     # no se extrapola más allá del último dato
     (2025, 2026, "2026 no está completo"),
 ])
 def test_factor_sin_indice_disponible(db, desde, hasta, message):
-    import_ipv(db, SAMPLE, "muestra.json")
+    import_ipv(db, SAMPLE, "79563.csv")
     with pytest.raises(IndexNotAvailable, match=message):
         rollforward_factor(db, desde, hasta)
 
@@ -402,7 +491,7 @@ def test_factor_sin_indice_disponible(db, desde, hasta, message):
 def test_factor_sin_nada_cargado_o_con_argumentos_invalidos(db):
     with pytest.raises(IndexNotAvailable, match="no hay índices segunda_mano"):
         rollforward_factor(db, 2025)
-    import_ipv(db, SAMPLE, "muestra.json")
+    import_ipv(db, SAMPLE, "79563.csv")
     with pytest.raises(ValueError, match="serie no válida"):
         rollforward_factor(db, 2025, series="lujo")
     with pytest.raises(IndexNotAvailable, match="no hay índices"):
@@ -434,30 +523,30 @@ def test_sin_update_to_nada_cambia(prices):
 
 @requires_test_db
 def test_devuelve_original_actualizado_y_factor(prices):
-    import_ipv(prices, SAMPLE, "muestra.json")
+    import_ipv(prices, SAMPLE, "79563.csv")
     ref = get_reference_price(prices, zone_id(prices, "barrio", "011"), update_to="latest")
     assert ref.price_m2 == 6954.58 and ref.level == "barrio"                              # el original queda intacto
-    assert ref.updated_price_m2 == pytest.approx(6954.58 * 1.122)
-    assert ref.rollforward.factor == pytest.approx(1.122)
+    assert ref.updated_price_m2 == pytest.approx(6954.58 * 1.12649)
+    assert ref.rollforward.factor == pytest.approx(1.12649)
     assert (ref.rollforward.desde, ref.rollforward.hasta, ref.rollforward.series) == ("2025", "2026T2", "segunda_mano")
     assert ref.rollforward_error is None
 
 
 @requires_test_db
 def test_el_fallback_al_distrito_tambien_se_actualiza(prices):
-    import_ipv(prices, SAMPLE, "muestra.json")
+    import_ipv(prices, SAMPLE, "79563.csv")
     ref = get_reference_price(prices, zone_id(prices, "barrio", "012"), update_to="latest")        # Embajadores: sin dato
     assert (ref.level, ref.fallback_reason, ref.price_m2) == ("distrito", "sin_dato", 7171.36)
-    assert ref.updated_price_m2 == pytest.approx(7171.36 * 1.122)
+    assert ref.updated_price_m2 == pytest.approx(7171.36 * 1.12649)
 
 
 @requires_test_db
 def test_update_to_acepta_un_trimestre_una_fecha_y_otra_serie(prices):
-    import_ipv(prices, SAMPLE, "muestra.json")
+    import_ipv(prices, SAMPLE, "79563.csv")
     zid = zone_id(prices, "barrio", "011")
-    assert get_reference_price(prices, zid, update_to="2025T4").rollforward.factor == pytest.approx(101.8 / 100.0)
+    assert get_reference_price(prices, zid, update_to="2025T4").rollforward.factor == pytest.approx(1.04506)
     assert get_reference_price(prices, zid, update_to=date(2026, 3, 31)).rollforward.hasta == "2026T1"
-    assert get_reference_price(prices, zid, update_to="latest", index_series="general").rollforward.factor == pytest.approx(1.11)
+    assert get_reference_price(prices, zid, update_to="latest", index_series="general").rollforward.factor == pytest.approx(1.1185)
 
 
 @requires_test_db
@@ -469,7 +558,7 @@ def test_sin_indices_cargados_devuelve_el_original_y_el_motivo(prices):
 
 @requires_test_db
 def test_si_el_ano_del_precio_no_esta_completo_en_el_indice_avisa(prices):
-    import_ipv(prices, SAMPLE, "muestra.json")
+    import_ipv(prices, SAMPLE, "79563.csv")
     with_2026 = csv_bytes(mini_lines() + [("01. Centro;01. Centro;2026", "7.900,00"), ("01. Centro;011. Palacio;2026", "7.500,00")])
     import_registral(prices, with_2026, "hasta_2026.csv")
     ref = get_reference_price(prices, zone_id(prices, "barrio", "011"), update_to="latest")
@@ -479,17 +568,15 @@ def test_si_el_ano_del_precio_no_esta_completo_en_el_indice_avisa(prices):
 
 @requires_test_db
 def test_sin_zona_o_sin_precio_sigue_siendo_none_con_update_to(prices):
-    import_ipv(prices, SAMPLE, "muestra.json")
+    import_ipv(prices, SAMPLE, "79563.csv")
     assert get_reference_price(prices, ZoneMatch(unscorable_reason="no_zone"), update_to="latest") is None
     assert get_reference_price(prices, 999_999, update_to="latest") is None
 
 
 @requires_test_db
 def test_la_actualizacion_usa_la_revision_mas_reciente_del_indice(prices):
-    import_ipv(prices, SAMPLE, "v1.json")
-    payload = sample_payload()
-    next(s for s in payload if s["Nombre"].endswith("segunda mano. Índice."))["Data"][-1]["Valor"] = 120.0
-    import_ipv(prices, as_bytes(payload), "v2.json")
+    import_ipv(prices, SAMPLE, "v1.csv")
+    import_ipv(prices, csv_text(madrid_row("Vivienda segunda mano", "2026T2", "120,000")), "v2.csv")
     ref = get_reference_price(prices, zone_id(prices, "distrito", "01"), update_to="latest")
     assert ref.rollforward.index_to == 120.0 and ref.updated_price_m2 == pytest.approx(7171.36 * 1.2)
 
@@ -497,14 +584,25 @@ def test_la_actualizacion_usa_la_revision_mas_reciente_del_indice(prices):
 # ── El script ──────────────────────────────────────────────────────────────────
 
 @requires_test_db
-def test_script_dry_run_muestra_series_y_factor_sin_escribir(db, capsys):
+def test_script_dry_run_con_el_csv_muestra_series_y_factor_sin_escribir(db, capsys):
     from scripts import load_ipv
     assert load_ipv.main(["--file", str(SAMPLE_PATH)]) == 0
     out = capsys.readouterr().out
-    assert "'Madrid, Comunidad de. Vivienda de segunda mano. Índice.'" in out
-    assert "puntos leídos: 30 (2024T1 … 2026T2) · a insertar: 30" in out
-    assert "factor 2025 → 2026T2: ×1.1220" in out and "[dry-run]" in out
+    assert "formato csv" in out and "'13 Madrid, Comunidad de / Vivienda segunda mano / Índice'" in out
+    assert "puntos leídos: 18 (2025T1 … 2026T2) · a insertar: 18" in out
+    assert "factor 2025 → 2026T2: ×1.1265" in out and "[dry-run]" in out
     assert counts(db) == (0, 0)
+
+
+@requires_test_db
+def test_script_dry_run_con_un_json_de_tempus(db, tmp_path, capsys):
+    from scripts import load_ipv
+    path = tmp_path / "tempus.json"
+    path.write_bytes(as_bytes(tempus_payload()))
+    assert load_ipv.main(["--file", str(path)]) == 0
+    out = capsys.readouterr().out
+    assert "formato json" in out and "Total Nacional. 13 Madrid, Comunidad de. Vivienda segunda mano. Índice." in out
+    assert "×1.1265" in out and counts(db) == (0, 0)
 
 
 @requires_test_db
@@ -513,22 +611,22 @@ def test_script_confirm_escribe_y_la_segunda_vez_no_hace_nada(db, capsys):
     assert load_ipv.main(["--file", str(SAMPLE_PATH), "--confirm"]) == 0
     assert "OK: carga #" in capsys.readouterr().out
     db.expire_all()
-    assert counts(db) == (1, 30)
+    assert counts(db) == (1, 18)
     assert load_ipv.main(["--file", str(SAMPLE_PATH), "--confirm"]) == 0
     assert "ya importado" in capsys.readouterr().out
     db.expire_all()
-    assert counts(db) == (1, 30)
+    assert counts(db) == (1, 18)
 
 
 @requires_test_db
-def test_script_desde_la_api_usa_el_cliente_inyectado(db, capsys):
+def test_script_desde_la_api_pide_la_tabla_79563(db):
     from scripts import load_ipv
-    http = FakeHttp(FakeResponse(content=SAMPLE))
-    assert load_ipv.main(["--table", "25171", "--nult", "10", "--confirm"], http=http) == 0
-    assert http.calls[0][0].endswith("/DATOS_TABLA/25171") and http.calls[0][1]["params"] == {"nult": 10}
+    http = FakeHttp(FakeResponse(content=as_bytes(tempus_payload())))
+    assert load_ipv.main(["--nult", "10", "--confirm"], http=http) == 0
+    assert http.calls[0][0].endswith("/DATOS_TABLA/79563") and http.calls[0][1]["params"] == {"nult": 10}
     db.expire_all()
     from backend.models.market import MarketImport
-    assert db.query(MarketImport).one().file_name == "tempus:25171"
+    assert db.query(MarketImport).one().file_name == "tempus:79563"
 
 
 @requires_test_db
@@ -544,19 +642,23 @@ def test_script_si_la_api_falla_no_escribe_y_sale_con_error(db, capsys):
 @requires_test_db
 def test_script_con_archivos_invalidos(db, tmp_path, capsys):
     from scripts import load_ipv
-    nothing = tmp_path / "otra_region.json"
-    nothing.write_text(json.dumps([serie("Cataluña. General. Índice.", [quarter_item(2025, 1, 100.0)])]))
+    other_region = tmp_path / "cataluna.csv"
+    other_region.write_bytes(csv_text(madrid_row("General", "2025T1", "100,0", region="09 Cataluña")))
     broken = tmp_path / "roto.json"
     broken.write_text("{no es json")
-    assert load_ipv.main(["--file", str(nothing), "--confirm"]) == load_ipv.EXIT_BAD_INPUT
-    assert "ninguna serie de índice" in capsys.readouterr().out
+    assert load_ipv.main(["--file", str(other_region), "--confirm"]) == load_ipv.EXIT_BAD_INPUT
+    assert "no hay filas de índice de la Comunidad de Madrid" in capsys.readouterr().out
     assert load_ipv.main(["--file", str(broken)]) == load_ipv.EXIT_BAD_INPUT
-    assert load_ipv.main(["--file", str(tmp_path / "no_existe.json")]) == load_ipv.EXIT_BAD_INPUT
+    assert load_ipv.main(["--file", str(tmp_path / "no_existe.csv")]) == load_ipv.EXIT_BAD_INPUT
     assert counts(db) == (0, 0)
 
 
-def test_el_fixture_no_cambia_por_accidente():
-    """Los números de los tests de arriba dependen de este archivo."""
-    payload = sample_payload()
-    assert len(payload) == 9 and sum(1 for s in payload if classify_series(s["Nombre"])) == 3
-    assert deepcopy(payload) == payload
+# ── El archivo real de data/raw ────────────────────────────────────────────────
+
+@requires_test_db
+@pytest.mark.skipif(not REAL_PATH.exists(), reason="data/raw/79563.csv no está")
+def test_con_el_archivo_real_el_factor_de_madrid_segunda_mano_es_1_1265(db):
+    import_ipv(db, REAL_PATH.read_bytes(), "79563.csv")
+    rf = rollforward_factor(db, 2025)
+    assert (rf.hasta, rf.series) == ("2026T2", "segunda_mano")
+    assert round(rf.factor, 4) == 1.1265

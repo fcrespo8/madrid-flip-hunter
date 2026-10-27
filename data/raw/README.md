@@ -58,3 +58,26 @@ Los nombres de barrio son los oficiales y **no coinciden siempre con los que usa
 "Palos de la Frontera" (portales: "Palos de Moguer"), "Ángeles" ("Los Ángeles"), "La Concepción" ("Concepción"),
 "San Blas-Canillejas" ("San Blas"), "Villaverde Alto, Casco Histórico de Villaverde" ("San Andrés").
 Resolverlos es el trabajo de la tabla de alias (ver `docs/market_prices_design.md`).
+
+## 79563.csv
+
+Índice de precios de vivienda (IPV) del INE, trimestral, **base 2025 = 100**, por comunidad autónoma: tabla **79563** de
+INE Base ("Índices de Precios de Vivienda: índices por comunidades autónomas"). Sirve para actualizar el precio registral
+de un año a hoy (`backend/market/rollforward.py`). La tabla 25171 es base 2015 y termina en 2025T4: no se usa.
+
+| | |
+|---|---|
+| **Fuente** | INE (Instituto Nacional de Estadística), IPV. Los datos del INE se pueden reutilizar citando la fuente. |
+| **Fecha del archivo** | 2026-10-27 (fecha del archivo en el repo). Períodos: 2025T1–2026T2. |
+| **Tamaño / sha256** | 2.252 bytes · `0249739409bac9efca7e7a0292f0563a2034794b6e69e2034793e7bc841d325c` |
+
+Formato: **cp1252** (la "Í" de "Índice" es el byte `0xCD`; no es UTF-8), separador `;`, finales de línea `\r\n`, decimales con
+coma (`112,649`). Cabecera:
+`Total Nacional;Comunidades y Ciudades Autónomas;General, vivienda nueva y de segunda mano;Índices y tasas;Periodo;Total`.
+Las filas con la comunidad vacía son el total nacional; la de Madrid es `13 Madrid, Comunidad de`. Series: `General`,
+`Vivienda nueva`, `Vivienda segunda mano`; tipo `Índice`. Un trimestre sin publicar vendría vacío o como `..`.
+
+Valor de referencia: Madrid, vivienda de segunda mano, 2025 (promedio de sus cuatro trimestres) = 100,0 y 2026T2 = 112,649,
+es decir un factor 2025 → 2026T2 de **1,12649**.
+
+Cargar: `poetry run python -m scripts.load_ipv --file data/raw/79563.csv` (dry-run; `--confirm` escribe).
