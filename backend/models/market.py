@@ -69,3 +69,25 @@ class MarketIndex(Base):
         Index("ix_market_indices_lookup", "source", "geography", "series", "period_end"),
         Index("ix_market_indices_import_id", "import_id"),
     )
+
+
+class ZoneIndicator(Base):
+    """Un indicador descriptivo de una zona (renta, paro, antigüedad del parque...) para un año, según una carga.
+    Solo se insertan filas: si una edición nueva revisa un valor, se agrega la versión nueva y la más reciente vale.
+    Las zonas sin dato no tienen fila. Diseño del RAG: indicadores del Panel de indicadores de datos.madrid.es."""
+    __tablename__ = "zone_indicators"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    zone_id: Mapped[int] = mapped_column(ForeignKey("zones.id"), nullable=False)
+    indicator: Mapped[str] = mapped_column(String(40), nullable=False)        # clave estable, ej. renta_neta_hogar
+    year: Mapped[int] = mapped_column(Integer, nullable=False)
+    value: Mapped[float] = mapped_column(Float, nullable=False)
+    unit: Mapped[str] = mapped_column(String(30), nullable=False)
+    import_id: Mapped[int] = mapped_column(ForeignKey("market_imports.id"), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("zone_id", "indicator", "year", "import_id", name="uq_zone_indicators_zone_indicator_year_import"),
+        CheckConstraint("year BETWEEN 1900 AND 2100", name="ck_zone_indicators_year"),
+        Index("ix_zone_indicators_zone_indicator_year", "zone_id", "indicator", "year"),
+        Index("ix_zone_indicators_import_id", "import_id"),
+    )
